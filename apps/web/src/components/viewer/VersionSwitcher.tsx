@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Layers, Pencil, Plus, Star, Tag, Trash2, Upload } from 'lucide-react'
 import { LayoutGroup, motion } from 'motion/react'
 import { useId, useRef, useState } from 'react'
-import { uploadVersion } from '@/data/media'
+import { acceptForKind, uploadVersion } from '@/data/media'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
@@ -128,7 +128,7 @@ export function VersionSwitcher({
           ref={file}
           type="file"
           hidden
-          accept={media.kind === 'image' ? 'image/*' : media.kind === 'video' ? 'video/*' : undefined}
+          accept={acceptForKind(media.kind)}
           onChange={(e) => {
             const f = e.target.files?.[0]
             e.target.value = ''
@@ -668,7 +668,7 @@ export function NewVersionDialog({
         ref={file}
         type="file"
         hidden
-        accept={media.kind === 'image' ? 'image/*' : media.kind === 'video' ? 'video/*' : undefined}
+        accept={acceptForKind(media.kind)}
         onChange={(e) => {
           const f = e.target.files?.[0]
           e.target.value = ''

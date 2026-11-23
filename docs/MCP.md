@@ -30,6 +30,11 @@ sends usage instructions on connect and exposes the editor guide as the resource
 - **`comments_resolve`** — Mark a comment (change request) as done once it has been addressed, or reopen it with done=false.
 - **`comments_view`** _(read-only)_ — Shows the frame a comment refers to with the pinned spot, box and drawing marked on it, so you can see exactly what the reviewer means.
 
+## design
+
+- **`design_export_frames`** — Export frames of a FigCraft design as new media items (pictures, or PDF) in the same project, each linked to the design as "Rendered from". `frames` are frame ids from design_info; default: every frame of the first page. Needs figcraft-cli on the server.
+- **`design_info`** _(read-only)_ — What a FigCraft design (a media item of kind "design") holds: its pages, the top-level frames on each (id, name, size), the fonts its text uses and counts of layers, components, styles and variables.
+
 ## editor
 
 - **`editor_add_media`** — Add library media to an editing project: creates the asset and (unless asClip=false) a clip. For video/audio, duration defaults to the source length from `in`; images default to 5 s. Visual clips go on a new top track unless trackId is given.
@@ -64,7 +69,7 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 - **`media_get`** _(read-only)_ — Everything about one media item: notes, tags, formats with sizes and URLs, places, counts.
 - **`media_import`** — Add a file to the library from a path on the Greenlit machine or from a URL. With mediaId it becomes a new format (formatKey e.g. "vertical", "square") or a new file version of that media item.
-- **`media_search`** _(read-only)_ — Search the library. q understands words, "phrases", #tag, kind:video|image|audio, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.
+- **`media_search`** _(read-only)_ — Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.
 - **`media_trash`** _(careful)_ — Move media items to the trash (they can be restored).
 - **`media_update`** — Change a media item: title, description (notes), tags (replaces the list), status, projectId. Every change is versioned.
 - **`media_view`** _(read-only)_ — Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it.

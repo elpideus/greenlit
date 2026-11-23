@@ -31,9 +31,17 @@ export const ArchivePolicy = z.object({
       image: ArchiveStrategy.default('jxl'),
       audio: ArchiveStrategy.default('flac'),
       document: ArchiveStrategy.default('lossless'),
+      design: ArchiveStrategy.default('lossless'),
       other: ArchiveStrategy.default('lossless'),
     })
-    .default({ video: 'av1', image: 'jxl', audio: 'flac', document: 'lossless', other: 'lossless' }),
+    .default({
+      video: 'av1',
+      image: 'jxl',
+      audio: 'flac',
+      document: 'lossless',
+      design: 'lossless',
+      other: 'lossless',
+    }),
   /** Keep editing proxies of archived videos so they still play in the browser. */
   keepPreviews: z.boolean().default(true),
   /** Media used by a post scheduled in the future is never archived. */

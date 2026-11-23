@@ -8,6 +8,17 @@ ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=1
 RUN npm install -g pnpm@12.21.0 >/dev/null 2>&1 || corepack enable
 WORKDIR /app
 
+# ── FigCraft (MIT OR Apache-2.0): its browser build, which the viewer frames to show and edit design files, and
+#    figcraft-cli, which renders their thumbnails and exports frames. Pinned release files, checked by SHA-256
+#    (apps/server/src/modules/figcraft/install.ts). ─────────────────────────────────────────────────────────────
+FROM base AS figcraft
+COPY apps/server/package.json apps/server/
+COPY apps/server/src/core/static.ts apps/server/src/core/
+COPY apps/server/src/lib/zip.ts apps/server/src/lib/
+COPY apps/server/src/modules/figcraft/webapp.ts apps/server/src/modules/figcraft/install.ts apps/server/src/modules/figcraft/
+RUN node apps/server/src/modules/figcraft/install.ts web /opt/figcraft/web \
+    && node apps/server/src/modules/figcraft/install.ts cli /opt/figcraft/bin
+
 # ── dependencies (cached separately from the source) ────────────────────────
 FROM base AS deps
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -34,6 +45,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg chromium libjxl-tools poppler-utils adb tini ca-certificates \
       fonts-noto-core fonts-noto-color-emoji fonts-liberation2 \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=figcraft /opt/figcraft /opt/figcraft
+ENV GREENLIT_FIGCRAFT_WEB_DIR=/opt/figcraft/web \
+    GREENLIT_FIGCRAFT_CLI=/opt/figcraft/bin/figcraft-cli
 
 # ── development container ────────────────────────────────────────────────────
 FROM tools AS dev

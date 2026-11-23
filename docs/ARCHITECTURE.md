@@ -94,22 +94,23 @@ hooks, `components/` and the API. Delete a folder and the app still builds; its 
 `<Slot name props />` renders every entry features registered for `name`; `useSlot(name, props)` returns them (for
 tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 
-| Slot                     | Props                         | Rendered as                                                                        |
-| ------------------------ | ----------------------------- | ---------------------------------------------------------------------------------- |
-| `nav.badge.<navId>`      | `{}`                          | a count next to a top-bar item                                                     |
-| `palette.results`        | `{ query, go }`               | `<Command.Group>` of live results in ⌘K                                            |
-| `library.toolbar`        | `{ projectId }`               | extra buttons in the library toolbar                                               |
-| `media.bulk`             | `{ ids, items, clear }`       | buttons in the floating bulk bar                                                   |
-| `media.panels`           | `{ media, format }`           | tabs of the viewer's side panel (`label`, `icon` required)                         |
-| `media.info.sections`    | `{ media }`                   | sections in the viewer's Info tab                                                  |
-| `media.viewer.tools`     | `{ media, format }`           | buttons in the viewer's top bar                                                    |
-| `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect) |
-| `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                        |
-| `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                |
-| `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`)                                           |
-| `project.about.sections` | `{ project }`                 | sections in a project's About tab                                                  |
-| `composition.panels`     | `{ composition }`             | tabs in the editor's right panel                                                   |
-| `post.panels`            | `{ post }`                    | tabs in the post composer's side panel                                             |
+| Slot                     | Props                         | Rendered as                                                                            |
+| ------------------------ | ----------------------------- | -------------------------------------------------------------------------------------- |
+| `nav.badge.<navId>`      | `{}`                          | a count next to a top-bar item                                                         |
+| `palette.results`        | `{ query, go }`               | `<Command.Group>` of live results in ⌘K                                                |
+| `library.toolbar`        | `{ projectId }`               | extra buttons in the library toolbar                                                   |
+| `media.bulk`             | `{ ids, items, clear }`       | buttons in the floating bulk bar                                                       |
+| `media.panels`           | `{ media, format }`           | tabs of the viewer's side panel (`label`, `icon` required)                             |
+| `media.info.sections`    | `{ media }`                   | sections in the viewer's Info tab                                                      |
+| `media.viewer.tools`     | `{ media, format }`           | buttons in the viewer's top bar                                                        |
+| `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect)     |
+| `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (FigCraft designs); first match wins |
+| `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                            |
+| `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                    |
+| `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`)                                               |
+| `project.about.sections` | `{ project }`                 | sections in a project's About tab                                                      |
+| `composition.panels`     | `{ composition }`             | tabs in the editor's right panel                                                       |
+| `post.panels`            | `{ post }`                    | tabs in the post composer's side panel                                                 |
 
 ### Menus
 

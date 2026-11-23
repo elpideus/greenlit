@@ -92,6 +92,14 @@ export function primaryFormat(m: WithFormats, version?: string | null): MediaFor
   return fs.find((f) => f.isPrimary) ?? fs[0]
 }
 
+/** What a file picker offers for another file of an item of this kind (a new version, shape or file version). */
+export function acceptForKind(kind: string) {
+  if (kind === 'image') return 'image/*'
+  if (kind === 'video') return 'video/*'
+  if (kind === 'design') return '.figcraft'
+  return undefined
+}
+
 /** A format of the main version (or of `version`) by key; the version's main format when it has none. */
 export function formatByKey(m: WithFormats, key: string | null | undefined, version?: string | null) {
   return (key && formatsOfVersion(m, version).find((f) => f.key === key)) || primaryFormat(m, version)

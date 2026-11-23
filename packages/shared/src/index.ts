@@ -4,6 +4,7 @@
 
 export * from './areas/comments.ts'
 export * from './areas/connectors.ts'
+export * from './areas/designs.ts'
 export * from './areas/files.ts'
 export * from './areas/links.ts'
 export * from './areas/media.ts'

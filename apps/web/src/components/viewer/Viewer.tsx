@@ -266,7 +266,9 @@ export function Viewer({
     const ratio =
       format.width && format.height && (format.kind === 'video' || format.kind === 'image')
         ? format.width / format.height
-        : 16 / 9
+        : format.kind === 'design'
+          ? 4 / 5
+          : 16 / 9
     return (
       <div className="flex min-h-full flex-col bg-canvas">
         <div ref={column} className="force-dark flex shrink-0 flex-col bg-stage" style={stageVars}>

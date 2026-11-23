@@ -32,10 +32,12 @@ export type UserRef = z.infer<typeof UserRef>
 export const FramePoint = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
 export type FramePoint = z.infer<typeof FramePoint>
 
-export const MediaKind = z.enum(['video', 'image', 'audio', 'document', 'other'])
+/** `design`: a design document (FigCraft), shown live in the viewer. */
+export const MediaKind = z.enum(['video', 'image', 'audio', 'document', 'design', 'other'])
 export type MediaKind = z.infer<typeof MediaKind>
 
 export function mediaKindFromMime(mime: string): MediaKind {
+  if (mime === 'application/x-figcraft') return 'design'
   if (mime.startsWith('video/')) return 'video'
   if (mime.startsWith('image/')) return 'image'
   if (mime.startsWith('audio/')) return 'audio'

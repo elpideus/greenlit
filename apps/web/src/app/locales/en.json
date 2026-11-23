@@ -39,6 +39,7 @@
     "image": "Picture",
     "audio": "Audio",
     "document": "Document",
+    "design": "Design",
     "other": "File"
   },
   "role": { "admin": "Admin", "reviewer": "Reviewer" },

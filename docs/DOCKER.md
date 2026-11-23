@@ -64,6 +64,17 @@ and the unprivileged `node` user, so files it writes stay yours. Add `--profile 
 (adb on 127.0.0.1:15037; on the host run `GREENLIT_ANDROID_ADB=127.0.0.1:15037 pnpm dev`). Both compose files run the
 same Android service (`docker/android/compose.yaml`).
 
+## Design files (FigCraft)
+
+The image carries FigCraft 0.18.1 (MIT OR Apache-2.0), unmodified and checked by SHA-256 when it is built
+(`apps/server/src/modules/figcraft/install.ts`): its browser build in `/opt/figcraft/web`, which the viewer frames to
+show and edit `.figcraft` files, and `figcraft-cli` in `/opt/figcraft/bin`, which renders their thumbnails and exports
+frames. Their licences sit beside them. Outside Docker the server fetches the same browser build into
+`DATA_DIR/vendor/` on its first start, and uses `figcraft-cli` from `GREENLIT_FIGCRAFT_CLI` or the `PATH` if there is
+one (without it, thumbnails come from the small preview inside each file). Fonts added in Settings → Design fonts live
+with the data (`DATA_DIR/figcraft/fonts`); the renderer sees only those and FigCraft's built-in ones, never the
+computer's.
+
 ## Cloudflare Tunnel
 
 1. In Cloudflare (Zero Trust → Networks → Tunnels) create a tunnel of the _Cloudflared_ kind and copy its token

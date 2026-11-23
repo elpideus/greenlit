@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Download, Layers, Pencil, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { LayoutGroup, motion } from 'motion/react'
 import { useId, useRef, useState } from 'react'
-import { uploadMedia } from '@/data/media'
+import { acceptForKind, uploadMedia } from '@/data/media'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
@@ -214,7 +214,7 @@ export function FormatSwitcher({
           ref={file}
           type="file"
           hidden
-          accept={media.kind === 'image' ? 'image/*' : media.kind === 'video' ? 'video/*' : undefined}
+          accept={acceptForKind(media.kind)}
           onChange={(e) => {
             const files = [...(e.target.files ?? [])]
             e.target.value = ''

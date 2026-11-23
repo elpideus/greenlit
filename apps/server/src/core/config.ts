@@ -29,6 +29,10 @@ const Env = z.object({
   /** Greenlit's Android device: its adb server (host:port), e.g. android:5037 in Docker. Unset = no device. */
   GREENLIT_ANDROID_ADB: z.string().optional(),
   GREENLIT_ADB: z.string().default('adb'),
+  /** The unpacked FigCraft browser build (the Docker image bakes it in); default DATA_DIR/vendor/figcraft-web-<v>. */
+  GREENLIT_FIGCRAFT_WEB_DIR: z.string().optional(),
+  /** figcraft-cli, for sharp design thumbnails and frame exports; default: `figcraft-cli` on the PATH, if any. */
+  GREENLIT_FIGCRAFT_CLI: z.string().optional(),
   GREENLIT_LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   GREENLIT_WORKERS: z.coerce.number().int().min(1).max(64).default(2),
   TZ: z.string().optional(),
@@ -71,6 +75,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     chromium: e.GREENLIT_CHROMIUM,
     androidAdb: e.GREENLIT_ANDROID_ADB || null,
     adb: e.GREENLIT_ADB,
+    figcraftWebDir: e.GREENLIT_FIGCRAFT_WEB_DIR ? resolve(e.GREENLIT_FIGCRAFT_WEB_DIR) : null,
+    figcraftCli: e.GREENLIT_FIGCRAFT_CLI || null,
     logLevel: e.GREENLIT_LOG_LEVEL,
     workers: e.GREENLIT_WORKERS,
     systemTimeZone: e.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',

@@ -1,12 +1,19 @@
 import type { Media, MediaFormat } from '@greenlit/shared'
-import { AudioLines, File as FileIcon, FileText, Image as ImageIcon, Video } from 'lucide-react'
+import { AudioLines, File as FileIcon, FileText, Image as ImageIcon, PenTool, Video } from 'lucide-react'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { loadSprite, primaryFormat, type SpriteInfo } from '@/data/media'
 import { cn } from '@/lib/cn'
 import { formatDuration } from '@/lib/format'
 import { ProgressRing } from '@/ui'
 
-const KIND_ICON = { video: Video, image: ImageIcon, audio: AudioLines, document: FileText, other: FileIcon }
+const KIND_ICON = {
+  video: Video,
+  image: ImageIcon,
+  audio: AudioLines,
+  document: FileText,
+  design: PenTool,
+  other: FileIcon,
+}
 
 /**
  * A media frame: the thumbnail on the stage colour, fitted (`contain`, nothing cropped) or filled (`cover`).
@@ -117,6 +124,12 @@ export function MediaThumb({
       {showDuration && f?.duration ? (
         <span className="force-dark absolute right-1.5 bottom-1.5 rounded-[5px] bg-black/55 px-1.5 py-px t-meta text-[11px] text-white/95 backdrop-blur-md">
           {pos !== null && sprite ? formatDuration(pos * f.duration) : formatDuration(f.duration)}
+        </span>
+      ) : null}
+      {/* A design document's corner mark: its pictures (exports) look the same otherwise. */}
+      {showDuration && media.kind === 'design' && thumb && !failed ? (
+        <span className="force-dark absolute right-1.5 bottom-1.5 grid size-[22px] place-items-center rounded-[5px] bg-black/55 text-white/95 backdrop-blur-md">
+          <PenTool size={12} strokeWidth={1.75} />
         </span>
       ) : null}
     </div>

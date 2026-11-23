@@ -16,12 +16,13 @@ import { formatDateTime, formatRelative, useTimeZone } from '@/lib/time'
 import { Button, confirm, Input, ProgressBar, Segmented, Select, Skeleton, Tally, Toggle, toast } from '@/ui'
 
 type Kind = keyof ArchivePolicy['strategies']
-const KINDS: Kind[] = ['video', 'image', 'audio', 'document', 'other']
+const KINDS: Kind[] = ['video', 'image', 'audio', 'document', 'design', 'other']
 const OPTIONS: Record<Kind, ArchiveStrategy[]> = {
   video: ['av1', 'lossless', 'none'],
   image: ['jxl', 'lossless', 'none'],
   audio: ['flac', 'lossless', 'none'],
   document: ['lossless', 'none'],
+  design: ['lossless', 'none'],
   other: ['lossless', 'none'],
 }
 const TOOL: Partial<Record<ArchiveStrategy, 'av1' | 'jxl' | 'flac' | 'zstd'>> = {

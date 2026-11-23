@@ -18,6 +18,10 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
   that a post can use in place of the video's own sound. Thumbnails, hover-scrub previews,
   waveforms, EXIF dates and places are made automatically. Token search (`status:`, `kind:`, `#tag`, `project:`),
   drag-select, bulk actions, drop-to-upload, right-click menus on everything.
+- **Designs** — FigCraft files (`.figcraft`) are items like any other: a sharp thumbnail, their pages, frames and
+  fonts in Info, and the file open live in [FigCraft](https://github.com/storytold/figcraft) right in the viewer (View,
+  or Edit with FigCraft's own tools; Save keeps every earlier file version). Frames export to pictures in the project,
+  and Settings → Design fonts holds the brand fonts designs need.
 - **Review** — reviewers click a spot of the frame (or drag an area) at an exact moment of the video to leave a note,
   attach library media, files or pasted pictures, and greenlight or ask for changes as a checklist. Admins mark notes
   done, send work for review, approve it themselves, and can hide items from specific reviewers.
@@ -100,3 +104,6 @@ Copyright © 2026 the Greenlit contributors.
 Greenlit is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
 License as published by the Free Software Foundation, either **version 3 of the License, or (at your option) any
 later version**. See [LICENSE](LICENSE).
+
+The Docker image includes [FigCraft](https://github.com/storytold/figcraft)'s browser build and `figcraft-cli`
+(MIT OR Apache-2.0, with fonts under the SIL Open Font License), unmodified, with their licences in `/opt/figcraft`.

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, open, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { mediaKindFromMime } from '@greenlit/shared'
+import { type MediaKind, mediaKindFromMime } from '@greenlit/shared'
 import { eq } from 'drizzle-orm'
 import exifr from 'exifr'
 import sharp, { type Metadata } from 'sharp'
@@ -10,6 +10,28 @@ import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import { ffmpeg, ffmpegBin, HDR_TO_SDR, isHdr, type ProbeResult, probe } from '../../lib/ffmpeg.ts'
 import { media, mediaFormats } from './schema.ts'
+
+declare module '../../core/hooks.ts' {
+  interface Hooks {
+    /**
+     * A file the media module can't read itself (a design document...): the module that knows the format makes the
+     * derived files in `out` (thumb.webp, poster.webp and its own) and says what it found; others answer undefined.
+     */
+    'media.processFile': {
+      args: { src: string; out: string; mime: string; filename: string; signal: AbortSignal }
+      result: ProcessedFile | undefined
+    }
+  }
+}
+
+export interface ProcessedFile {
+  kind?: MediaKind
+  width?: number | null
+  height?: number | null
+  /** Names of the files written to `out`. */
+  derived: string[]
+  meta?: Record<string, unknown>
+}
 
 const SPRITE_COLS = 10
 const SPRITE_W = 192
@@ -88,6 +110,14 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
       }
     } else if (format.mime === 'application/pdf') {
       derived.push(...(await processPdf(src, out)))
+    } else {
+      const args = { src, out, mime: format.mime, filename: format.filename, signal: job.signal }
+      const done = (await ctx.hooks.run('media.processFile', args)).find((r) => r)
+      if (done) {
+        if (done.kind) kind = done.kind
+        info = { width: done.width ?? null, height: done.height ?? null, meta: done.meta ?? {} }
+        derived.push(...done.derived)
+      }
     }
 
     await setState({

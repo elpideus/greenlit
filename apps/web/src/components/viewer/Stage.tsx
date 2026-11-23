@@ -1,7 +1,7 @@
 import type { Media, MediaFormat } from '@greenlit/shared'
 import { AudioLines, ExternalLink, FileText } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Slot } from '@/app/Slot'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Slot, useSlot } from '@/app/Slot'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { Button, ProgressRing } from '@/ui'
@@ -67,7 +67,9 @@ export function Stage({
   const natural = naturalOverride ?? { width: format.width ?? 1920, height: format.height ?? 1080 }
   const frame = fitRect(
     size,
-    format.kind === 'audio' || format.kind === 'document' ? { width: 16, height: 9 } : natural,
+    format.kind === 'audio' || format.kind === 'document' || format.kind === 'design'
+      ? { width: 16, height: 9 }
+      : natural,
     padding,
   )
   usePlayer(el, format.fps ?? 30)
@@ -110,12 +112,25 @@ export function Stage({
     ? format.urls.original
     : (format.urls.poster ?? format.urls.thumbnail)
 
+  // A feature that shows this kind of file itself (a design document in FigCraft) takes the whole stage.
+  const faces = useSlot('media.viewer.stage', { media, format })
+  const Face = faces[0]?.component
+
   const toggle = () => {
     const s = useViewer.getState()
     if (!s.controls) return
     if (s.playing) s.controls.pause()
     else s.controls.play()
   }
+
+  if (Face)
+    return (
+      <div ref={box} className="relative h-full w-full overflow-hidden bg-stage">
+        <Suspense fallback={null}>
+          <Face media={media} format={format} />
+        </Suspense>
+      </div>
+    )
 
   return (
     <div ref={box} className="relative h-full w-full overflow-hidden bg-stage select-none">
@@ -172,7 +187,7 @@ export function Stage({
           />
         )}
         {format.kind === 'audio' && <AudioFace format={format} onElement={setEl} />}
-        {(format.kind === 'document' || format.kind === 'other') && (
+        {(format.kind === 'document' || format.kind === 'design' || format.kind === 'other') && (
           <DocumentFace media={media} format={format} />
         )}
       </div>

@@ -41,6 +41,18 @@ const EXT_BY_MIME: Record<string, string> = Object.fromEntries(
   Object.entries(MIME).map(([ext, mime]) => [mime.split(';')[0], ext]),
 )
 
+/**
+ * The type a file is stored with: what the uploader said, unless that says nothing (browsers send no type for
+ * extensions the computer doesn't know, `.figcraft` for one) and the extension does.
+ */
+export function mimeFor(given: string | null | undefined, filename: string) {
+  const mime = (given ?? '').trim()
+  if (mime && mime !== 'application/octet-stream') return mime
+  const dot = filename.lastIndexOf('.')
+  const byName = dot > 0 ? MIME[filename.slice(dot).toLowerCase()] : undefined
+  return byName?.split(';')[0] ?? 'application/octet-stream'
+}
+
 export class FilesService {
   readonly purposes = new Map<string, UploadPurposeDef>()
   readonly ctx: ModuleContext
@@ -89,7 +101,7 @@ export class FilesService {
       .values({
         id,
         size,
-        mime: info.mime || 'application/octet-stream',
+        mime: mimeFor(info.mime, info.filename),
         filename: info.filename.slice(0, 250) || 'file',
         path: rel,
         usage: info.usage ?? 'media',

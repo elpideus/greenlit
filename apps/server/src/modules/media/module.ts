@@ -679,7 +679,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'media_search',
       description:
-        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.',
+        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.',
       input: {
         q: z.string().optional(),
         projectId: z.uuid().optional(),

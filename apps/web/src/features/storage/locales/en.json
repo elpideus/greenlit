@@ -35,6 +35,7 @@
     "image": "Pictures",
     "audio": "Audio",
     "document": "Documents",
+    "design": "Designs",
     "other": "Other files"
   },
   "strategy": {

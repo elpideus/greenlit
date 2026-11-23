@@ -16,7 +16,7 @@ export interface Candidate {
   lastUsed: Date
 }
 
-const KINDS = new Set<MediaKind>(['video', 'image', 'audio', 'document', 'other'])
+const KINDS = new Set<MediaKind>(['video', 'image', 'audio', 'document', 'design', 'other'])
 
 /**
  * Hot media blobs old enough to archive. "Old" is measured from the last use we can see: the newest of the
@@ -95,6 +95,7 @@ export async function blobTotals(ctx: ModuleContext) {
       coalesce(
         (select f.kind from ${mediaFormats} f where f.blob_id = b.id limit 1),
         case
+          when b.mime = 'application/x-figcraft' then 'design'
           when b.mime like 'video/%' then 'video'
           when b.mime like 'image/%' then 'image'
           when b.mime like 'audio/%' then 'audio'

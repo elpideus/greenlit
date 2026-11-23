@@ -23,6 +23,7 @@ export const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.wasm': 'application/wasm',
   '.mp4': 'video/mp4',
+  '.figcraft': 'application/x-figcraft',
 }
 
 /** Serves the built web app; unknown paths fall back to index.html so client-side routes work. */

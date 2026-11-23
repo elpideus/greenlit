@@ -327,7 +327,7 @@ export class MediaService {
     const title =
       opts.title ??
       blob.filename
-        .replace(/\.[a-z0-9]{1,6}$/i, '')
+        .replace(/\.[a-z0-9]{1,8}$/i, '')
         .replace(/[_]+/g, ' ')
         .trim()
     const tags = cleanTags(opts.tags ?? [])
