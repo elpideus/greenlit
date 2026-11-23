@@ -36,6 +36,9 @@ services:
       - media:/data
     # Chromium (renders, platform sessions) needs more shared memory than Docker's default 64 MB.
     shm_size: 1gb
+    # Time to stop cleanly: background work gets 20 s to finish or be handed back for a retry (a depth map of a
+    # video cut off by an update starts again instead of waiting hours to time out). Docker's default is 10 s.
+    stop_grace_period: 40s
 
   db:
     image: postgres:18-trixie
