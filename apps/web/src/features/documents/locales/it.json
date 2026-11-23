@@ -1,0 +1,17 @@
+{
+  "reading": "Lettura",
+  "page": "Pagina",
+  "source": "Sorgente",
+  "plainText": "Testo semplice",
+  "lines_one": "{{count}} riga",
+  "lines_other": "{{count}} righe",
+  "legacyEncoding": "Windows-1252",
+  "wrap": "A capo",
+  "copy": "Copia il testo",
+  "copied": "Copiato",
+  "download": "Scarica",
+  "tooBig": "Questo file è troppo grande da mostrare qui ({{size}})",
+  "tooBigBody": "Scaricalo per aprirlo sul tuo computer.",
+  "binary": "Questo file non è testo",
+  "binaryBody": "Ha il nome di un file di testo ma contiene altro. Scaricalo per aprirlo con il programma giusto."
+}

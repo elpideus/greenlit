@@ -67,12 +67,16 @@ export function Stage({
   const format = shown
   const [naturalOverride, setNatural] = useState<{ width: number; height: number } | null>(null)
   const natural = naturalOverride ?? { width: format.width ?? 1920, height: format.height ?? 1080 }
+  // Documents (a PDF reads top to bottom) take the whole stage; audio and designs a 16:9 frame; the rest their shape.
+  const page = format.kind === 'document' || format.kind === 'other'
   const frame = fitRect(
     size,
-    format.kind === 'audio' || format.kind === 'document' || format.kind === 'design'
-      ? { width: 16, height: 9 }
-      : natural,
-    padding,
+    page
+      ? { width: 0, height: 0 }
+      : format.kind === 'audio' || format.kind === 'design'
+        ? { width: 16, height: 9 }
+        : natural,
+    page ? Math.min(padding, 16) : padding,
   )
   usePlayer(el, format.fps ?? 30)
   const trackKey = useViewer((s) => s.audioTrack)

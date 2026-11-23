@@ -2,6 +2,7 @@ import { type BrandKit, type BrandSection, formatBytes, type Project } from '@gr
 import { BookOpen, ChevronDown, Download, FolderUp, Pencil, Upload } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
+import { Markdown } from '@/components/Markdown'
 import { uploadMedia } from '@/data/media'
 import { cn } from '@/lib/cn'
 import { useFileDrop } from '@/lib/dom'
@@ -13,7 +14,6 @@ import { ArtworkGrid, DocumentRows, FileList, FrameGrid, useAssetActions } from 
 import { kitZipUrl, startDownload, useKit, useKitActions } from './api'
 import { ColorsSection } from './Colors'
 import { inkOn, primary, SECTION_ICON, sectionAnchor, surfaces } from './kit'
-import { Markdown } from './Markdown'
 import { TypeSection } from './Type'
 
 /**

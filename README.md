@@ -18,6 +18,9 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
   that a post can use in place of the video's own sound. Thumbnails, hover-scrub previews,
   waveforms, EXIF dates and places are made automatically. Token search (`status:`, `kind:`, `#tag`, `project:`),
   drag-select, bulk actions, drop-to-upload, right-click menus on everything.
+- **Text files** — code opens in the viewer with syntax highlighting (Python, JavaScript/TypeScript, JSON, CSS,
+  HTML, XML, YAML, SQL, shell and about twenty more), line numbers, folding and search; Markdown reads as a page and
+  HTML draws as one (its scripts don't run), each with its source a click away. PDFs fill the viewer.
 - **Designs** — FigCraft files (`.figcraft`) are items like any other: a sharp thumbnail, their pages, frames and
   fonts in Info, and the file open live in [FigCraft](https://github.com/storytold/figcraft) right in the viewer (View,
   or Edit with FigCraft's own tools; Save keeps every earlier file version). Frames export to pictures in the project,

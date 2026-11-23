@@ -1,0 +1,17 @@
+{
+  "reading": "Reading",
+  "page": "Page",
+  "source": "Source",
+  "plainText": "Plain text",
+  "lines_one": "{{count}} line",
+  "lines_other": "{{count}} lines",
+  "legacyEncoding": "Windows-1252",
+  "wrap": "Wrap lines",
+  "copy": "Copy the text",
+  "copied": "Copied",
+  "download": "Download",
+  "tooBig": "This file is too big to show here ({{size}})",
+  "tooBigBody": "Download it to open it on your computer.",
+  "binary": "This file isn’t text",
+  "binaryBody": "It has a text file’s name but holds something else. Download it to open it with the program it belongs to."
+}

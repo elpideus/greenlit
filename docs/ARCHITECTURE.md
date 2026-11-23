@@ -104,7 +104,7 @@ tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 | `media.info.sections`    | `{ media }`                   | sections in the viewer's Info tab                                                      |
 | `media.viewer.tools`     | `{ media, format }`           | buttons in the viewer's top bar                                                        |
 | `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect)     |
-| `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (FigCraft designs); first match wins |
+| `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (designs, text files); first wins    |
 | `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                            |
 | `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                    |
 | `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`); `order < 0` = before Media, the first opens  |

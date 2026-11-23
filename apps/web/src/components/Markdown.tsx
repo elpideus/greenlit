@@ -3,8 +3,9 @@ import { createElement, Fragment, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 /**
- * The Markdown kits write their READMEs in: headings, paragraphs, lists, tables, quotes, code, rules, bold, italic,
- * inline code and links. Rendered as React elements (never as HTML), so a kit's file can't inject anything.
+ * Markdown as READMEs and notes write it: headings, paragraphs, lists, tables, quotes, code, rules, bold, italic,
+ * inline code, links and pictures. Rendered as React elements (never as HTML), so a file can't inject anything.
+ * Used for Markdown files in the viewer and brand kits' guides.
  */
 export function Markdown({ source, className }: { source: string; className?: string }) {
   return <div className={cn('gl-md', className)}>{blocks(source)}</div>
@@ -186,7 +187,7 @@ function blocks(src: string): ReactNode {
 
 // Underscores only emphasise whole words, so file names (GEM_Luce.cube) stay as written.
 const INLINE =
-  /(\*\*[^*]+\*\*|(?<!\w)__[^_]+__(?!\w)|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\*[^*\s][^*]*\*|(?<!\w)_[^_\s][^_]*_(?!\w))/g
+  /(!\[[^\]]*\]\([^)\s]+\)|\*\*[^*]+\*\*|(?<!\w)__[^_]+__(?!\w)|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\*[^*\s][^*]*\*|(?<!\w)_[^_\s][^_]*_(?!\w))/g
 
 function inline(text: string): ReactNode {
   const parts = text.split(INLINE)
@@ -205,6 +206,12 @@ function inline(text: string): ReactNode {
           {p.slice(1, -1)}
         </code>
       )
+    const pic = p.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/)
+    if (pic) {
+      // Only pictures on the web or in Greenlit; a path next to the file means nothing here.
+      if (!/^(https?:|\/api\/)/i.test(pic[2]!)) return <Fragment key={key}>{pic[1]}</Fragment>
+      return <img key={key} src={pic[2]} alt={pic[1]} className="my-2 inline-block max-w-full rounded-tile" />
+    }
     const link = p.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/)
     if (link) {
       const href = link[2]!
