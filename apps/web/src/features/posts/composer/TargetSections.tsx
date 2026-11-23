@@ -1,5 +1,5 @@
 import { pickBestFormat } from '@greenlit/platforms'
-import type { PostTarget } from '@greenlit/shared'
+import { findVersion, nearestVersion, type PostTarget } from '@greenlit/shared'
 import { CalendarClock, ExternalLink, Image as ImageIcon, MapPin, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { DateTimePanel } from '@/components/DateTimeField'
@@ -250,28 +250,23 @@ export function FormatsSection({ target }: { target: DraftTarget }) {
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <span className="truncate pt-2 t-callout text-ink">{m.title}</span>
                 <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
-                  {m.versions.length > 1 && (
-                    <>
-                      <span className="t-caption text-ink-3">{t('composer.version')}</span>
-                      <Select
-                        value={versionValue}
+                  {m.versions.length > 1 &&
+                    m.versionGroups.map((g) => (
+                      <VersionChoice
+                        key={g.key}
+                        item={m}
+                        group={g}
+                        version={versionValue === '__main' ? '' : versionValue}
                         disabled={!c.editable}
-                        onChange={(v) =>
+                        onChange={(key) =>
                           c.updateTarget(target.key, {
-                            versions:
-                              v === '__main'
-                                ? without(target.versions, m.mediaId)
-                                : { ...target.versions, [m.mediaId]: v },
+                            versions: key
+                              ? { ...target.versions, [m.mediaId]: key }
+                              : without(target.versions, m.mediaId),
                           })
                         }
-                        options={m.versions.map((v) => ({
-                          value: v.key || '__main',
-                          label: v.label,
-                          hint: v.key ? undefined : t('composer.mainVersion'),
-                        }))}
                       />
-                    </>
-                  )}
+                    ))}
                   {formats.length > 1 && (
                     <>
                       <span className="t-caption text-ink-3">{t('composer.shape')}</span>
@@ -337,6 +332,53 @@ export function FormatsSection({ target }: { target: DraftTarget }) {
   )
 }
 const item = <T,>(formats: T[], i: number) => formats[Math.max(0, i)]
+
+/**
+ * One of the things an item's versions differ in (Language, Watermark), as a choice. Picking an option whose
+ * combination with the other choices doesn't exist takes the nearest version that has it (its hint says which).
+ */
+function VersionChoice({
+  item: m,
+  group,
+  version,
+  disabled,
+  onChange,
+}: {
+  item: PostMediaItem
+  group: PostMediaItem['versionGroups'][number]
+  version: string
+  disabled: boolean
+  onChange: (key: string) => void
+}) {
+  const t = useT('posts')
+  const current = m.versions.find((v) => v.key === version) ?? m.versions[0]
+  if (!current) return null
+  const targetOf = (option: string) =>
+    findVersion(m.versions, { ...current.values, [group.key]: option }) ??
+    nearestVersion(m.versions, m.versionGroups, current.values, group.key, option)
+  return (
+    <>
+      <span className="t-caption text-ink-3">{group.label || t('composer.version')}</span>
+      <Select
+        value={current.values[group.key] ?? null}
+        disabled={disabled}
+        onChange={(option) => {
+          const next = targetOf(option)
+          if (next) onChange(next.key)
+        }}
+        options={group.options.map((o, i) => {
+          const exact = findVersion(m.versions, { ...current.values, [group.key]: o.key })
+          const next = exact ?? targetOf(o.key)
+          return {
+            value: o.key,
+            label: o.label,
+            hint: !exact && next ? `→ ${next.label}` : i === 0 ? t('composer.mainVersion') : undefined,
+          }
+        })}
+      />
+    </>
+  )
+}
 
 /** The cover: the platform's choice, a frame of the video, or a picture from the library. */
 export function CoverSection({ target }: { target: DraftTarget }) {

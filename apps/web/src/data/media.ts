@@ -2,6 +2,7 @@ import {
   type Media,
   type MediaFormat,
   type MediaListQuery,
+  type NewVersionInput,
   type UpdateMediaInput,
   versionFormats,
 } from '@greenlit/shared'
@@ -105,21 +106,8 @@ export function versionLabel(m: Pick<Media, 'versions'>, version: string | null 
   return m.versions.find((v) => v.key === (version ?? ''))?.label ?? ''
 }
 
-/** A URL-safe key for a new version or audio track: from its name, never `main`, never one already taken. */
-export function keyFor(name: string, taken: Iterable<string>, fallback: string) {
-  const base =
-    name
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 34) || fallback
-  const used = new Set(taken)
-  used.add('main')
-  let key = base
-  for (let i = 2; used.has(key); i++) key = `${base}-${i}`
-  return key
-}
+/** A URL-safe key for a new audio track: from its name, never `main`, never one already taken. */
+export { keyFor } from '@greenlit/shared'
 
 /** Sprite sheet layout for hover-scrubbing (next to sprite.jpg). */
 export interface SpriteInfo {
@@ -143,27 +131,42 @@ export function loadSprite(spriteUrl: string): Promise<SpriteInfo | null> {
   return p
 }
 
+export type UploadTarget = {
+  projectId?: string | null
+  mediaId?: string
+  formatKey?: string
+  label?: string
+  tags?: string[]
+  /** Into this version of `mediaId`. */
+  version?: string
+  /** As a new version of `mediaId` (another language, without the watermark...). */
+  newVersion?: NewVersionInput
+  audio?: boolean
+}
+
 /**
- * Uploads files as new media (in a project), or into an existing item: a format (of the main version or of
- * `version`, created as `versionLabel` when new), a new file for one, or an audio track (`audio`).
- * Resolves to the created media ids.
+ * Uploads files as new media (in a project), or into an existing item: a format (of the main version, of
+ * `version`, or of a `newVersion`), a new file for one, or an audio track (`audio`). Resolves to the created media
+ * ids.
  */
-export async function uploadMedia(
-  files: File[],
-  target: {
-    projectId?: string | null
-    mediaId?: string
-    formatKey?: string
-    label?: string
-    tags?: string[]
-    version?: string
-    versionLabel?: string
-    mainVersionLabel?: string
-    audio?: boolean
-  } = {},
-) {
+export async function uploadMedia(files: File[], target: UploadTarget = {}) {
   const results = await Promise.allSettled(
     files.map((file) => upload(file, { purpose: 'media.upload', target, label: file.name })),
   )
   return results.flatMap((r) => (r.status === 'fulfilled' ? [(r.value as { mediaId: string }).mediaId] : []))
+}
+
+/** Uploads one file as a new version of an item; resolves to the version's key (null when the upload failed). */
+export async function uploadVersion(
+  file: File,
+  target: UploadTarget & { mediaId: string; newVersion: NewVersionInput },
+): Promise<string | null> {
+  try {
+    const r = (await upload(file, { purpose: 'media.upload', target, label: file.name })) as {
+      version?: string
+    }
+    return r.version ?? null
+  } catch {
+    return null
+  }
 }

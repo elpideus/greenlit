@@ -1,5 +1,5 @@
 import type { Media } from '@greenlit/shared'
-import { AudioLines, Check, Languages, Layers, MessageSquare } from 'lucide-react'
+import { AudioLines, Check, Layers, MessageSquare } from 'lucide-react'
 import { memo } from 'react'
 import { MediaThumb } from '@/components/MediaThumb'
 import { cn } from '@/lib/cn'
@@ -106,9 +106,9 @@ export const MediaTile = memo(function MediaTile({
         {(formats > 1 || media.versions.length > 1 || media.audioTracks.length > 0) && (
           <div className="force-dark absolute top-2 right-2 flex gap-1">
             {media.versions.length > 1 && (
-              <Tooltip label={media.versions.map((v) => v.label).join(' · ')}>
+              <Tooltip label={media.versions.map((v) => v.label).join(', ')}>
                 <span className={badge}>
-                  <Languages size={11} strokeWidth={2} />
+                  <Layers size={11} strokeWidth={2} />
                   {media.versions.length}
                 </span>
               </Tooltip>

@@ -1,3 +1,4 @@
+import type { StoredVersion, VersionGroupDef } from '@greenlit/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -29,10 +30,14 @@ export const media = pgTable(
     takenAt: timestamp('taken_at', { withTimezone: true }),
     hiddenFrom: uuid('hidden_from').array().notNull().default(sql`'{}'::uuid[]`),
     /**
-     * The item's versions in order (the same video with Italian or English text...), `key` '' being the main one.
-     * Empty while the item has a single version. Each version's files are formats with that `version` key.
+     * The item's versions in order (the same video with Italian or English text, with or without the watermark...),
+     * `key` '' being the main one, each with its option in every one of `versionGroups`. Empty while the item has a
+     * single version. Each version's files are formats with that `version` key. (Rows from before groups have a
+     * `label` and no `values`: see readVersionSet.)
      */
-    versions: jsonb('versions').$type<{ key: string; label: string }[]>().notNull().default([]),
+    versions: jsonb('versions').$type<StoredVersion[]>().notNull().default([]),
+    /** What tells the versions apart: Language (Italiano | English), Watermark (With | Without)... */
+    versionGroups: jsonb('version_groups').$type<VersionGroupDef[]>().notNull().default([]),
     /** title + notes + tags, lower case without accents, for search. */
     searchText: text('search_text').notNull().default(''),
     createdBy: uuid('created_by'),

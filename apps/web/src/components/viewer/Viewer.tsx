@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { menuEntries } from '@/app/registry'
 import { Slot } from '@/app/Slot'
@@ -248,6 +248,7 @@ export function Viewer({
     <NewVersionDialog
       media={media}
       format={format}
+      version={version}
       open={newVersion}
       onOpenChange={setNewVersion}
       onCreated={selectVersion}
@@ -325,6 +326,16 @@ export function Viewer({
       {dialogs}
     </div>
   )
+}
+
+/** Room the viewer bar keeps beside the switches: back button, a 140px title, the tools, gaps and padding. */
+const BAR_RESERVE = 340
+
+/** How wide a row of switches is on one line, wrapped or not (its visible children and the 8px gaps). */
+function naturalWidth(el: HTMLElement | null) {
+  if (!el) return 0
+  const widths = [...el.children].map((c) => (c as HTMLElement).offsetWidth).filter((w) => w > 0)
+  return widths.reduce((a, w) => a + w, 0) + Math.max(0, widths.length - 1) * 8
 }
 
 function ResizeHandle({ width, onWidth }: { width: number; onWidth: (w: number) => void }) {
@@ -451,13 +462,56 @@ function ViewerBar({
       },
     ])
 
+  // The version and format switches sit in the bar while they fit beside the back button, a readable title and the
+  // tools (about BAR_RESERVE); otherwise they get a row of their own under it, as on phones.
+  const bar = useRef<HTMLDivElement>(null)
+  const strips = useRef<HTMLDivElement>(null)
+  const [stacked, setStacked] = useState(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the strips move to the other row when `stacked` flips
+  useLayoutEffect(() => {
+    const b = bar.current
+    if (compact || !b) return
+    const check = () => setStacked(naturalWidth(strips.current) + BAR_RESERVE > b.clientWidth)
+    const ro = new ResizeObserver(check)
+    ro.observe(b)
+    if (strips.current) ro.observe(strips.current)
+    check()
+    return () => ro.disconnect()
+  }, [compact, stacked])
+  const ownRow = compact ? formats.length > 1 || media.versions.length > 1 || !!version : stacked
+  const switches = media.formats.length > 0 && (
+    <div
+      ref={strips}
+      className={cn(
+        'flex items-center gap-2',
+        // Under the bar on a computer, a switch that doesn't fit goes to the next line; phones scroll sideways.
+        ownRow && !compact ? 'flex-wrap justify-center' : 'mx-auto w-max',
+      )}
+    >
+      <VersionSwitcher
+        media={media}
+        version={version}
+        format={format}
+        onSelect={onVersion}
+        onNew={onNewVersion}
+      />
+      <FormatSwitcher
+        media={media}
+        formats={formats}
+        version={version}
+        format={format}
+        onSelect={onFormat}
+        onNewVersion={onNewVersion}
+      />
+    </div>
+  )
   return (
     <>
-      <div className={cn('flex h-[52px] shrink-0 items-center gap-3', compact ? 'px-2' : 'px-3')}>
+      <div ref={bar} className={cn('flex h-[52px] shrink-0 items-center gap-3', compact ? 'px-2' : 'px-3')}>
         {!embedded && (
           <IconButton icon={ArrowLeft} label={t('back')} onClick={back} className="text-white/80" />
         )}
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className={cn('flex min-w-0 flex-1 items-center gap-2', !compact && 'min-w-[140px]')}>
           {project && !compact && (
             <>
               <Link
@@ -480,19 +534,7 @@ function ViewerBar({
             className="t-headline text-white"
           />
         </div>
-        {!compact && media.formats.length > 0 && (
-          <div className="flex shrink-0 items-center gap-2">
-            <VersionSwitcher media={media} version={version} onSelect={onVersion} onNew={onNewVersion} />
-            <FormatSwitcher
-              media={media}
-              formats={formats}
-              version={version}
-              format={format}
-              onSelect={onFormat}
-              onNewVersion={onNewVersion}
-            />
-          </div>
-        )}
+        {!compact && !stacked && switches}
         <div className={cn('flex flex-1 items-center justify-end gap-0.5', compact && 'flex-none')}>
           <Slot name="media.viewer.tools" props={{ media, format }} />
           <Menu
@@ -511,17 +553,10 @@ function ViewerBar({
           )}
         </div>
       </div>
-      {compact && (formats.length > 1 || media.versions.length > 1 || !!version) && (
-        <div className="no-scrollbar flex shrink-0 justify-center gap-2 overflow-x-auto px-2 pb-2">
-          <VersionSwitcher media={media} version={version} onSelect={onVersion} onNew={onNewVersion} />
-          <FormatSwitcher
-            media={media}
-            formats={formats}
-            version={version}
-            format={format}
-            onSelect={onFormat}
-            onNewVersion={onNewVersion}
-          />
+      {ownRow && switches && (
+        // Centred while it fits, scrolled from its start when it doesn't.
+        <div className={cn('no-scrollbar shrink-0 overflow-x-auto pb-2', compact ? 'px-2' : 'px-3')}>
+          {switches}
         </div>
       )}
     </>

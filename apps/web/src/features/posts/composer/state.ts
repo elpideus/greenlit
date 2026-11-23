@@ -48,7 +48,13 @@ export function toPostMedia(m: Media): PostMediaItem {
     kind: m.kind,
     thumbnailUrl: m.thumbnailUrl,
     formats: m.formats.map(toPostFormat),
-    versions: m.versions.map((v) => ({ key: v.key, label: v.label, formats: v.formats.map(toPostFormat) })),
+    versions: m.versions.map((v) => ({
+      key: v.key,
+      label: v.label,
+      values: v.values,
+      formats: v.formats.map(toPostFormat),
+    })),
+    versionGroups: m.versionGroups,
     audioTracks: m.audioTracks.map((a) => ({
       key: a.key,
       label: a.label,

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Id, IsoDate, UserRef } from '../common.ts'
+import { MediaVersionGroup } from './media.ts'
 
 export const Platform = z.enum(['instagram', 'facebook', 'tiktok', 'youtube'])
 export type Platform = z.infer<typeof Platform>
@@ -124,7 +125,16 @@ export const PostMediaItem = z.object({
   /** The main version's formats. */
   formats: z.array(PostMediaFormat),
   /** Every version (main first) with its formats; empty while the item has one. */
-  versions: z.array(z.object({ key: z.string(), label: z.string(), formats: z.array(PostMediaFormat) })),
+  versions: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      values: z.record(z.string(), z.string()),
+      formats: z.array(PostMediaFormat),
+    }),
+  ),
+  /** What tells its versions apart (Language, Watermark...). */
+  versionGroups: z.array(MediaVersionGroup),
   /** Audio tracks that can replace the video's own sound. */
   audioTracks: z.array(
     z.object({

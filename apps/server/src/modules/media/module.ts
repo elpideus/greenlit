@@ -7,10 +7,14 @@ import {
   MediaKind,
   MediaListQuery,
   MediaStatus,
+  NewVersionInput,
   Paginated,
+  RenameVersionPartInput,
+  type StoredVersion,
   UpdateFormatInput,
   UpdateMediaInput,
   UpdateVersionInput,
+  type VersionGroupDef,
   versionFormats,
 } from '@greenlit/shared'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
@@ -42,6 +46,9 @@ const VersionKey = z
   .refine((k) => k !== 'main', 'The key "main" is reserved for the main version')
 const VersionParams = IdParams.extend({ version: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/) })
 const versionKeyOf = (v: string) => (v === 'main' ? '' : v)
+const PartKey = z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/)
+const GroupParams = IdParams.extend({ group: PartKey })
+const OptionParams = GroupParams.extend({ option: PartKey })
 
 const UploadTarget = z.object({
   projectId: z.uuid().nullable().optional(),
@@ -51,11 +58,10 @@ const UploadTarget = z.object({
   title: z.string().optional(),
   note: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  /** Upload into this version of `mediaId` (created when new, named `versionLabel`). */
+  /** Upload into this version of `mediaId`. */
   version: VersionKey.optional(),
-  versionLabel: z.string().max(60).optional(),
-  /** What to call the current one when the first other version is added ("Italiano"). */
-  mainVersionLabel: z.string().max(60).optional(),
+  /** Upload as a new version of `mediaId` (another language, without the watermark...). */
+  newVersion: NewVersionInput.optional(),
   /** Add the file to `mediaId` as an audio track (`formatKey` = the track's key). */
   audio: z.boolean().optional(),
 })
@@ -121,6 +127,7 @@ export default defineModule({
         hiddenFrom: 'visibility',
         formats: 'formats',
         versions: 'versions',
+        versionGroups: 'versions',
         deletedAt: 'trash',
       },
       ignore: ['blobIds'],
@@ -132,6 +139,7 @@ export default defineModule({
         return {
           title: m.title,
           versions: m.versions,
+          versionGroups: m.versionGroups,
           description: m.description,
           tags: m.tags,
           status: m.status,
@@ -169,7 +177,8 @@ export default defineModule({
             projectId: (d.projectId as string) ?? null,
             takenAt: d.takenAt ? new Date(d.takenAt as string) : null,
             hiddenFrom: (d.hiddenFrom as string[]) ?? [],
-            versions: (d.versions as { key: string; label: string }[]) ?? [],
+            versions: (d.versions as StoredVersion[]) ?? [],
+            versionGroups: (d.versionGroups as VersionGroupDef[]) ?? [],
             deletedAt: d.deletedAt ? new Date(d.deletedAt as string) : null,
             searchText: fold([d.title as string, d.description as string, ...tags].join(' \u2022 ')),
             updatedAt: new Date(),
@@ -312,13 +321,13 @@ export default defineModule({
               label: target.label,
               note: target.note,
               version: target.version,
-              versionLabel: target.versionLabel,
-              mainVersionLabel: target.mainVersionLabel,
+              newVersion: target.newVersion,
               audio: target.audio,
             },
             actor,
           )
-          return { mediaId: target.mediaId, formatId }
+          const { version } = await svc.formatRow(formatId)
+          return { mediaId: target.mediaId, formatId, version }
         }
         const mediaId = await svc.createFromBlob(
           blob,
@@ -468,7 +477,8 @@ export default defineModule({
     route(ctx.api, {
       method: 'patch',
       path: '/media/{id}/versions/{version}',
-      summary: 'Rename a version or make it the main one (`main` = the main version)',
+      summary:
+        'Make a version the main one, or rename it while versions differ in one way only (`main` = the main version)',
       tags,
       access: 'media.edit',
       params: VersionParams,
@@ -489,6 +499,40 @@ export default defineModule({
         await svc.removeVersion(params.id, versionKeyOf(params.version), actor)
         return svc.get(params.id, actor)
       },
+    })
+    route(ctx.api, {
+      method: 'patch',
+      path: '/media/{id}/version-groups/{group}',
+      summary: 'Rename what tells versions apart ("Language", "Watermark")',
+      tags,
+      access: 'media.edit',
+      params: GroupParams,
+      body: RenameVersionPartInput,
+      response: Media,
+      handler: ({ actor, params, body }) =>
+        svc.renameVersionGroup(params.id, params.group, body.label, actor),
+    })
+    route(ctx.api, {
+      method: 'patch',
+      path: '/media/{id}/version-groups/{group}/options/{option}',
+      summary: 'Rename an option of a version group: every version with it changes name',
+      tags,
+      access: 'media.edit',
+      params: OptionParams,
+      body: RenameVersionPartInput,
+      response: Media,
+      handler: ({ actor, params, body }) =>
+        svc.renameVersionOption(params.id, params.group, params.option, body.label, actor),
+    })
+    route(ctx.api, {
+      method: 'delete',
+      path: '/media/{id}/version-groups/{group}/options/{option}',
+      summary: 'Remove an option of a version group with every version that has it (not the main one)',
+      tags,
+      access: 'media.edit',
+      params: OptionParams,
+      response: Media,
+      handler: ({ actor, params }) => svc.removeVersionOption(params.id, params.group, params.option, actor),
     })
     route(ctx.api, {
       method: 'get',
@@ -615,7 +659,13 @@ export default defineModule({
         ready: f.processing.state === 'ready',
       })),
       ...(m.versions.length
-        ? { versions: m.versions.map((v) => ({ key: v.key || 'main', label: v.label })) }
+        ? {
+            versionGroups: m.versionGroups.map((g) => ({
+              label: g.label || 'Version',
+              options: g.options.map((o) => o.label),
+            })),
+            versions: m.versions.map((v) => ({ key: v.key || 'main', label: v.label })),
+          }
         : {}),
       ...(m.audioTracks.length
         ? { audioTracks: m.audioTracks.map((a) => ({ key: a.key, label: a.label, duration: a.duration })) }
@@ -624,7 +674,7 @@ export default defineModule({
       createdAt: m.createdAt,
     })
     ctx.mcp.instruct(
-      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions (the same video with Italian or English text: each version has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video. Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
+      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions that combine (the same video with Italian or English text, with or without the watermark: each version is one combination and has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video. Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
     )
     ctx.mcp.tool({
       name: 'media_search',

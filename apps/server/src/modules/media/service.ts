@@ -1,19 +1,26 @@
 import {
   FORMAT_PRESETS,
+  findVersion,
+  keyFor,
   type Media,
   type MediaFormat,
   type MediaKind,
   type MediaListQuery,
   type MediaStatus,
   mediaKindFromMime,
+  type NewVersionInput,
   normalizeTag,
   parseQuery,
+  pruneVersionSet,
+  readVersionSet,
   tagKey,
   type UpdateMediaInput,
+  type VersionSet,
+  versionName,
 } from '@greenlit/shared'
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL, sql } from 'drizzle-orm'
 import { type Actor, actorUserId, isAdmin } from '../../core/actor.ts'
-import { badRequest, forbidden, notFound } from '../../core/errors.ts'
+import { badRequest, conflict, forbidden, notFound } from '../../core/errors.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import type { BlobRow } from '../files/service.ts'
 import { projects } from '../projects/schema.ts'
@@ -172,10 +179,13 @@ export class MediaService {
       const versionFormats = byMedia.get(r.id) ?? new Map<string, MediaFormat[]>()
       const fs = versionFormats.get('') ?? []
       const primary = fs.find((f) => f.isPrimary) ?? fs[0]
-      const versions =
-        r.versions.length > 1
-          ? r.versions.map((v) => ({ key: v.key, label: v.label, formats: versionFormats.get(v.key) ?? [] }))
-          : []
+      const set = readVersionSet(r.versions, r.versionGroups)
+      const versions = set.versions.map((v) => ({
+        key: v.key,
+        label: versionName(set.groups, v.values),
+        values: v.values,
+        formats: versionFormats.get(v.key) ?? [],
+      }))
       const m: Media = {
         id: r.id,
         projectId: r.projectId,
@@ -187,6 +197,7 @@ export class MediaService {
         tags: r.tags,
         formats: fs,
         versions,
+        versionGroups: set.groups,
         audioTracks: tracks.get(r.id) ?? [],
         thumbnailUrl: primary?.urls.thumbnail ?? null,
         places: [],
@@ -370,8 +381,8 @@ export class MediaService {
 
   /**
    * Adds a new format (vertical, square...) or, if the key exists, a new file version of it. With `version`, the
-   * format belongs to that version of the item (created with `versionLabel` when new); with `audio`, the file is
-   * one of the item's audio tracks instead.
+   * format belongs to that version of the item; with `newVersion`, to a version made for it (see NewVersionInput);
+   * with `audio`, the file is one of the item's audio tracks instead.
    */
   async attachFile(
     mediaId: string,
@@ -381,8 +392,7 @@ export class MediaService {
       label?: string
       note?: string
       version?: string
-      versionLabel?: string
-      mainVersionLabel?: string
+      newVersion?: NewVersionInput
       audio?: boolean
     },
     actor: Actor,
@@ -390,19 +400,19 @@ export class MediaService {
     const m = await this.row(mediaId)
     const kind = mediaKindFromMime(blob.mime)
     const role = opts.audio ? 'audio' : 'format'
-    const version = opts.audio ? '' : (opts.version ?? '')
+    let version = opts.audio ? '' : (opts.version ?? '')
     if (role === 'audio' && kind !== 'audio' && kind !== 'video')
       throw badRequest('An audio track must be a sound file (or a video whose sound is used)')
-    if (version && !m.versions.some((v) => v.key === version)) {
-      if (!opts.versionLabel?.trim()) throw badRequest('Name the new version')
-      const versions = m.versions.length
-        ? m.versions
-        : [{ key: '', label: opts.mainVersionLabel?.trim() || 'Original' }]
-      await this.db
-        .update(media)
-        .set({ versions: [...versions, { key: version, label: opts.versionLabel.trim().slice(0, 60) }] })
-        .where(eq(media.id, mediaId))
-    }
+    let newSet: VersionSet | null = null
+    if (role === 'format' && opts.newVersion) {
+      const planned = this.planVersion(m, opts.newVersion)
+      version = planned.key
+      newSet = planned.set
+    } else if (
+      version &&
+      !readVersionSet(m.versions, m.versionGroups).versions.some((v) => v.key === version)
+    )
+      throw notFound('Version not found')
     const [existing] = await this.db
       .select()
       .from(mediaFormats)
@@ -478,6 +488,7 @@ export class MediaService {
       note: opts.note ?? null,
       createdBy: actorUserId(actor),
     })
+    if (newSet) await this.saveVersionSet(mediaId, newSet)
     await this.db.update(media).set({ updatedAt: new Date() }).where(eq(media.id, mediaId))
     await this.ctx.versions.record('media', mediaId, actor, {
       force: true,
@@ -628,39 +639,123 @@ export class MediaService {
 
   // ── versions ────────────────────────────────────────────────────────────
 
-  /** Renames a version, or makes it the main one (its formats become the item's, the old main one a version). */
+  /**
+   * Where a new version's file goes: the version like `from` with another option in one group (a new group, a new
+   * option, or a combination not uploaded yet). Returns its key and the item's versions with it.
+   */
+  private planVersion(m: MediaRow, spec: NewVersionInput): { key: string; set: VersionSet } {
+    const set = readVersionSet(m.versions, m.versionGroups)
+    if (!set.versions.length) set.versions = [{ key: '', values: {} }]
+    const fromKey = !spec.from || spec.from === 'main' ? '' : spec.from
+    const from = set.versions.find((v) => v.key === fromKey)
+    if (!from) throw notFound('Version not found')
+    let group = spec.group ? set.groups.find((g) => g.key === spec.group) : undefined
+    if (spec.group && !group) throw notFound('Version group not found')
+    if (!group) {
+      // A new kind of difference: every version so far gets its first option ("With watermark").
+      const currentLabel = spec.currentLabel || 'Original'
+      const current = { key: keyFor(currentLabel, [], 'original'), label: currentLabel }
+      group = {
+        key: keyFor(
+          spec.groupLabel || 'version',
+          set.groups.map((g) => g.key),
+          'group',
+        ),
+        label: spec.groupLabel ?? '',
+        options: [current],
+      }
+      set.groups.push(group)
+      for (const v of set.versions) v.values[group.key] = current.key
+    }
+    let option = spec.option ? group.options.find((o) => o.key === spec.option) : undefined
+    if (spec.option && !option) throw notFound('Version option not found')
+    if (!option) {
+      if (!spec.optionLabel) throw badRequest('Name the new version')
+      const label = spec.optionLabel
+      option = group.options.find((o) => fold(o.label) === fold(label))
+      if (!option) {
+        option = {
+          key: keyFor(
+            label,
+            group.options.map((o) => o.key),
+            'option',
+          ),
+          label,
+        }
+        group.options.push(option)
+      }
+    }
+    const values = { ...from.values, [group.key]: option.key }
+    const existing = findVersion(set.versions, values)
+    if (existing) {
+      // Uploading into a combination that exists (the page was out of date): add the file to it.
+      if (spec.option) return { key: existing.key, set }
+      throw conflict(`${versionName(set.groups, values)} already exists`)
+    }
+    const key = keyFor(
+      versionName(set.groups, values),
+      set.versions.map((v) => v.key),
+      'version',
+    )
+    set.versions.push({ key, values })
+    return { key, set }
+  }
+
+  /** Stores the item's versions, tidied (see pruneVersionSet). */
+  private async saveVersionSet(mediaId: string, set: VersionSet) {
+    const next = pruneVersionSet(set)
+    await this.db
+      .update(media)
+      .set({ versions: next.versions, versionGroups: next.groups, updatedAt: new Date() })
+      .where(eq(media.id, mediaId))
+  }
+
+  private async versionsChanged(m: MediaRow, actor: Actor, force = true) {
+    await this.ctx.versions.record('media', m.id, actor, { force })
+    this.ctx.events.emit('media.updated', { id: m.id, projectId: m.projectId })
+    this.publish(m.id, m.projectId, 'media.updated')
+  }
+
+  /**
+   * Renames a version (while versions differ in one way only), or makes it the main one: its formats become the
+   * item's, the old main one a version, and its options come first in their groups.
+   */
   async updateVersion(mediaId: string, key: string, patch: { label?: string; isMain?: true }, actor: Actor) {
     const m = await this.row(mediaId)
-    const version = m.versions.find((v) => v.key === key)
+    const set = readVersionSet(m.versions, m.versionGroups)
+    const version = set.versions.find((v) => v.key === key)
     if (!version) throw notFound('Version not found')
-    let versions = m.versions.map((v) => (v.key === key && patch.label ? { ...v, label: patch.label } : v))
+    if (patch.label) {
+      const [group, ...more] = set.groups
+      if (!group || more.length)
+        throw badRequest('These versions differ in more than one way: rename an option of a group instead')
+      const option = group.options.find((o) => o.key === version.values[group.key])
+      if (option) option.label = patch.label
+    }
     if (patch.isMain && key) {
-      // The chosen version's formats become the main ones (''); the old main version gets a key of its own from
-      // its name, so links and posts that chose a version keep pointing at the same files.
-      const main = versions.find((v) => v.key === '')!
-      const chosen = versions.find((v) => v.key === key)!
+      // The old main version gets a key of its own from its name, so links and posts that chose a version keep
+      // pointing at the same files.
+      const main = set.versions.find((v) => v.key === '')!
       const demoted = keyFor(
-        main.label,
-        versions.map((v) => v.key).filter((k) => k !== key),
+        versionName(set.groups, main.values),
+        set.versions.map((v) => v.key).filter((k) => k !== key),
         'original',
       )
       await this.db.execute(sql`
         update ${mediaFormats}
         set version = case when version = '' then ${demoted} else '' end, updated_at = now()
         where media_id = ${mediaId} and role = 'format' and version in ('', ${key})`)
-      versions = [
-        { key: '', label: chosen.label },
-        ...versions.flatMap((v) =>
-          v.key === '' ? [] : v.key === key ? [{ key: demoted, label: main.label }] : [v],
-        ),
-      ]
+      main.key = demoted
+      version.key = ''
+      for (const g of set.groups) {
+        const i = g.options.findIndex((o) => o.key === version.values[g.key])
+        if (i > 0) g.options.unshift(...g.options.splice(i, 1))
+      }
       this.ctx.events.emit('media.mainVersionChanged', { id: mediaId, promoted: key, demoted })
     }
-    await this.db.update(media).set({ versions, updatedAt: new Date() }).where(eq(media.id, mediaId))
-    await this.ctx.versions.record('media', mediaId, actor, { force: !!patch.isMain })
+    await this.saveVersionSet(mediaId, set)
     if (patch.isMain) await this.enqueueThumbnailRefresh(mediaId)
-    this.ctx.events.emit('media.updated', { id: mediaId, projectId: m.projectId })
-    this.publish(mediaId, m.projectId, 'media.updated')
+    await this.versionsChanged(m, actor, !!patch.isMain)
     return this.get(mediaId, actor)
   }
 
@@ -668,30 +763,78 @@ export class MediaService {
   async removeVersion(mediaId: string, key: string, actor: Actor) {
     const m = await this.row(mediaId)
     if (!key) throw badRequest('The main version cannot be removed: make another one main first')
-    if (!m.versions.some((v) => v.key === key)) throw notFound('Version not found')
+    const set = readVersionSet(m.versions, m.versionGroups)
+    if (!set.versions.some((v) => v.key === key)) throw notFound('Version not found')
+    await this.deleteVersionFormats(mediaId, [key])
+    set.versions = set.versions.filter((v) => v.key !== key)
+    await this.saveVersionSet(mediaId, set)
+    await this.versionsChanged(m, actor)
+  }
+
+  /** Renames a group ("Watermark"; '' = unnamed). */
+  async renameVersionGroup(mediaId: string, groupKey: string, label: string, actor: Actor) {
+    const m = await this.row(mediaId)
+    const set = readVersionSet(m.versions, m.versionGroups)
+    const group = set.groups.find((g) => g.key === groupKey)
+    if (!group) throw notFound('Version group not found')
+    group.label = label
+    await this.saveVersionSet(mediaId, set)
+    await this.versionsChanged(m, actor, false)
+    return this.get(mediaId, actor)
+  }
+
+  /** Renames an option of a group ("Without watermark"): every version with it changes name. */
+  async renameVersionOption(
+    mediaId: string,
+    groupKey: string,
+    optionKey: string,
+    label: string,
+    actor: Actor,
+  ) {
+    if (!label) throw badRequest('Give it a name')
+    const m = await this.row(mediaId)
+    const set = readVersionSet(m.versions, m.versionGroups)
+    const option = set.groups.find((g) => g.key === groupKey)?.options.find((o) => o.key === optionKey)
+    if (!option) throw notFound('Version option not found')
+    option.label = label
+    await this.saveVersionSet(mediaId, set)
+    await this.versionsChanged(m, actor, false)
+    return this.get(mediaId, actor)
+  }
+
+  /** Removes an option of a group with every version that has it (not the main version's option). */
+  async removeVersionOption(mediaId: string, groupKey: string, optionKey: string, actor: Actor) {
+    const m = await this.row(mediaId)
+    const set = readVersionSet(m.versions, m.versionGroups)
+    const group = set.groups.find((g) => g.key === groupKey)
+    if (!group?.options.some((o) => o.key === optionKey)) throw notFound('Version option not found')
+    const gone = set.versions.filter((v) => v.values[groupKey] === optionKey).map((v) => v.key)
+    if (gone.includes('')) throw badRequest('The main version has this option: make another one main first')
+    await this.deleteVersionFormats(mediaId, gone)
+    set.versions = set.versions.filter((v) => !gone.includes(v.key))
+    await this.saveVersionSet(mediaId, set)
+    await this.versionsChanged(m, actor)
+    return this.get(mediaId, actor)
+  }
+
+  private async deleteVersionFormats(mediaId: string, keys: string[]) {
+    if (!keys.length) return
     await this.db
       .delete(mediaFormats)
       .where(
         and(
           eq(mediaFormats.mediaId, mediaId),
           eq(mediaFormats.role, 'format'),
-          eq(mediaFormats.version, key),
+          inArray(mediaFormats.version, keys),
         ),
       )
-    await this.dropVersionEntry(mediaId, key)
-    await this.ctx.versions.record('media', mediaId, actor, { force: true })
-    this.ctx.events.emit('media.updated', { id: mediaId, projectId: m.projectId })
-    this.publish(mediaId, m.projectId, 'media.updated')
   }
 
   private async dropVersionEntry(mediaId: string, key: string) {
     const m = await this.row(mediaId)
-    const rest = m.versions.filter((v) => v.key !== key)
-    // A single version left is just the item again.
-    await this.db
-      .update(media)
-      .set({ versions: rest.length > 1 ? rest : [], updatedAt: new Date() })
-      .where(eq(media.id, mediaId))
+    const set = readVersionSet(m.versions, m.versionGroups)
+    set.versions = set.versions.filter((v) => v.key !== key)
+    await this.saveVersionSet(mediaId, set)
   }
 
   /** The media kind follows the main format; after a version swap, tell the lists the thumbnail moved. */
@@ -832,17 +975,4 @@ export function cleanTags(tags: string[]): string[] {
     out.push(n)
   }
   return out
-}
-
-/** A URL-safe key from a name (a version's label), never `main` nor one of `taken`. */
-export function keyFor(name: string, taken: string[], fallback: string): string {
-  const base =
-    fold(name)
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 34) || fallback
-  const used = new Set([...taken, 'main', ''])
-  let key = base
-  for (let i = 2; used.has(key); i++) key = `${base}-${i}`
-  return key
 }

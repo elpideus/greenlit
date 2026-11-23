@@ -160,8 +160,10 @@ export class PostsService {
             versions: m.versions.map((v) => ({
               key: v.key,
               label: v.label,
+              values: v.values,
               formats: v.formats.map(postFormat),
             })),
+            versionGroups: m.versionGroups,
             audioTracks: m.audioTracks.map((a) => ({
               key: a.key,
               label: a.label,

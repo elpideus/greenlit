@@ -13,8 +13,8 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
 ## What it does
 
 - **Library** — projects with media, edits and posts. Every media item holds several **formats** of the same content
-  (16:9 main, 9:16 vertical, 1:1 square…) instead of near-duplicate files, **versions** of it (the same video with
-  Italian or English text, each with its own formats) and extra **audio tracks** (a voice-over in another language)
+  (16:9 main, 9:16 vertical, 1:1 square…) instead of near-duplicate files, **versions** of it that combine (Language:
+  Italiano | English × Watermark: with | without, each combination with its own formats) and extra **audio tracks** (a voice-over in another language)
   that a post can use in place of the video's own sound. Thumbnails, hover-scrub previews,
   waveforms, EXIF dates and places are made automatically. Token search (`status:`, `kind:`, `#tag`, `project:`),
   drag-select, bulk actions, drop-to-upload, right-click menus on everything.

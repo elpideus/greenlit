@@ -1,6 +1,6 @@
 import { aspectLabel, FORMAT_PRESETS, type Media, type MediaFormat } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, Languages, Pencil, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
+import { Download, Layers, Pencil, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { LayoutGroup, motion } from 'motion/react'
 import { useId, useRef, useState } from 'react'
 import { uploadMedia } from '@/data/media'
@@ -206,7 +206,7 @@ export function FormatSwitcher({
               { label: t('customFormat'), icon: Plus, onSelect: () => setCustom(true) },
               onNewVersion && 'separator',
               onNewVersion && { group: t('versions') },
-              onNewVersion && { label: t('newVersion'), icon: Languages, onSelect: onNewVersion },
+              onNewVersion && { label: t('newVersion'), icon: Layers, onSelect: onNewVersion },
             ]}
           />
         )}

@@ -59,13 +59,29 @@ export const MediaFormat = z.object({
 export type MediaFormat = z.infer<typeof MediaFormat>
 
 /**
- * Another version of the same item: the same video with English instead of Italian text, a cut without the logo...
+ * One kind of difference between an item's versions, with its choices: Language (Italiano | English), Watermark
+ * (With | Without)... Groups combine: each version is one option from every group.
+ */
+export const MediaVersionGroup = z.object({
+  key: z.string(),
+  /** What differs ("Language", "Watermark"); '' = unnamed. */
+  label: z.string(),
+  /** Its options, the main version's first. */
+  options: z.array(z.object({ key: z.string(), label: z.string() })),
+})
+export type MediaVersionGroup = z.infer<typeof MediaVersionGroup>
+
+/**
+ * Another version of the same item: the same video with English instead of Italian text, without the watermark...
  * Each version has its own formats; the main version (key '') is the one lists, thumbnails and the editor use.
  */
 export const MediaVersion = z.object({
   /** '' = the main version. */
   key: z.string(),
+  /** Its options' names ("English · Without watermark"). */
   label: z.string(),
+  /** Its option in each of `Media.versionGroups` (group key → option key). */
+  values: z.record(z.string(), z.string()),
   /** Its formats, main first (for the main version, the same list as `Media.formats`). */
   formats: z.array(MediaFormat),
 })
@@ -86,6 +102,8 @@ export const Media = z.object({
   formats: z.array(MediaFormat),
   /** Every version, the main one first; empty while the item has only one. */
   versions: z.array(MediaVersion),
+  /** What tells the versions apart (Language, Watermark...); empty while the item has only one. */
+  versionGroups: z.array(MediaVersionGroup),
   /** Extra audio tracks that can replace a video's own sound (voice-over in another language, no music...). */
   audioTracks: z.array(MediaFormat),
   thumbnailUrl: z.string().nullable(),
@@ -136,11 +154,30 @@ export const UpdateFormatInput = z.object({
 })
 
 export const UpdateVersionInput = z.object({
+  /** Rename it (only while the versions differ in one way; otherwise rename an option of a group). */
   label: z.string().trim().min(1).max(60).optional(),
   /** Make it the main version (the one lists, thumbnails and new posts use). */
   isMain: z.literal(true).optional(),
 })
 export type UpdateVersionInput = z.infer<typeof UpdateVersionInput>
+
+/** Rename a version group ("Watermark") or one of its options ("Without watermark"). */
+export const RenameVersionPartInput = z.object({ label: z.string().trim().max(60) })
+
+/**
+ * Upload a file as a new version: like version `from` (default the main one) but with another option in one group,
+ * an existing `option` (a combination not uploaded yet) or a new one named `optionLabel`. Without `group`, a new
+ * group starts (`groupLabel`), whose first option (`currentLabel`) every existing version gets.
+ */
+export const NewVersionInput = z.object({
+  from: z.string().optional(),
+  group: z.string().optional(),
+  groupLabel: z.string().trim().max(60).optional(),
+  option: z.string().optional(),
+  optionLabel: z.string().trim().max(60).optional(),
+  currentLabel: z.string().trim().max(60).optional(),
+})
+export type NewVersionInput = z.infer<typeof NewVersionInput>
 
 /** The formats of one version of an item ('' or an unknown key = the main version). */
 export function versionFormats(m: Pick<Media, 'formats' | 'versions'>, version: string | null | undefined) {

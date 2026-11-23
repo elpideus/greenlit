@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN "version_groups" jsonb DEFAULT '[]'::jsonb NOT NULL;
