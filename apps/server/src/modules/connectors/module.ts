@@ -186,7 +186,21 @@ export default defineModule({
         'Each app’s account joins the connected account it is (merged into it) and helps it with what only the app does (YouTube Shorts sounds). An app account that matches no connected account is left out: a sign-in on the device never connects one by itself. An app signed out there leaves its accounts needing a sign-in.',
       tags,
       access: 'connectors.manage',
-      response: z.object({ joined: z.array(Account), signedOut: z.array(z.string()) }),
+      response: z.object({
+        joined: z.array(Account),
+        signedOut: z.array(z.string()),
+        /** Accounts the apps are signed in to that match no connected account (so they joined none). */
+        unmatched: z.array(
+          z.object({
+            app: z.string(),
+            platform: Platform,
+            name: z.string(),
+            handle: z.string(),
+            /** The platform's id of it (a channel, user or profile id). */
+            id: z.string(),
+          }),
+        ),
+      }),
       handler: () => web(svc.scanDevice()),
     })
     route(ctx.api, {

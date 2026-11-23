@@ -57,6 +57,17 @@ const DEVICE: Record<string, true> = Object.fromEntries(
   drivers.filter((d) => d.device).map((d) => [d.id, true]),
 )
 
+/** An account a platform's app on the device is signed in to that matches no connected account. */
+export interface DeviceAppAccount {
+  /** The app ("Facebook"). */
+  app: string
+  platform: Platform
+  name: string
+  handle: string
+  /** The platform's id of it: a channel, user or profile id. */
+  id: string
+}
+
 const SESSION_IDLE_MS = 15 * 60_000
 const SESSION_UNWATCHED_MS = 2 * 60_000
 
@@ -523,13 +534,15 @@ export class Connectors implements ConnectorsService {
    * Finds who is signed in to the platforms' apps on Greenlit's Android device. An app's account joins the account
    * already connected that it is (merged into it by real ids); one that matches none is left out (a sign-in on
    * the device never connects an account by itself, nor brings back one that was disconnected). An app signed out
-   * there leaves its accounts needing a sign-in.
+   * there leaves its accounts needing a sign-in. `unmatched` names the apps' accounts that joined none, so the person
+   * scanning sees why nothing happened (the app signed in to another account than the one connected here).
    */
-  async scanDevice(): Promise<{ joined: Account[]; signedOut: string[] }> {
+  async scanDevice(): Promise<{ joined: Account[]; signedOut: string[]; unmatched: DeviceAppAccount[] }> {
     const device = this.ctx.services.android?.device
     const joined: Account[] = []
     const signedOut: string[] = []
-    if (!device?.configured) return { joined, signedOut }
+    const unmatched: DeviceAppAccount[] = []
+    if (!device?.configured) return { joined, signedOut, unmatched }
     for (const d of drivers.filter((x) => x.device && x.app)) {
       if (!(await device.hasApp(d.app!.package).catch(() => false))) continue
       const sessionDir = `device-${d.id}`
@@ -554,6 +567,14 @@ export class Connectors implements ConnectorsService {
       const joining = found.filter((f) =>
         rows.some((r) => r.platform === f.platform && identities(r).some((x) => identities(f).includes(x))),
       )
+      for (const f of found.filter((x) => !joining.includes(x)))
+        unmatched.push({
+          app: d.app!.name,
+          platform: f.platform,
+          name: f.name,
+          handle: f.handle,
+          id: f.externalId.replace(/^app:/, ''),
+        })
       if (!joining.length) continue
       const saved = await this.saveDiscovered(joining, d, sessionDir, null, null)
       // Joining an account that is switched off: the app's part of it is off too.
@@ -565,7 +586,7 @@ export class Connectors implements ConnectorsService {
       }
       for (const a of saved) joined.push(await this.account(a.id))
     }
-    return { joined, signedOut }
+    return { joined, signedOut, unmatched }
   }
 
   private appToken(app: NonNullable<Driver['app']>, site: string, renew: boolean) {

@@ -142,6 +142,12 @@
     "scan": "Trova le app collegate",
     "scanned_one": "{{count}} account di un'app si è unito al suo account collegato",
     "scanned_other": "{{count}} account delle app si sono uniti ai loro account collegati",
-    "scanHint": "L'account di ogni app si unisce all'account collegato a cui appartiene."
+    "scanHint": "L'account di ogni app si unisce all'account collegato a cui appartiene.",
+    "unmatched": "Collegati sul dispositivo, non qui",
+    "unmatchedHint": "L'account di un'app si unisce solo a un account già collegato in Greenlit con lo stesso id, quindi questi non si sono uniti a nessuno. Collega prima quell'account, oppure accedi nell'app con uno già collegato. Per una Pagina Facebook, passa l'app Facebook al profilo della Pagina.",
+    "unmatchedToast_one": "{{count}} account di un'app non corrisponde a nessun account collegato",
+    "unmatchedToast_other": "{{count}} account delle app non corrispondono a nessun account collegato",
+    "appAccount": "App {{app}}",
+    "unmatchedId": "Il suo id: {{id}}"
   }
 }

@@ -20,6 +20,15 @@ interface DeviceStatus {
   message: string | null
 }
 
+/** An account an app on the device is signed in to that matches no connected account (so it joined none). */
+interface UnmatchedAppAccount {
+  app: string
+  platform: string
+  name: string
+  handle: string
+  id: string
+}
+
 type DeviceInput =
   | { type: 'tap'; x: number; y: number }
   | { type: 'swipe'; x1: number; y1: number; x2: number; y2: number; ms: number }
@@ -39,6 +48,8 @@ export default function DeviceSection() {
   const [watch, setWatch] = useState(false)
   const [interact, setInteract] = useState(false)
   const [scanning, setScanning] = useState(false)
+  // What the last "Find signed-in apps" found that joined nothing: kept on the page, not only in a toast.
+  const [unmatched, setUnmatched] = useState<UnmatchedAppAccount[]>([])
 
   const statusKey = !status
     ? null
@@ -90,8 +101,14 @@ export default function DeviceSection() {
                 onClick={async () => {
                   setScanning(true)
                   try {
-                    const r = await api.post<{ joined: unknown[] }>('/connectors/device/scan')
-                    toast.done(t('device.scanned', { count: r.joined.length }))
+                    const r = await api.post<{ joined: unknown[]; unmatched?: UnmatchedAppAccount[] }>(
+                      '/connectors/device/scan',
+                    )
+                    const left = r.unmatched ?? []
+                    setUnmatched(left)
+                    if (r.joined.length || !left.length)
+                      toast.done(t('device.scanned', { count: r.joined.length }))
+                    if (left.length) toast.info(t('device.unmatchedToast', { count: left.length }))
                     void refreshAccounts()
                   } catch (err) {
                     toast.error(err)
@@ -104,6 +121,24 @@ export default function DeviceSection() {
               </Button>
             </SettingsRow>
           )}
+        </SettingsGroup>
+      )}
+
+      {unmatched.length > 0 && (
+        <SettingsGroup title={t('device.unmatched')} description={t('device.unmatchedHint')}>
+          {unmatched.map((u) => (
+            <SettingsRow
+              key={`${u.app}:${u.id}`}
+              label={t('device.appAccount', { app: u.app })}
+              description={t('device.unmatchedId', { id: u.id })}
+            >
+              <span className="t-callout text-ink-2">
+                {u.handle && u.platform !== 'youtube'
+                  ? `@${u.handle}`
+                  : u.handle || (u.name !== u.app ? u.name : '')}
+              </span>
+            </SettingsRow>
+          ))}
         </SettingsGroup>
       )}
 

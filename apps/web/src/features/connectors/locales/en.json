@@ -142,6 +142,12 @@
     "scan": "Find signed-in apps",
     "scanned_one": "{{count}} app account joined its connected account",
     "scanned_other": "{{count}} app accounts joined their connected accounts",
-    "scanHint": "Each app’s account joins the connected account it belongs to."
+    "scanHint": "Each app’s account joins the connected account it belongs to.",
+    "unmatched": "Signed in on the device, not connected here",
+    "unmatchedHint": "An app’s account joins only an account already connected in Greenlit with the same id, so these joined none. Connect that account first, or sign the app in to one that is connected. For a Facebook Page, switch the Facebook app to the Page’s profile.",
+    "unmatchedToast_one": "{{count}} app account matches no connected account",
+    "unmatchedToast_other": "{{count}} app accounts match no connected account",
+    "appAccount": "{{app}} app",
+    "unmatchedId": "Its id: {{id}}"
   }
 }

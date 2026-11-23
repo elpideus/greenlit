@@ -170,8 +170,10 @@ switcher (`accountsList`, the app's token), Instagram and Facebook from the apps
 `current` user, the Facebook app's `authentication` light preferences; never their tokens). Each app account joins
 the account already connected that it is, merged by real ids (a channel id, a username, the profile id a Page acts
 with), and helps it with what only the app does. A device sign-in never connects an account by itself, nor brings
-back one that was disconnected; one that joins a switched-off account starts off. Switching an app's account off
-stops Greenlit using that app for it.
+back one that was disconnected; one that joins a switched-off account starts off. What matches no connected account
+is listed after "Find sign-ins" (the scan's `unmatched`: the app, the account's name and id), with what to do: the
+app is usually signed in to another account than the one connected here (for a Page, the Facebook app has to act
+as the Page's profile). Switching an app's account off stops Greenlit using that app for it.
 
 What only an app does goes through Greenlit's own Android device (`docker/android`, see `docs/DOCKER.md`). A driver
 names the app (`Driver.app`: its spec, package and token scope) and calls its operations with `run.api.app(op, …)`:
