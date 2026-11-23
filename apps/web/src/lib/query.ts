@@ -31,6 +31,7 @@ export const qk = {
   projects: ['projects'] as const,
   project: (id: string) => ['projects', id] as const,
   tags: ['tags'] as const,
+  allTags: ['tags', 'all'] as const,
   comments: (type: string, id: string) => ['comments', type, id] as const,
   reviews: (q?: unknown) => ['reviews', q ?? 'all'] as const,
   inbox: ['reviews', 'inbox'] as const,

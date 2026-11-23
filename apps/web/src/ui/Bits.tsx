@@ -307,7 +307,11 @@ export function InlineEdit({
         }}
         onKeyDown={(e) => {
           e.stopPropagation()
-          if (e.key === 'Enter') e.currentTarget.blur()
+          // preventDefault: the same Enter must not also press a button in a dialog the save opens.
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            e.currentTarget.blur()
+          }
           if (e.key === 'Escape') {
             setDraft(value)
             setEditing(false)

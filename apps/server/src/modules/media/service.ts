@@ -553,6 +553,74 @@ export class MediaService {
     return this.get(id, actor)
   }
 
+  /**
+   * Renames tags on every item that carries them (`to` = the new name; several `from` = a merge), or removes them
+   * (`to` null). Covers the whole library, trash and items hidden from people included, so a tag is gone or renamed
+   * everywhere. With a new name, other spellings of that name are rewritten to it too ("Trullo" → "trullo").
+   * Each changed item records a revision with `note`, given the tags that item lost (its own spellings of `from`).
+   * Returns the ids of the items that changed.
+   */
+  async replaceTags(
+    from: string[],
+    to: string | null,
+    actor: Actor,
+    note?: (lost: string[]) => string,
+  ): Promise<string[]> {
+    const keys = new Set(from.map(tagKey).filter(Boolean))
+    const target = to === null ? null : normalizeTag(to)
+    if (target === '') throw badRequest('The new tag name is empty')
+    const targetKey = target === null ? null : tagKey(target)
+    const match = targetKey ? new Set([...keys, targetKey]) : keys
+    if (!keys.size) return []
+    const rows = await this.db
+      .select({
+        id: media.id,
+        projectId: media.projectId,
+        title: media.title,
+        description: media.description,
+        tags: media.tags,
+      })
+      .from(media)
+      .where(
+        sql`exists (select 1 from unnest(${media.tags}) t where lower(t) in (${sql.join(
+          [...match].map((k) => sql`${k}`),
+          sql`, `,
+        )}))`,
+      )
+    const changed: { id: string; projectId: string | null; lost: string[] }[] = []
+    await this.db.transaction(async (tx) => {
+      for (const r of rows) {
+        const next = cleanTags(
+          r.tags.flatMap((t) => {
+            const k = tagKey(t)
+            if (!match.has(k)) return [t]
+            return target === null ? [] : [target]
+          }),
+        )
+        if (next.length === r.tags.length && next.every((t, i) => t === r.tags[i])) continue
+        await tx
+          .update(media)
+          .set({ tags: next, searchText: this.searchTextFor({ ...r, tags: next }), updatedAt: new Date() })
+          .where(eq(media.id, r.id))
+        changed.push({ id: r.id, projectId: r.projectId, lost: r.tags.filter((t) => keys.has(tagKey(t))) })
+      }
+    })
+    for (const { id, projectId, lost } of changed) {
+      await this.ctx.versions.record('media', id, actor, { note: note?.(lost) ?? null, force: true })
+      this.ctx.events.emit('media.updated', { id, projectId })
+      this.ctx.realtime.publish(`media:${id}`, 'media.updated', { id })
+    }
+    // One library / project message for the whole change (one per item would refetch every open list N times).
+    if (changed.length) {
+      const ids = changed.map((c) => c.id)
+      this.ctx.realtime.publish('library', 'media.updated', { ids })
+      this.ctx.realtime.publish('library', 'tags.changed', {})
+      for (const p of new Set(changed.map((c) => c.projectId)))
+        if (p) this.ctx.realtime.publish(`project:${p}`, 'media.updated', { ids })
+    }
+    return changed.map((c) => c.id)
+  }
+
   async setStatus(id: string, status: MediaStatus, actor: Actor) {
     const current = await this.row(id)
     if (current.status === status) return

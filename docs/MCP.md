@@ -109,7 +109,9 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 ## tags
 
+- **`tags_delete`** _(careful)_ — Remove tags from every media item that carries them, trash included. Cannot be undone in one step.
 - **`tags_list`** _(read-only)_ — Tags already used in the library with their counts. Reuse existing tags instead of inventing near-duplicates.
+- **`tags_rename`** — Rename a tag on every media item that carries it, trash included. Several `from` tags merge them into `to` (also how to fix a spelling: "Trullo" → "trullo"). Tags are lower-case English, one concept each.
 
 ## task
 
