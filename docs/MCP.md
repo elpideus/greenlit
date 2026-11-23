@@ -73,6 +73,7 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 ## media
 
+- **`depth_generate`** — Make depth maps with Greenlit's own model (Depth Anything V2 Small; near is light), in the background: give ids (each item's main version formats) or one id with a format key / version. Uploaded depth maps are kept unless replace:true. They then show in media_get (depthMaps) and media_view with depth:true.
 - **`media_get`** _(read-only)_ — Everything about one media item: notes, tags, formats with sizes and URLs, places, counts.
 - **`media_import`** — Add a file to the library from a path on the Greenlit machine or from a URL. With mediaId it becomes a new format (formatKey e.g. "vertical", "square") or a new file version of that media item; with `depth: true`, the depth map of that format (and `version`).
 - **`media_search`** _(read-only)_ — Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", has:depth / no:depth (with or without a depth map), -exclude.

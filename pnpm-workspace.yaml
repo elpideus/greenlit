@@ -9,4 +9,6 @@ allowBuilds:
   "@biomejs/biome": true
   "@node-rs/argon2": true
   esbuild: true
+  # Its install script only downloads optional CUDA providers; the CPU runtime ships in the package.
+  onnxruntime-node: false
   sharp: true

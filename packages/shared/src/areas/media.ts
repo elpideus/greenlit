@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Id, IsoDate, MediaKind, UserRef } from '../common.ts'
-import { DepthInfo, DepthNear } from './depth.ts'
+import { DepthInfo, DepthJob, DepthNear } from './depth.ts'
 import { PlaceRef } from './places.ts'
 
 export const MediaStatus = z.enum(['draft', 'in_review', 'changes_requested', 'approved'])
@@ -114,6 +114,8 @@ export const Media = z.object({
    * describes (see depthMapFor).
    */
   depthMaps: z.array(MediaFormat),
+  /** Depth maps Greenlit is making for the item's formats right now. */
+  depthJobs: z.array(DepthJob).optional(),
   thumbnailUrl: z.string().nullable(),
   places: z.array(PlaceRef),
   commentCount: z.number().int(),

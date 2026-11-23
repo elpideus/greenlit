@@ -3,9 +3,10 @@ import { Id } from '../common.ts'
 import type { Media, MediaFormat } from './media.ts'
 
 /**
- * Depth maps: a picture or video made elsewhere (Depth Anything, Marigold, DepthCrafter, a render's Z pass, a phone's
- * portrait depth...) that says how far away each pixel of a format is. Greenlit keeps them beside the format they
- * describe, one per format of each version; it never makes them.
+ * Depth maps: a picture or video that says how far away each pixel of a format is. Greenlit keeps them beside the
+ * format they describe, one per format of each version: made elsewhere (Depth Anything, Marigold, DepthCrafter, a
+ * render's Z pass, a phone's portrait depth...) and uploaded, or made by Greenlit itself (the depth module, with
+ * Depth Anything V2 Small).
  */
 
 /** Which end of the scale is close to the camera: light (disparity, most AI tools) or dark (distance, Z passes). */
@@ -22,8 +23,59 @@ export const DepthInfo = z.object({
   range: z.tuple([z.number(), z.number()]).nullable(),
   /** How the preview spreads them: evenly, or on a log scale (distances, so near things stay apart). */
   curve: z.enum(['linear', 'log']),
+  /** Made by Greenlit: with which model, from which file version of the picture. Null for an uploaded map. */
+  generated: z.object({ model: z.string(), fromRevision: z.number().int() }).nullable(),
 })
 export type DepthInfo = z.infer<typeof DepthInfo>
+
+/** A depth map Greenlit is making for a format right now (or about to). */
+export const DepthJob = z.object({
+  formatId: Id,
+  state: z.enum(['queued', 'running']),
+  progress: z.number().min(0).max(1),
+})
+export type DepthJob = z.infer<typeof DepthJob>
+
+/** Make depth maps for new pictures and videos as they are added (workspace setting). */
+export const DepthAuto = z.object({
+  enabled: z.boolean(),
+  /** Videos take a while (about half a second per frame on a processor): they can be left out. */
+  kinds: z.enum(['all', 'images']),
+})
+export type DepthAuto = z.infer<typeof DepthAuto>
+export const DEPTH_AUTO_DEFAULT: DepthAuto = { enabled: false, kinds: 'all' }
+
+/** The depth generator: its model, the automatic setting, and how much is left without a depth map. */
+export const DepthStatus = z.object({
+  model: z.object({
+    id: z.string(),
+    name: z.string(),
+    license: z.string(),
+    size: z.number(),
+    /** Downloaded already (otherwise the first depth map downloads it). */
+    installed: z.boolean(),
+  }),
+  auto: DepthAuto,
+  /** Pictures and videos (their main version's main format) without a depth map. */
+  missing: z.object({ images: z.number().int(), videos: z.number().int() }),
+  /** Depth maps waiting or being made. */
+  queued: z.number().int(),
+})
+export type DepthStatus = z.infer<typeof DepthStatus>
+
+/** Make the depth map of one format of an item (default: the main version's main format). */
+export const GenerateDepthInput = z.object({
+  formatId: Id.optional(),
+  /** Replace a depth map that was uploaded (generated ones are always remade). */
+  replace: z.boolean().optional(),
+})
+
+/** Make depth maps for many items (their main version's formats), or for everything without one (`missing`). */
+export const GenerateDepthManyInput = z.object({
+  ids: z.array(Id).max(2000).optional(),
+  missing: z.enum(['all', 'images']).optional(),
+  replace: z.boolean().optional(),
+})
 
 /** The files a depth map may be: pictures (16-bit PNG/TIFF, EXR, PFM...) or a video of the same length. */
 export const DEPTH_ACCEPT = 'image/*,video/*,.exr,.pfm,.tif,.tiff,.png,.mkv,.mov'

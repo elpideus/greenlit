@@ -420,6 +420,8 @@ export class MediaService {
       newVersion?: NewVersionInput
       audio?: boolean
       depth?: boolean
+      /** Facts about the file kept on its row (a generated depth map says what made it). */
+      meta?: Record<string, unknown>
     },
     actor: Actor,
   ) {
@@ -493,6 +495,7 @@ export class MediaService {
           processingProgress: 0,
           processingError: null,
           derived: [],
+          ...(opts.meta ? { meta: { ...(existing.meta as Record<string, unknown>), ...opts.meta } } : {}),
           updatedAt: new Date(),
         })
         .where(eq(mediaFormats.id, existing.id))
@@ -526,6 +529,7 @@ export class MediaService {
           mime: blob.mime,
           filename: blob.filename,
           size: blob.size,
+          ...(opts.meta ? { meta: opts.meta } : {}),
         })
         .returning()
       formatId = f!.id
@@ -1214,13 +1218,19 @@ function depthInfo(f: FormatRow): NonNullable<MediaFormat['depth']> {
     float?: boolean
     range?: [number, number]
     curve?: 'linear' | 'log'
+    generated?: { model?: unknown; fromRevision?: unknown }
   }
+  const g = meta.generated
   return {
     near: (meta.near ?? meta.nearGuess) === 'dark' ? 'dark' : 'light',
     bitDepth: typeof meta.bitDepth === 'number' ? meta.bitDepth : null,
     float: !!meta.float,
     range: Array.isArray(meta.range) && meta.range.length === 2 ? meta.range : null,
     curve: meta.curve === 'log' ? 'log' : 'linear',
+    generated:
+      g && typeof g.model === 'string' && typeof g.fromRevision === 'number'
+        ? { model: g.model, fromRevision: g.fromRevision }
+        : null,
   }
 }
 

@@ -151,8 +151,8 @@ make a kit more than a folder of files, without the files stopping being media i
 
 ## Depth maps
 
-Depth maps are made elsewhere (Depth Anything, Marigold, DepthCrafter, a render's Z pass…); Greenlit keeps and shows
-them, it never makes them. Each is a `media_formats` row with `role` `depth` and the `version` and `key` of the format
+Depth maps are uploaded (made elsewhere: Depth Anything, Marigold, DepthCrafter, a render's Z pass…) or made by
+Greenlit (the `depth` module, below). Each is a `media_formats` row with `role` `depth` and the `version` and `key` of the format
 it describes (one per format of each version), so file history, processing, storage and downloads work as for any
 file. `Media.depthMaps` lists them; `depthMapFor(media, format)` (`packages/shared/src/areas/depth.ts`) finds a
 format's own, or lends another version the main version's map when the pictures have the same size (and length).
@@ -168,10 +168,27 @@ format's own, or lends another version the main version's map when the pictures 
 - `POST /media/depth-maps/match {names, projectId?}` finds the formats depth map files belong to by name
   (`depthNameCandidates`: `IMG_0412_depth_16bit.png`, `depth_IMG_0412.png`, `clip_vis.mp4`…). Search: `has:depth`,
   `no:depth`. MCP: `media_view` with `depth: true`, `media_import` with `depth: true`.
-- Web (`features/depth`): the viewer tool (Picture / Depth map / Split / 3D, key `D`), overlays under the notes (the
-  map, or a WebGL 2 parallax view) and over them (the split line), the Info section, the library's "Add depth maps"
-  dialog and right-click item. A video map follows the stage's video frame by frame (`useViewer().element`,
-  `followFrames`).
+- Web (`features/depth`): the viewer tool (Picture / Depth map / Split / 3D, key `D`; make, add, replace), overlays
+  under the notes (the map, or a WebGL 2 parallax view) and over them (the split line), the Info section (with live
+  progress), the library's "Add depth maps" dialog, bulk-bar button and right-click items, Settings → Depth maps. A
+  video map follows the stage's video frame by frame (`useViewer().element`, `followFrames`).
+
+**Made by Greenlit** (`apps/server/src/modules/depth/`): Depth Anything V2 Small (Apache-2.0; Base and Large are
+non-commercial), ONNX on the processor with `onnxruntime-node` (its install script, which only fetches CUDA
+providers, stays off). The model (99 MB, a pinned revision checked by SHA-256) is downloaded into
+`DATA_DIR/models/` the first time; `GREENLIT_DEPTH_MODEL` may point at a local copy.
+
+- Job `depth.generate` (one at a time, a task in Activity): a picture becomes a 16-bit grey PNG of its size (518 px
+  inference, upscaled); a video a grey MP4 of the same length (≤ 30 fps, ≤ 1920 px), every other frame through the
+  model above 24 fps and the ones between blended, each frame fitted to the previous one (scale and offset by least
+  squares) so it doesn't flicker. About 0.5 s per picture and 0.4 s per video frame on 20 threads.
+- The map is attached like an upload, with `meta.generated = { model, fromRevision }` (near = light). Greenlit's own
+  maps are remade when the picture gets a new file; uploaded ones are kept unless `replace`.
+- Setting `depth.auto` (`{ enabled, kinds: all | images }`, permission `depth.manage`): on `media.processed` of a
+  format, make its map. Brand kits are left out everywhere.
+- `POST /media/{id}/depth/generate {formatId?, replace?}`, `POST /depth/generate {ids | missing, replace?}`,
+  `GET /depth/status`, `PATCH /depth/auto`; MCP `depth_generate`. Progress goes to the realtime topic
+  `depth:<media id>` (`depth.progress`), and `Media.depthJobs` lists what is being made.
 
 ## Data flow
 

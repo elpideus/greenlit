@@ -1,10 +1,11 @@
 import { depthMapFor, type Media, type MediaFormat } from '@greenlit/shared'
 import type { TFunction as T } from 'i18next'
-import { Box, Columns2, Download, Image, Mountain, RefreshCw, Upload } from 'lucide-react'
+import { Box, Columns2, Download, Image, Mountain, RefreshCw, Sparkles, Upload } from 'lucide-react'
 import { useHotkey } from '@/lib/hotkeys'
 import { useT } from '@/lib/i18n'
 import { useCan } from '@/lib/session'
 import { IconButton, Menu, type MenuEntry, toast } from '@/ui'
+import { generateDepth, generatedState, useDepthJob } from './generate'
 import { useShownDepth } from './Overlay'
 import { canShow3d } from './Parallax'
 import { type DepthView, useDepthView } from './store'
@@ -50,6 +51,7 @@ export function DepthTool({ media, format }: { media: Media; format: MediaFormat
   const toggle = useDepthView((s) => s.toggle)
   const found = depthMapFor(media, format)
   const shown = useShownDepth(media, format)
+  const job = useDepthJob(media, format)
   useHotkey('d', toggle, { enabled: !!shown })
   if (!found && !canUpload) return null
 
@@ -60,7 +62,15 @@ export function DepthTool({ media, format }: { media: Media; format: MediaFormat
     { value: '3d', icon: Box, label: t('view.3d') },
   ]
   const own = found && !found.inherited
+  const generated = own ? generatedState(found.map, format) : null
+  const name = formatName(media, format)
   const items: MenuEntry[] = [
+    job && {
+      label: t(job.state === 'queued' ? 'gen.queued' : 'gen.making', { n: Math.round(job.progress * 100) }),
+      icon: Sparkles,
+      disabled: true,
+    },
+    job && 'separator',
     found && { group: !shown ? t('preparing') : found.inherited ? t('fromMain') : t('show') },
     ...(found
       ? views.map((v) => ({
@@ -73,6 +83,13 @@ export function DepthTool({ media, format }: { media: Media; format: MediaFormat
         }))
       : []),
     found && 'separator',
+    canUpload &&
+      !job && {
+        label: generated ? t('gen.again') : own ? t('gen.instead') : t('gen.make'),
+        icon: Sparkles,
+        hint: generated?.stale ? t('gen.staleShort') : undefined,
+        onSelect: () => void generateDepth(media, format, t, name),
+      },
     canUpload &&
       (own
         ? {

@@ -6,7 +6,7 @@ import {
   type Media,
   type MediaFormat,
 } from '@greenlit/shared'
-import { AlertTriangle, Download, Eye, Mountain, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, Download, Eye, Mountain, RefreshCw, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
@@ -16,6 +16,7 @@ import { useT } from '@/lib/i18n'
 import { qk, queryClient } from '@/lib/query'
 import { useCan } from '@/lib/session'
 import { Button, confirm, IconButton, ProgressRing, Segmented, Tooltip, toast } from '@/ui'
+import { generateDepth, generatedState, useDepthJob } from './generate'
 import { useDepthView } from './store'
 import { addDepthFile, addDepthMap, formatName } from './Tool'
 
@@ -32,6 +33,7 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
   const map = found?.map
   const drop = useRef<HTMLElement>(null)
   const [over, setOver] = useState(false)
+  const job = useDepthJob(media, format)
 
   // Files dropped here are this format's depth map; the drop stops here (the page around may take drops too).
   useEffect(() => {
@@ -107,6 +109,13 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
   const show = () => setView(useDepthView.getState().last)
 
   const busy = map && (map.processing.state === 'pending' || map.processing.state === 'processing')
+  const generated =
+    map && found
+      ? generatedState(
+          map,
+          found.inherited ? (media.formats.find((f) => f.key === format.key) ?? format) : format,
+        )
+      : null
   const mismatch = map ? depthMismatch(format, map) : null
   const details = map
     ? [
@@ -131,6 +140,14 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
         </h3>
         {map && !found.inherited && (
           <div className="flex items-center gap-0.5">
+            {canUpload && !job && (
+              <IconButton
+                size="xs"
+                icon={Sparkles}
+                label={map.depth?.generated ? t('gen.again') : t('gen.instead')}
+                onClick={() => void generateDepth(media, format, t, formatName(media, format))}
+              />
+            )}
             {canUpload && (
               <IconButton
                 size="xs"
@@ -150,16 +167,41 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
         )}
       </div>
 
-      {!map ? (
+      {job && (
+        <div className="flex items-center gap-2.5 rounded-[8px] bg-well px-3 py-2.5 t-caption text-ink-2">
+          <ProgressRing value={job.progress} size={16} className="shrink-0 text-signal" />
+          <span className="min-w-0 flex-1">
+            {job.state === 'queued'
+              ? t('gen.queued')
+              : t('gen.making', { n: Math.round(job.progress * 100) })}
+            {format.kind === 'video' && <span className="block text-ink-3">{t('gen.videoHint')}</span>}
+          </span>
+        </div>
+      )}
+      {!map && !job ? (
         <div className="flex flex-col items-start gap-2 rounded-tile border border-dashed border-line-strong px-3.5 py-3">
           <p className="t-caption text-ink-3">
             {format.kind === 'video' ? t('emptyVideo') : t('emptyPicture')}
           </p>
-          <Button size="sm" icon={Upload} onClick={() => void addDepthMap(media, format, t)}>
-            {t('add', { format: format.label })}
-          </Button>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              icon={Sparkles}
+              onClick={() => void generateDepth(media, format, t, formatName(media, format))}
+            >
+              {t('gen.make')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Upload}
+              onClick={() => void addDepthMap(media, format, t)}
+            >
+              {t('addFile')}
+            </Button>
+          </div>
         </div>
-      ) : (
+      ) : !map ? null : (
         <>
           <div className="flex items-start gap-3">
             <button
@@ -203,6 +245,13 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
                   </div>
                 </Tooltip>
               )}
+              {generated && (
+                <div className="mt-1 flex items-center gap-1 t-caption text-ink-3">
+                  <Sparkles size={11} className="shrink-0" />
+                  {t('gen.madeBy')}
+                </div>
+              )}
+              {generated?.stale && !job && <div className="mt-1 t-caption text-review">{t('gen.stale')}</div>}
               {found.inherited && <div className="mt-1 t-caption text-ink-2">{t('fromMainHint')}</div>}
               {map.processing.state === 'failed' && (
                 <div className="mt-1 t-caption text-cut">{t('unreadable')}</div>

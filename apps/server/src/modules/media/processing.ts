@@ -179,10 +179,13 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
 /** Longest side of a depth map picture's preview. */
 const DEPTH_MAX = 2400
 
-/** What a depth map's row keeps across new files: the near end the user chose. */
-function depthMetaOf(meta: unknown): { near?: 'light' | 'dark' } {
-  const near = (meta as { near?: unknown } | null)?.near
-  return near === 'light' || near === 'dark' ? { near } : {}
+/** What a depth map's row keeps when its file is read: the near end the user chose, what made it (if Greenlit). */
+function depthMetaOf(meta: unknown): { near?: 'light' | 'dark'; generated?: unknown } {
+  const m = (meta ?? {}) as { near?: unknown; generated?: unknown }
+  return {
+    ...(m.near === 'light' || m.near === 'dark' ? { near: m.near } : {}),
+    ...(m.generated ? { generated: m.generated } : {}),
+  }
 }
 
 /** Bits per value of a pixel format: gray16le → 16, yuv420p10le → 10, grayf32le → 32, yuv420p → 8. */
