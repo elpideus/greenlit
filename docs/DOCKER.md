@@ -83,7 +83,8 @@ https.
 ## The Android device
 
 - **Needs** `/dev/kvm` (hardware virtualization) on the host; the service gets it as a device.
-- **GPU**: the device draws in software (SwiftShader) unless it has an NVIDIA GPU, which makes it much smoother.
+- **GPU**: the device draws in software (the emulator's ANGLE renderer on SwiftShader's Vulkan, `swangle_indirect`)
+  unless it has an NVIDIA GPU, which makes it much smoother.
   The emulator's own `host` renderer draws with GLX and needs an X display, which the container has none of; so on
   NVIDIA the device draws through the emulator's ANGLE renderer (OpenGL ES on Vulkan) on NVIDIA's Vulkan driver,
   headless (the start script points the emulator's SwiftShader driver file at NVIDIA's). Mesa (Intel, AMD) gives the
@@ -101,24 +102,32 @@ https.
      `.env`); Docker refuses it on a machine without the toolkit.
 
   `ANDROID_GPU=auto` (default) then picks the card at every start (the driver's EGL is in the container); `host`
-  forces the GPU, `software` the software renderer. A start on the GPU that never got Android booted is stopped after
-  4 minutes and leaves `/data/home/.gpu-host-failed`: later starts stay in software until it is deleted. In software,
-  Vulkan is off in the guest (Instagram's GPU probe crashed the emulator's software Vulkan).
+  forces the GPU, `software` the software renderer (`swiftshader`: SwiftShader's own OpenGL ES, `swiftshader_indirect`,
+  which crashed the whole emulator — exit 139 — on the Play Store's app pages every time). A start on the GPU that
+  never got Android booted is stopped after 4 minutes and leaves `/data/home/.gpu-host-failed`: later starts stay
+  in software until it is deleted. In software, Vulkan is off in the guest (Instagram's GPU probe crashed the
+  emulator's software Vulkan).
 - **Camera**: the emulator's own emulated camera (`ANDROID_CAMERA=emulated`, or `virtualscene` for its 3-D room).
   Nothing of the host's (no webcam, no v4l2loopback).
 - **Image**: Android 13 with Google APIs (x86_64) — Google sign-in works and, unlike the Play Store images, it can
   be rooted, which recording an app's requests and reading an app's own token need. `ANDROID_RAM_MB` and
   `ANDROID_CORES` size it (4 GB, 4 cores by default).
-- **Apps**: the Google APIs image has no Play Store, so what Greenlit needs there (`ANDROID_APPS`: the Play Store
-  and the YouTube app) is copied once, on the device's first start, from Google's Play image of the same Android
-  version: it boots on its own for a minute, the apps' files are copied to `/data/apps`, and the Play image is
-  deleted again. YouTube is installed as an app.
-- **Updating apps** (YouTube refuses versions it no longer supports: _Precondition check failed_): start the device
-  once in **update mode**, `ANDROID_UPDATE_APPS=1`. The system partition is then writable and the Play Store goes on
-  as a privileged system app, so YouTube and Google Play services update through it; then start it normally again.
-  Normal starts use the untouched system on purpose: the image's Google Play services is signed with another key
-  than the Play Store, and YouTube will not run while the two differ, but it runs with the image's own Play Store
-  stub. The updates live in the device's data and stay. Root works in both modes.
+- **Play Store and Google Play services**: the device has the Play Store, so apps update like on a phone (YouTube
+  refuses versions it no longer supports, _Precondition check failed_, and asks for a newer Google Play services
+  before it lets you sign in). The Google APIs image has no Play Store, only a stub of that name (`LicenseChecker`),
+  and its Google Play services and Services Framework are signed with Google's _development_ key, while the Play
+  Store is signed with Google's release key; every app that uses Play services checks that the Play Store and Play
+  services share a key and refuses to run when they do not. So on the device's first start the three come
+  together from Google's Play image of the same Android version (it boots on its own for a minute, the apps'
+  folders and their privileged permissions are copied to `/data/apps`, and the Play image is deleted again), and
+  replace the image's own on the device's system. The system is therefore always started writable
+  (`-writable-system`; the changes are kept in the device's folder in the volume, the system image itself is not
+  touched). The device's data stays through the swap: Android keeps an app's data when its system copy changes key
+  and drops an update made with the old key, which the Play Store replaces (it updates itself and Google Play
+  services within a minute of the swap). Root works as before. The image's other Google apps keep their
+  development-key copies; Google Partner Setup, which writes to the Services Framework's settings and would crash
+  at every start without that key, is turned off (it only sets partner ids). A device made before this (with the
+  stub) gets the same on its next start: the Play image is fetched again (about 1.7 GB) for it.
 - **The device view** asks for raw frames (`screencap` without PNG: about 0.12 s instead of 0.5 s for the device to
   encode a PNG) and makes a 720 px JPEG of each on the server, about 0.16 s a frame in all.
 - **Signing in to apps**: Settings → Connected accounts → _Android device_ shows the device's screen in Greenlit

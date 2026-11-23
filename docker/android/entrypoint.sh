@@ -81,14 +81,26 @@ wait_boot() {
   done
 }
 
-# Apps Greenlit needs that the Google APIs image lacks: the Play Store (so YouTube and Google Play services stay
-# current — YouTube refuses app versions it no longer supports) and the YouTube app. Copied once from Google's Play
-# image of the same Android version, booted briefly on its own (nothing of it is kept but the apps' files).
-APPS="${ANDROID_APPS:-com.android.vending com.google.android.youtube}"
+# The Play Store, which the Google APIs image lacks (it has a stub of that name, LicenseChecker): apps that have to be
+# updated before they let you sign in (YouTube refuses versions it no longer supports) are updated through it, and so
+# is Google Play services. The Play Store only works next to a Google Play services signed with its own key: every app
+# that uses Play services checks that the two match and refuses to run otherwise. The Google APIs image's Google Play
+# services and Services Framework (one app user, so one key) are signed with Google's development key, the Play
+# Store with Google's release key; so the three come together, from Google's Play image of the same Android version,
+# and replace the image's own on the device's system. The device keeps the Google APIs image itself for what the Play
+# images do not allow: root (reading an app's token, recording its requests).
+# Copied once: the Play image boots on its own for a minute, the three apps' folders (as on its system, with their
+# privileged permissions) are copied to /data/apps, and the Play image is deleted again.
+CORE="com.google.android.gsf com.google.android.gms com.android.vending"
 PLAY="system-images/android-$API/google_apis_playstore/x86_64/"
 mkdir -p /data/apps
+# Copies an earlier version of this script made (the Play Store's APK alone, and YouTube, which the Google APIs image
+# has itself) are replaced.
+for dir in /data/apps/*/; do
+  [ -d "$dir" ] && [ ! -f "$dir.path" ] && rm -rf "$dir"
+done
 need=""
-for pkg in $APPS; do [ -f "/data/apps/$pkg/.done" ] || need="$need $pkg"; done
+for pkg in $CORE; do [ -f "/data/apps/$pkg/.path" ] || need="$need $pkg"; done
 if [ -n "$need" ] && fetch_image google_apis_playstore; then
   echo "greenlit-android: copying$need from Google's Play image (first start only)"
   T=/data/play-tmp
@@ -100,23 +112,28 @@ if [ -n "$need" ] && fetch_image google_apis_playstore; then
   PLAY_PID=$!
   if wait_boot emulator-5556; then
     for pkg in $need; do
-      paths=$(adb -s emulator-5556 shell pm path "$pkg" 2>/dev/null | tr -d '\r' | sed -n 's/^package://p')
-      if [ -z "$paths" ]; then echo "greenlit-android: $pkg is not on the Play image" >&2; continue; fi
-      mkdir -p "/data/apps/$pkg"
-      for p in $paths; do adb -s emulator-5556 pull "$p" "/data/apps/$pkg/" >/dev/null; done
-      # A privileged system app's permissions (the Play Store's) go with it: its own block of whichever file of
-      # the image grants them, in a file of its own.
-      if adb -s emulator-5556 shell pm path "$pkg" | grep -q "priv-app"; then
-        mkdir -p "/data/apps/$pkg/permissions"
-        out="/data/apps/$pkg/permissions/privapp-permissions-$pkg.xml"
+      # The app's folder on the Play image's system (not an update it may have installed meanwhile).
+      src=$(adb -s emulator-5556 shell dumpsys package "$pkg" 2>/dev/null | tr -d '\r' | sed -n 's/^ *codePath=//p' | grep -v '^/data/' | head -1)
+      if [ -z "$src" ]; then echo "greenlit-android: $pkg is not on the Play image" >&2; continue; fi
+      out="/data/apps/$pkg"
+      rm -rf "$out" && mkdir -p "$out"
+      if ! adb -s emulator-5556 pull "$src" "$out/" >/dev/null; then
+        echo "greenlit-android: $pkg could not be copied" >&2; rm -rf "$out"; continue
+      fi
+      # A privileged app's permissions go with it: its own blocks of whichever files of the image grant them.
+      if echo "$src" | grep -q "/priv-app/"; then
         { echo '<?xml version="1.0" encoding="utf-8"?>'; echo '<permissions>'
           adb -s emulator-5556 shell "cat /system/etc/permissions/*.xml /product/etc/permissions/*.xml /system_ext/etc/permissions/*.xml 2>/dev/null" \
             | tr -d '\r' | awk -v p="package=\"$pkg\"" 'index($0, "<privapp-permissions") && index($0, p) {on=1} on {print} on && index($0, "</privapp-permissions>") {on=0}'
-          echo '</permissions>'; } > "$out"
-        grep -c "<permission " "$out" | sed "s/^/greenlit-android: $pkg privileged permissions: /"
+          echo '</permissions>'; } > "$out/privapp-permissions.xml"
+        grep -c "<permission " "$out/privapp-permissions.xml" | sed "s/^/greenlit-android: $pkg privileged permissions: /"
       fi
-      adb -s emulator-5556 shell dumpsys package "$pkg" | sed -n 's/^ *versionName=//p' | head -1 > "/data/apps/$pkg/.done"
-      echo "greenlit-android: copied $pkg $(cat "/data/apps/$pkg/.done")"
+      apk=$(ls "$out/$(basename "$src")/"*.apk | head -1)
+      md5sum "$apk" | cut -d' ' -f1 > "$out/.md5"
+      adb -s emulator-5556 shell dumpsys package "$pkg" | sed -n 's/^ *versionName=//p' | tail -1 > "$out/.version"
+      # Last: the folder's place on the system, and the mark that the copy is whole.
+      echo "$src/$(basename "$apk")" > "$out/.path"
+      echo "greenlit-android: copied $pkg $(cat "$out/.version")"
     done
   else
     echo "greenlit-android: the Play image did not start; apps not copied" >&2
@@ -125,56 +142,76 @@ if [ -n "$need" ] && fetch_image google_apis_playstore; then
   wait "$PLAY_PID" 2>/dev/null || true
   rm -rf "$T"
   # The Play image was only for this: removed again.
-  rm -rf "$ANDROID_SDK_ROOT/$PLAY"
+  rm -rf "${ANDROID_SDK_ROOT:?}/system-images/android-$API/google_apis_playstore"
 fi
 
-# Once the device has started: install the copied apps it does not have yet. The Play Store goes in as a privileged
-# system app (it only works as one), and only in update mode (ANDROID_UPDATE_APPS=1, the system partition writable):
-# the Google APIs image's Google Play services is signed with another key than the Play Store, and YouTube refuses
-# to run while the two differ. So the device normally starts on its untouched system (with the image's own
-# Play Store stub, which matches), and in update mode with the Play Store, to update YouTube and Google Play
-# services; the updates live in the device's data, so they stay when it starts normally again.
+# Once the device has started: Google's Play apps onto its system (writable: -writable-system below), in place of the
+# image's own, when its system does not have them yet (the first start). Its data stays: Android keeps an app's data
+# when its system copy changes key, and drops an update of the old key, which the Play Store then replaces.
 (
+  set +e
   D=emulator-5554
   wait_boot "$D" || exit 0
-  for dir in /data/apps/*/; do
-    pkg=$(basename "$dir")
-    [ -f "$dir/.done" ] || continue
-    if [ -d "$dir/permissions" ]; then
-      [ "${ANDROID_UPDATE_APPS:-0}" = "1" ] || continue
-      # A privileged system app counts only from priv-app: the Google APIs image has a stub under the Play
-      # Store's name (LicenseChecker), which goes.
-      adb -s "$D" shell pm path "$pkg" 2>/dev/null | grep -q "/priv-app/" && continue
-      echo "greenlit-android: installing $pkg as a system app"
-      adb -s "$D" root >/dev/null; sleep 3; wait_boot "$D"
-      # The first remount only sets up the system overlay; it takes effect after a restart.
-      if ! adb -s "$D" remount 2>&1 | grep -qi "remount succeeded"; then
-        adb -s "$D" reboot; sleep 10; wait_boot "$D"
-        adb -s "$D" root >/dev/null; sleep 3; wait_boot "$D"; adb -s "$D" remount >/dev/null 2>&1
-      fi
-      for stub in $(adb -s "$D" shell pm path "$pkg" 2>/dev/null | tr -d '\r' | sed -n 's/^package://p'); do
-        adb -s "$D" shell rm -rf "$(dirname "$stub")"
-      done
-      name=$(basename "$(ls "$dir"*.apk | head -1)" .apk)
-      adb -s "$D" shell mkdir -p "/system/priv-app/$name"
-      adb -s "$D" push "$(ls "$dir"*.apk | head -1)" "/system/priv-app/$name/$name.apk" >/dev/null
-      for x in "$dir"permissions/*.xml; do adb -s "$D" push "$x" /system/etc/permissions/ >/dev/null; done
-      adb -s "$D" shell "chmod 644 /system/priv-app/$name/$name.apk /system/etc/permissions/*.xml"
-      adb -s "$D" reboot; sleep 10; wait_boot "$D"
-      adb -s "$D" shell pm path "$pkg" 2>/dev/null | grep -q package: && echo "greenlit-android: $pkg installed" \
-        || echo "greenlit-android: $pkg not installed" >&2
-    else
-      adb -s "$D" shell pm path "$pkg" 2>/dev/null | grep -q package: && continue
-      echo "greenlit-android: installing $pkg"
-      adb -s "$D" install-multiple -r "$dir"*.apk || echo "greenlit-android: $pkg not installed" >&2
-    fi
+  for pkg in $CORE; do
+    [ -f "/data/apps/$pkg/.path" ] && continue
+    echo "greenlit-android: $pkg was not copied from the Play image; the device has no Play Store" >&2
+    exit 0
   done
+  current() { [ "$(adb -s "$D" shell md5sum "$(cat "/data/apps/$1/.path")" 2>/dev/null | cut -d' ' -f1)" = "$(cat "/data/apps/$1/.md5")" ]; }
+  todo=""
+  for pkg in $CORE; do current "$pkg" || todo="$todo $pkg"; done
+  if [ -n "$todo" ]; then
+    echo "greenlit-android: putting Google's Play Store, Play services and Services Framework on the device's system"
+    adb -s "$D" root >/dev/null; sleep 3; wait_boot "$D"
+    # The first remount only sets up the writable system; it takes effect after a restart.
+    if ! adb -s "$D" remount 2>&1 | grep -qi "remount succeeded"; then
+      adb -s "$D" reboot; sleep 10; wait_boot "$D"
+      adb -s "$D" root >/dev/null; sleep 3; wait_boot "$D"
+      if ! adb -s "$D" remount 2>&1 | grep -qi "remount succeeded"; then
+        echo "greenlit-android: the device's system could not be made writable; the device has no Play Store" >&2
+        exit 0
+      fi
+    fi
+    # All three, even when only one differs: they must share one key.
+    for pkg in $CORE; do
+      path=$(cat "/data/apps/$pkg/.path"); src=$(dirname "$path"); part="/$(echo "$src" | cut -d/ -f2)"
+      # The image's own copy, wherever it is (the Play Store stub is /product/app/LicenseChecker), and what an
+      # earlier version of this script installed (the Play Store in /system/priv-app, its permissions file).
+      for old in $(adb -s "$D" shell dumpsys package "$pkg" | tr -d '\r' | sed -n 's/^ *codePath=//p' | grep -v '^/data/'); do
+        adb -s "$D" shell rm -rf "$old"
+      done
+      adb -s "$D" shell rm -rf "$src" "/system/etc/permissions/privapp-permissions-$pkg.xml"
+      adb -s "$D" push "/data/apps/$pkg/$(basename "$src")" "$(dirname "$src")/" >/dev/null
+      perms="$part/etc/permissions/privapp-permissions-greenlit-$pkg.xml"
+      [ -f "/data/apps/$pkg/privapp-permissions.xml" ] && adb -s "$D" push "/data/apps/$pkg/privapp-permissions.xml" "$perms" >/dev/null
+      adb -s "$D" shell "chown -R root:root $src; find $src -type d -exec chmod 755 {} +; find $src -type f -exec chmod 644 {} +;
+        [ -f $perms ] && chmod 644 $perms; restorecon -R $src $part/etc/permissions" 2>/dev/null
+    done
+    adb -s "$D" reboot; sleep 10; wait_boot "$D"
+    for pkg in $CORE; do
+      if current "$pkg" && adb -s "$D" shell pm path "$pkg" 2>/dev/null | grep -q package:; then
+        echo "greenlit-android: $pkg $(cat "/data/apps/$pkg/.version") installed"
+      else
+        echo "greenlit-android: $pkg not installed" >&2
+      fi
+    done
+  fi
+  # Google Partner Setup, signed with the development key like the image's other Google apps, writes to the Services
+  # Framework's settings, which only apps of its key may: it would crash at every start ("Google Partner Setup keeps
+  # stopping"). It only sets partner ids, nothing Greenlit uses: off.
+  ps=com.google.android.partnersetup
+  if adb -s "$D" shell pm list packages -e "$ps" 2>/dev/null | tr -d '\r' | grep -qx "package:$ps"; then
+    adb -s "$D" shell pm disable-user --user 0 "$ps" >/dev/null && echo "greenlit-android: $ps turned off"
+  fi
 ) &
 
 # The GPU: an NVIDIA card when the container has one (its container toolkit mounts the driver's EGL in:
 # compose.nvidia.yaml), else software. The emulator's host renderer needs an EGL display without X, which NVIDIA's
 # EGL gives and Mesa's does not (Intel, AMD: ANDROID_GPU=host tries it anyway). A start on the GPU that never got
 # Android booted leaves a mark, and the next start is in software.
+# Software is ANGLE (OpenGL ES) on SwiftShader's Vulkan: the emulator's other software renderer, SwiftShader's own
+# OpenGL ES (swiftshader_indirect, ANDROID_GPU=swiftshader), crashed the whole emulator (a segfault) on the Play
+# Store's app pages, every time.
 GPU_MARK="$HOME/.gpu-host-starting"
 GPU_FAILED="$HOME/.gpu-host-failed"
 [ -f "$GPU_MARK" ] && { echo "greenlit-android: the last start on the GPU did not boot; drawing in software" >&2; touch "$GPU_FAILED"; }
@@ -182,11 +219,12 @@ rm -f "$GPU_MARK"
 gpu_mode() {
   case "${ANDROID_GPU:-auto}" in
     host) echo host; return ;;
-    software | swiftshader) echo swiftshader_indirect; return ;;
+    software) echo swangle_indirect; return ;;
+    swiftshader) echo swiftshader_indirect; return ;;
   esac
-  [ -f "$GPU_FAILED" ] && { echo swiftshader_indirect; return; }
+  [ -f "$GPU_FAILED" ] && { echo swangle_indirect; return; }
   nvidia && { echo host; return; }
-  echo swiftshader_indirect
+  echo swangle_indirect
 }
 nvidia() { [ -e /dev/nvidia0 ] && ldconfig -p 2>/dev/null | grep -q libEGL_nvidia; }
 GPU=$(gpu_mode)
@@ -241,15 +279,14 @@ fi
 # emulator's software Vulkan, and the whole device with it; they fall back to OpenGL ES.
 VULKAN=""
 [ "$GPU" = host ] || VULKAN="-feature -Vulkan"
+# The system is writable, always: Google's Play apps live on it (the changes are kept in the device's folder, the
+# system image itself stays untouched; started without it, the device would be back on the image's own apps).
 # shellcheck disable=SC2086
-set -- -avd "$NAME" -no-window -no-audio -no-boot-anim -no-snapshot \
+set -- -avd "$NAME" -no-window -no-audio -no-boot-anim -no-snapshot -writable-system \
   -gpu "$EMU_GPU" $VULKAN \
   -camera-back "${ANDROID_CAMERA:-emulated}" -camera-front "${ANDROID_CAMERA:-emulated}" \
   -memory "${ANDROID_RAM_MB:-4096}" -cores "${ANDROID_CORES:-4}"
-# Writable system partition (update mode's Play Store; off by default: root works without it), and a proxy for
-# recording an app's requests.
-[ "${ANDROID_UPDATE_APPS:-0}" = "1" ] && ANDROID_WRITABLE_SYSTEM=1
-[ "${ANDROID_WRITABLE_SYSTEM:-0}" = "1" ] && set -- "$@" -writable-system
+# A proxy, for recording an app's requests.
 [ -n "${ANDROID_HTTP_PROXY:-}" ] && set -- "$@" -http-proxy "$ANDROID_HTTP_PROXY"
 # Extra emulator flags (ANDROID_EMULATOR_FLAGS), for trying a setup without changing this script.
 # shellcheck disable=SC2086

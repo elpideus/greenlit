@@ -17,8 +17,6 @@ services:
     environment:
       ANDROID_RAM_MB: ${ANDROID_RAM_MB:-4096}
       ANDROID_CORES: ${ANDROID_CORES:-4}
-      # 1 = update mode: the Play Store is on the device, to update YouTube and Google Play services (docs/DOCKER.md).
-      ANDROID_UPDATE_APPS: ${ANDROID_UPDATE_APPS:-0}
       TZ: ${TZ:-UTC}
       # auto (default): an NVIDIA GPU when the container has one (compose.nvidia.yaml), else software; or
       # host / software.
