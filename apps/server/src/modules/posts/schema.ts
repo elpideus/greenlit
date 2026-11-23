@@ -82,6 +82,10 @@ export const postTargets = pgTable(
     audio: jsonb('audio').notNull().default({ original: 1, music: 1 }),
     options: jsonb('options').notNull().default({}),
     formats: jsonb('formats').notNull().default({}),
+    /** Which version of each media item this target uses (version key per media id; missing = the main one). */
+    versions: jsonb('versions').notNull().default({}),
+    /** Which audio track replaces each video's own sound (track key per media id; missing = its own sound). */
+    audioTracks: jsonb('audio_tracks').notNull().default({}),
     scheduleAt: timestamp('schedule_at', { withTimezone: true }),
     state: text('state').notNull().default('draft'),
     remoteId: text('remote_id'),

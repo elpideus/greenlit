@@ -85,6 +85,10 @@ export const PostTarget = z.object({
   options: z.record(z.string(), z.unknown()),
   /** Which format of each media item this target uses (format key per media id). */
   formats: z.record(z.string(), z.string()),
+  /** Which version of each media item this target uses (version key per media id; missing = the main one). */
+  versions: z.record(z.string(), z.string()),
+  /** Which audio track replaces each video's own sound (track key per media id; missing = its own sound). */
+  audioTracks: z.record(z.string(), z.string()),
   scheduleAt: IsoDate.nullable(),
   state: TargetState,
   remoteId: z.string().nullable(),
@@ -101,20 +105,33 @@ export type PostTarget = z.infer<typeof PostTarget>
 
 export const PostStatus = z.enum(['draft', 'scheduled', 'publishing', 'published', 'partial', 'failed'])
 
+export const PostMediaFormat = z.object({
+  key: z.string(),
+  label: z.string(),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  duration: z.number().nullable(),
+  previewUrl: z.string().nullable(),
+  posterUrl: z.string().nullable(),
+})
+export type PostMediaFormat = z.infer<typeof PostMediaFormat>
+
 export const PostMediaItem = z.object({
   mediaId: Id,
   title: z.string(),
   kind: z.string(),
   thumbnailUrl: z.string().nullable(),
-  formats: z.array(
+  /** The main version's formats. */
+  formats: z.array(PostMediaFormat),
+  /** Every version (main first) with its formats; empty while the item has one. */
+  versions: z.array(z.object({ key: z.string(), label: z.string(), formats: z.array(PostMediaFormat) })),
+  /** Audio tracks that can replace the video's own sound. */
+  audioTracks: z.array(
     z.object({
       key: z.string(),
       label: z.string(),
-      width: z.number().nullable(),
-      height: z.number().nullable(),
       duration: z.number().nullable(),
       previewUrl: z.string().nullable(),
-      posterUrl: z.string().nullable(),
     }),
   ),
 })
@@ -156,6 +173,8 @@ export const TargetInput = z.object({
   audio: AudioMix.default({ original: 1, music: 1 }),
   options: z.record(z.string(), z.unknown()).default({}),
   formats: z.record(z.string(), z.string()).default({}),
+  versions: z.record(z.string(), z.string()).default({}),
+  audioTracks: z.record(z.string(), z.string()).default({}),
   scheduleAt: z.iso.datetime({ offset: true }).nullable().default(null),
 })
 export type TargetInput = z.input<typeof TargetInput>

@@ -28,6 +28,11 @@ export const media = pgTable(
     tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
     takenAt: timestamp('taken_at', { withTimezone: true }),
     hiddenFrom: uuid('hidden_from').array().notNull().default(sql`'{}'::uuid[]`),
+    /**
+     * The item's versions in order (the same video with Italian or English text...), `key` '' being the main one.
+     * Empty while the item has a single version. Each version's files are formats with that `version` key.
+     */
+    versions: jsonb('versions').$type<{ key: string; label: string }[]>().notNull().default([]),
     /** title + notes + tags, lower case without accents, for search. */
     searchText: text('search_text').notNull().default(''),
     createdBy: uuid('created_by'),
@@ -43,7 +48,11 @@ export const media = pgTable(
   ],
 )
 
-/** The renditions of a media item: main, vertical, square... each with its own file history. */
+/**
+ * The renditions of a media item: main, vertical, square... each with its own file history. A row belongs to one of
+ * the item's versions (`version`, '' = the main one), or is one of its extra audio tracks (`role` 'audio', shared by
+ * every version: a voice-over in another language, a mix without music...).
+ */
 export const mediaFormats = pgTable(
   'media_formats',
   {
@@ -53,6 +62,11 @@ export const mediaFormats = pgTable(
       .references(() => media.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
     label: text('label').notNull(),
+    /** 'format' = a picture/video of a version; 'audio' = an audio track that can replace the video's sound. */
+    role: text('role').notNull().default('format'),
+    /** The version the format belongs to ('' = the main version). Audio tracks keep ''. */
+    version: text('version').notNull().default(''),
+    /** The main format of its version (the main version's one is the item's thumbnail). */
     isPrimary: boolean('is_primary').notNull().default(false),
     position: integer('position').notNull().default(0),
     blobId: uuid('blob_id').notNull(),
@@ -75,7 +89,10 @@ export const mediaFormats = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex('media_formats_key').on(t.mediaId, t.key), index('media_formats_blob').on(t.blobId)],
+  (t) => [
+    uniqueIndex('media_formats_key').on(t.mediaId, t.role, t.version, t.key),
+    index('media_formats_blob').on(t.blobId),
+  ],
 )
 
 /** Every file a format has ever had (file versions). */

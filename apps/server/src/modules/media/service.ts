@@ -45,6 +45,8 @@ declare module '../../core/events.ts' {
     'media.deleted': { id: string; projectId: string | null }
     'media.processed': { id: string; formatId: string }
     'media.located': { id: string; lat: number; lng: number; source: 'exif' }
+    /** Version `promoted` became the main one (key ''); the old main one is now `demoted`. */
+    'media.mainVersionChanged': { id: string; promoted: string; demoted: string }
   }
 }
 
@@ -112,6 +114,7 @@ export class MediaService {
       key: f.key,
       label: f.label,
       isPrimary: f.isPrimary,
+      version: f.version,
       kind: f.kind as MediaKind,
       mime: f.mime,
       filename: f.filename,
@@ -150,17 +153,29 @@ export class MediaService {
       .where(inArray(mediaFormats.mediaId, ids))
       .orderBy(desc(mediaFormats.isPrimary), asc(mediaFormats.position), asc(mediaFormats.createdAt))
     const blobs = await this.files.many(formats.map((f) => f.blobId))
-    const byMedia = new Map<string, MediaFormat[]>()
+    // media id → version key → formats; media id → audio tracks
+    const byMedia = new Map<string, Map<string, MediaFormat[]>>()
+    const tracks = new Map<string, MediaFormat[]>()
     for (const f of formats) {
-      const list = byMedia.get(f.mediaId) ?? []
-      list.push(this.formatView(f, blobs.get(f.blobId)?.state ?? 'hot'))
-      byMedia.set(f.mediaId, list)
+      const view = this.formatView(f, blobs.get(f.blobId)?.state ?? 'hot')
+      if (f.role === 'audio') {
+        tracks.set(f.mediaId, [...(tracks.get(f.mediaId) ?? []), view])
+        continue
+      }
+      const versions = byMedia.get(f.mediaId) ?? new Map<string, MediaFormat[]>()
+      versions.set(f.version, [...(versions.get(f.version) ?? []), view])
+      byMedia.set(f.mediaId, versions)
     }
     const refs = await this.ctx.services.users.refs(rows.map((r) => r.createdBy))
     const extras = await this.ctx.hooks.run('media.decorate', { ids, actor })
     return rows.map((r) => {
-      const fs = byMedia.get(r.id) ?? []
+      const versionFormats = byMedia.get(r.id) ?? new Map<string, MediaFormat[]>()
+      const fs = versionFormats.get('') ?? []
       const primary = fs.find((f) => f.isPrimary) ?? fs[0]
+      const versions =
+        r.versions.length > 1
+          ? r.versions.map((v) => ({ key: v.key, label: v.label, formats: versionFormats.get(v.key) ?? [] }))
+          : []
       const m: Media = {
         id: r.id,
         projectId: r.projectId,
@@ -171,6 +186,8 @@ export class MediaService {
         origin: r.origin as Media['origin'],
         tags: r.tags,
         formats: fs,
+        versions,
+        audioTracks: tracks.get(r.id) ?? [],
         thumbnailUrl: primary?.urls.thumbnail ?? null,
         places: [],
         commentCount: 0,
@@ -351,19 +368,52 @@ export class MediaService {
     return id
   }
 
-  /** Adds a new format (vertical, square...) or, if the key exists, a new file version of it. */
+  /**
+   * Adds a new format (vertical, square...) or, if the key exists, a new file version of it. With `version`, the
+   * format belongs to that version of the item (created with `versionLabel` when new); with `audio`, the file is
+   * one of the item's audio tracks instead.
+   */
   async attachFile(
     mediaId: string,
     blob: BlobRow,
-    opts: { formatKey: string; label?: string; note?: string },
+    opts: {
+      formatKey: string
+      label?: string
+      note?: string
+      version?: string
+      versionLabel?: string
+      mainVersionLabel?: string
+      audio?: boolean
+    },
     actor: Actor,
   ) {
     const m = await this.row(mediaId)
     const kind = mediaKindFromMime(blob.mime)
+    const role = opts.audio ? 'audio' : 'format'
+    const version = opts.audio ? '' : (opts.version ?? '')
+    if (role === 'audio' && kind !== 'audio' && kind !== 'video')
+      throw badRequest('An audio track must be a sound file (or a video whose sound is used)')
+    if (version && !m.versions.some((v) => v.key === version)) {
+      if (!opts.versionLabel?.trim()) throw badRequest('Name the new version')
+      const versions = m.versions.length
+        ? m.versions
+        : [{ key: '', label: opts.mainVersionLabel?.trim() || 'Original' }]
+      await this.db
+        .update(media)
+        .set({ versions: [...versions, { key: version, label: opts.versionLabel.trim().slice(0, 60) }] })
+        .where(eq(media.id, mediaId))
+    }
     const [existing] = await this.db
       .select()
       .from(mediaFormats)
-      .where(and(eq(mediaFormats.mediaId, mediaId), eq(mediaFormats.key, opts.formatKey)))
+      .where(
+        and(
+          eq(mediaFormats.mediaId, mediaId),
+          eq(mediaFormats.role, role),
+          eq(mediaFormats.version, version),
+          eq(mediaFormats.key, opts.formatKey),
+        ),
+      )
     let formatId: string
     let revision = 1
     if (existing) {
@@ -392,11 +442,19 @@ export class MediaService {
       const [{ n } = { n: 0 }] = await this.db
         .select({ n: sql<number>`count(*)::int` })
         .from(mediaFormats)
-        .where(eq(mediaFormats.mediaId, mediaId))
+        .where(
+          and(
+            eq(mediaFormats.mediaId, mediaId),
+            eq(mediaFormats.role, role),
+            eq(mediaFormats.version, version),
+          ),
+        )
       const [f] = await this.db
         .insert(mediaFormats)
         .values({
           mediaId,
+          role,
+          version,
           key: opts.formatKey,
           label: opts.label ?? FORMAT_PRESETS.find((p) => p.key === opts.formatKey)?.label ?? opts.formatKey,
           isPrimary: n === 0,
@@ -507,6 +565,8 @@ export class MediaService {
         .where(
           and(
             eq(mediaFormats.mediaId, f.mediaId),
+            eq(mediaFormats.role, f.role),
+            eq(mediaFormats.version, f.version),
             eq(mediaFormats.key, patch.key),
             ne(mediaFormats.id, formatId),
           ),
@@ -514,7 +574,16 @@ export class MediaService {
       if (clash) throw badRequest('This media already has a format with that name')
     }
     if (patch.isPrimary)
-      await this.db.update(mediaFormats).set({ isPrimary: false }).where(eq(mediaFormats.mediaId, f.mediaId))
+      await this.db
+        .update(mediaFormats)
+        .set({ isPrimary: false })
+        .where(
+          and(
+            eq(mediaFormats.mediaId, f.mediaId),
+            eq(mediaFormats.role, f.role),
+            eq(mediaFormats.version, f.version),
+          ),
+        )
     await this.db
       .update(mediaFormats)
       .set({
@@ -532,17 +601,103 @@ export class MediaService {
   async removeFormat(formatId: string, actor: Actor) {
     const [f] = await this.db.select().from(mediaFormats).where(eq(mediaFormats.id, formatId))
     if (!f) throw notFound('Format not found')
-    const all = await this.db.select().from(mediaFormats).where(eq(mediaFormats.mediaId, f.mediaId))
-    if (all.length === 1)
+    // Its siblings: the other formats of the same version (or the other audio tracks).
+    const all = await this.db
+      .select()
+      .from(mediaFormats)
+      .where(
+        and(
+          eq(mediaFormats.mediaId, f.mediaId),
+          eq(mediaFormats.role, f.role),
+          eq(mediaFormats.version, f.version),
+        ),
+      )
+      .orderBy(asc(mediaFormats.position))
+    if (all.length === 1 && f.role === 'format' && !f.version)
       throw badRequest('A media item needs at least one format. Delete the media instead.')
     await this.db.delete(mediaFormats).where(eq(mediaFormats.id, formatId))
-    if (f.isPrimary) {
-      const next = all.find((x) => x.id !== formatId)!
+    const next = all.find((x) => x.id !== formatId)
+    if (f.isPrimary && next)
       await this.db.update(mediaFormats).set({ isPrimary: true }).where(eq(mediaFormats.id, next.id))
-    }
+    // The last format of another version: the version goes with it.
+    if (!next && f.role === 'format' && f.version) await this.dropVersionEntry(f.mediaId, f.version)
     await this.ctx.versions.record('media', f.mediaId, actor, { force: true })
     const m = await this.row(f.mediaId)
     this.publish(f.mediaId, m.projectId, 'media.updated')
+  }
+
+  // ── versions ────────────────────────────────────────────────────────────
+
+  /** Renames a version, or makes it the main one (its formats become the item's, the old main one a version). */
+  async updateVersion(mediaId: string, key: string, patch: { label?: string; isMain?: true }, actor: Actor) {
+    const m = await this.row(mediaId)
+    const version = m.versions.find((v) => v.key === key)
+    if (!version) throw notFound('Version not found')
+    let versions = m.versions.map((v) => (v.key === key && patch.label ? { ...v, label: patch.label } : v))
+    if (patch.isMain && key) {
+      // The chosen version's formats become the main ones (''); the old main version gets a key of its own from
+      // its name, so links and posts that chose a version keep pointing at the same files.
+      const main = versions.find((v) => v.key === '')!
+      const chosen = versions.find((v) => v.key === key)!
+      const demoted = keyFor(
+        main.label,
+        versions.map((v) => v.key).filter((k) => k !== key),
+        'original',
+      )
+      await this.db.execute(sql`
+        update ${mediaFormats}
+        set version = case when version = '' then ${demoted} else '' end, updated_at = now()
+        where media_id = ${mediaId} and role = 'format' and version in ('', ${key})`)
+      versions = [
+        { key: '', label: chosen.label },
+        ...versions.flatMap((v) =>
+          v.key === '' ? [] : v.key === key ? [{ key: demoted, label: main.label }] : [v],
+        ),
+      ]
+      this.ctx.events.emit('media.mainVersionChanged', { id: mediaId, promoted: key, demoted })
+    }
+    await this.db.update(media).set({ versions, updatedAt: new Date() }).where(eq(media.id, mediaId))
+    await this.ctx.versions.record('media', mediaId, actor, { force: !!patch.isMain })
+    if (patch.isMain) await this.enqueueThumbnailRefresh(mediaId)
+    this.ctx.events.emit('media.updated', { id: mediaId, projectId: m.projectId })
+    this.publish(mediaId, m.projectId, 'media.updated')
+    return this.get(mediaId, actor)
+  }
+
+  /** Removes a version that is not the main one, with its formats. */
+  async removeVersion(mediaId: string, key: string, actor: Actor) {
+    const m = await this.row(mediaId)
+    if (!key) throw badRequest('The main version cannot be removed: make another one main first')
+    if (!m.versions.some((v) => v.key === key)) throw notFound('Version not found')
+    await this.db
+      .delete(mediaFormats)
+      .where(
+        and(
+          eq(mediaFormats.mediaId, mediaId),
+          eq(mediaFormats.role, 'format'),
+          eq(mediaFormats.version, key),
+        ),
+      )
+    await this.dropVersionEntry(mediaId, key)
+    await this.ctx.versions.record('media', mediaId, actor, { force: true })
+    this.ctx.events.emit('media.updated', { id: mediaId, projectId: m.projectId })
+    this.publish(mediaId, m.projectId, 'media.updated')
+  }
+
+  private async dropVersionEntry(mediaId: string, key: string) {
+    const m = await this.row(mediaId)
+    const rest = m.versions.filter((v) => v.key !== key)
+    // A single version left is just the item again.
+    await this.db
+      .update(media)
+      .set({ versions: rest.length > 1 ? rest : [], updatedAt: new Date() })
+      .where(eq(media.id, mediaId))
+  }
+
+  /** The media kind follows the main format; after a version swap, tell the lists the thumbnail moved. */
+  private async enqueueThumbnailRefresh(mediaId: string) {
+    const [primary] = await this.formatsOf(mediaId)
+    if (primary) await this.db.update(media).set({ kind: primary.kind }).where(eq(media.id, mediaId))
   }
 
   async trash(ids: string[], actor: Actor) {
@@ -609,7 +764,12 @@ export class MediaService {
     return this.attachFile(
       file.mediaId,
       blob,
-      { formatKey: format.key, note: `Restored file version ${file.fileRevision}` },
+      {
+        formatKey: format.key,
+        version: format.version,
+        audio: format.role === 'audio',
+        note: `Restored file version ${file.fileRevision}`,
+      },
       actor,
     )
   }
@@ -629,12 +789,29 @@ export class MediaService {
     return f
   }
 
-  async formatsOf(mediaId: string) {
-    return this.db
+  /**
+   * The formats of the item's main version, main first. With `version`, that version's formats (the main version's
+   * when the item has no such version); with `all`, every row including other versions and audio tracks.
+   */
+  async formatsOf(mediaId: string, opts: { version?: string | null; all?: boolean } = {}) {
+    const rows = await this.db
       .select()
       .from(mediaFormats)
       .where(eq(mediaFormats.mediaId, mediaId))
       .orderBy(desc(mediaFormats.isPrimary), asc(mediaFormats.position))
+    if (opts.all) return rows
+    const wanted = opts.version ?? ''
+    const own = rows.filter((f) => f.role === 'format' && f.version === wanted)
+    return own.length || !wanted ? own : rows.filter((f) => f.role === 'format' && f.version === '')
+  }
+
+  /** The item's audio tracks, in order. */
+  async audioTracksOf(mediaId: string) {
+    return this.db
+      .select()
+      .from(mediaFormats)
+      .where(and(eq(mediaFormats.mediaId, mediaId), eq(mediaFormats.role, 'audio')))
+      .orderBy(asc(mediaFormats.position), asc(mediaFormats.createdAt))
   }
 
   publish(id: string, projectId: string | null, event: string) {
@@ -655,4 +832,17 @@ export function cleanTags(tags: string[]): string[] {
     out.push(n)
   }
   return out
+}
+
+/** A URL-safe key from a name (a version's label), never `main` nor one of `taken`. */
+export function keyFor(name: string, taken: string[], fallback: string): string {
+  const base =
+    fold(name)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 34) || fallback
+  const used = new Set([...taken, 'main', ''])
+  let key = base
+  for (let i = 2; used.has(key); i++) key = `${base}-${i}`
+  return key
 }

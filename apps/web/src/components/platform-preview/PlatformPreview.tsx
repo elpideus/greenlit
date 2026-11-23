@@ -45,6 +45,7 @@ export function PlatformPreview(props: PlatformPreviewProps) {
     startAt: props.startAt,
     originalVolume: props.audio?.original ?? 1,
     musicSrc: props.musicSrc,
+    trackSrc: props.trackSrc,
     musicStartAt: props.musicStartAt,
     musicVolume: props.audio?.music ?? 1,
   })

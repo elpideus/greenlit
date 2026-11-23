@@ -50,6 +50,13 @@
       "when": 1795337232323,
       "tag": "0006_account_merging",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795422972381,
+      "tag": "0007_media_versions",
+      "breakpoints": true
     }
   ]
 }

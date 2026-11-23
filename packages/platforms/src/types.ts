@@ -393,6 +393,11 @@ export const EncodeOptions = z.object({
   padColor: z.string().optional(),
   /** Use this many encoder threads (0 = ffmpeg default). */
   threads: z.number().int().nonnegative().default(0),
+  /**
+   * Take the sound from the second input (`-i <video> -i <audio>`): another audio track replaces the video's own,
+   * padded with silence or cut to the video's length. `SourceInfo.hasAudio`/`audioChannels` describe that track.
+   */
+  audioFrom: z.literal(1).optional(),
 })
 export type EncodeOptions = z.input<typeof EncodeOptions>
 

@@ -2,6 +2,7 @@ import { truncateForDisplay } from '@greenlit/platforms'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type CSSProperties, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
+import { followVideo } from '@/lib/audioTrack'
 import { cn } from '@/lib/cn'
 import type { PreviewAccount, PreviewMedia } from './types'
 
@@ -32,9 +33,11 @@ export function usePlayback(opts: {
   musicSrc?: string | null
   musicStartAt?: number
   musicVolume?: number
+  trackSrc?: string | null
 }): Playback {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const musicRef = useRef<HTMLAudioElement | null>(null)
+  const trackRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(opts.autoPlay ?? true)
   const [muted, setMuted] = useState(true)
   const [progress, setProgress] = useState(0)
@@ -49,11 +52,33 @@ export function usePlayback(opts: {
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    v.muted = muted
+    // Another audio track replaces the video's sound: the video stays silent, the track plays at its volume.
+    v.muted = muted || !!opts.trackSrc
     v.volume = Math.max(0, Math.min(1, opts.originalVolume ?? 1))
+    if (trackRef.current) {
+      trackRef.current.muted = muted
+      trackRef.current.volume = v.volume
+    }
     if (playing) void v.play().catch(() => setPlaying(false))
     else v.pause()
-  }, [playing, muted, opts.originalVolume])
+  }, [playing, muted, opts.originalVolume, opts.trackSrc])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: volume and mute are kept up to date by the effect above
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !opts.trackSrc) return
+    const a = new Audio()
+    a.preload = 'auto'
+    a.src = opts.trackSrc
+    a.muted = muted
+    a.volume = Math.max(0, Math.min(1, opts.originalVolume ?? 1))
+    trackRef.current = a
+    const stop = followVideo(v, a)
+    return () => {
+      stop()
+      trackRef.current = null
+    }
+  }, [opts.trackSrc])
 
   // the chosen sound, when the platform's audio is available
   useEffect(() => {

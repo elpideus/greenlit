@@ -24,7 +24,10 @@ export const MediaFormat = z.object({
   mediaId: Id,
   key: FormatKey,
   label: z.string(),
+  /** The main format of its version. */
   isPrimary: z.boolean(),
+  /** The version this format belongs to ('' = the main version; audio tracks too). */
+  version: z.string(),
   kind: MediaKind,
   mime: z.string(),
   filename: z.string(),
@@ -55,6 +58,19 @@ export const MediaFormat = z.object({
 })
 export type MediaFormat = z.infer<typeof MediaFormat>
 
+/**
+ * Another version of the same item: the same video with English instead of Italian text, a cut without the logo...
+ * Each version has its own formats; the main version (key '') is the one lists, thumbnails and the editor use.
+ */
+export const MediaVersion = z.object({
+  /** '' = the main version. */
+  key: z.string(),
+  label: z.string(),
+  /** Its formats, main first (for the main version, the same list as `Media.formats`). */
+  formats: z.array(MediaFormat),
+})
+export type MediaVersion = z.infer<typeof MediaVersion>
+
 export const MediaOrigin = z.enum(['upload', 'render', 'import', 'platform', 'link'])
 
 export const Media = z.object({
@@ -66,7 +82,12 @@ export const Media = z.object({
   status: MediaStatus,
   origin: MediaOrigin,
   tags: z.array(z.string()),
+  /** The main version's formats. */
   formats: z.array(MediaFormat),
+  /** Every version, the main one first; empty while the item has only one. */
+  versions: z.array(MediaVersion),
+  /** Extra audio tracks that can replace a video's own sound (voice-over in another language, no music...). */
+  audioTracks: z.array(MediaFormat),
   thumbnailUrl: z.string().nullable(),
   places: z.array(PlaceRef),
   commentCount: z.number().int(),
@@ -113,6 +134,19 @@ export const UpdateFormatInput = z.object({
   label: z.string().min(1).max(60).optional(),
   isPrimary: z.literal(true).optional(),
 })
+
+export const UpdateVersionInput = z.object({
+  label: z.string().trim().min(1).max(60).optional(),
+  /** Make it the main version (the one lists, thumbnails and new posts use). */
+  isMain: z.literal(true).optional(),
+})
+export type UpdateVersionInput = z.infer<typeof UpdateVersionInput>
+
+/** The formats of one version of an item ('' or an unknown key = the main version). */
+export function versionFormats(m: Pick<Media, 'formats' | 'versions'>, version: string | null | undefined) {
+  if (!version) return m.formats
+  return m.versions.find((v) => v.key === version)?.formats ?? m.formats
+}
 
 export function aspectLabel(width: number | null, height: number | null): string | null {
   if (!width || !height) return null

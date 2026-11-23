@@ -1,4 +1,11 @@
-import type { Post, PostTarget, SavePostInput, TargetInput } from '@greenlit/shared'
+import type {
+  MediaFormat,
+  Post,
+  PostMediaFormat,
+  PostTarget,
+  SavePostInput,
+  TargetInput,
+} from '@greenlit/shared'
 import { TargetInput as TargetInputSchema } from '@greenlit/shared/areas/posts'
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import { type Actor, actorUserId, isAdmin } from '../../core/actor.ts'
@@ -75,6 +82,8 @@ export class PostsService {
       audio: t.audio as PostTarget['audio'],
       options: t.options as Record<string, unknown>,
       formats: t.formats as Record<string, string>,
+      versions: t.versions as Record<string, string>,
+      audioTracks: t.audioTracks as Record<string, string>,
       scheduleAt: t.scheduleAt?.toISOString() ?? null,
       state: t.state as PostTarget['state'],
       remoteId: t.remoteId,
@@ -147,15 +156,17 @@ export class PostsService {
             title: m.title,
             kind: m.kind,
             thumbnailUrl: m.thumbnailUrl,
-            formats: m.formats.map((f) => ({
-              key: f.key,
-              label: f.label,
-              width: f.width,
-              height: f.height,
-              duration: f.duration,
-              previewUrl:
-                f.urls.preview ?? (f.kind === 'image' ? (f.urls.poster ?? f.urls.original) : f.urls.original),
-              posterUrl: f.urls.poster,
+            formats: m.formats.map(postFormat),
+            versions: m.versions.map((v) => ({
+              key: v.key,
+              label: v.label,
+              formats: v.formats.map(postFormat),
+            })),
+            audioTracks: m.audioTracks.map((a) => ({
+              key: a.key,
+              label: a.label,
+              duration: a.duration,
+              previewUrl: a.urls.preview ?? a.urls.original,
             })),
           })),
         targets: tv,
@@ -336,6 +347,8 @@ export class PostsService {
           audio: t.audio,
           options: t.options,
           formats: t.formats,
+          versions: t.versions,
+          audioTracks: t.audioTracks,
           scheduleAt: t.scheduleAt ? new Date(t.scheduleAt) : null,
           updatedAt: new Date(),
         }
@@ -515,5 +528,17 @@ export class PostsService {
         return { ...v, id: t.id }
       }),
     }
+  }
+}
+
+function postFormat(f: MediaFormat): PostMediaFormat {
+  return {
+    key: f.key,
+    label: f.label,
+    width: f.width,
+    height: f.height,
+    duration: f.duration,
+    previewUrl: f.urls.preview ?? (f.kind === 'image' ? (f.urls.poster ?? f.urls.original) : f.urls.original),
+    posterUrl: f.urls.poster,
   }
 }

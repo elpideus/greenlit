@@ -130,8 +130,8 @@
     "translationsHint": "Titolo e didascalia in altre lingue, dove la piattaforma lo supporta.",
     "addLanguage": "Aggiungi lingua",
     "removeLanguage": "Rimuovi lingua",
-    "formats": "Formato",
-    "formatsHint": "Quale forma di ogni elemento usa questa versione.",
+    "formats": "File",
+    "formatsHint": "Quale versione, forma e audio di ogni elemento viene pubblicato qui.",
     "best": "Il più adatto",
     "cover": "Copertina",
     "coverAuto": "Sceglie la piattaforma",
@@ -177,7 +177,11 @@
     "accountError": "Non raggiungibile",
     "coverHint": "L'immagine che si vede prima che parta il video.",
     "needsVideo": "Serve un video",
-    "needsPictures": "Servono foto"
+    "needsPictures": "Servono foto",
+    "version": "Versione",
+    "mainVersion": "principale",
+    "shape": "Forma",
+    "ownSound": "L’audio del video"
   },
   "check": {
     "title": "Controlli",

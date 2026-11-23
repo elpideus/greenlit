@@ -111,6 +111,8 @@ export async function duplicatePost(p: Post) {
         audio: t.audio,
         options: t.options,
         formats: t.formats,
+        versions: t.versions,
+        audioTracks: t.audioTracks,
       })),
   })
 }

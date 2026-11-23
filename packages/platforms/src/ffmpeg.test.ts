@@ -127,6 +127,19 @@ describe('ffmpegArgsFor', () => {
     })
   })
 
+  it('takes the sound from a second input when another audio track replaces the video sound', () => {
+    const plan = ffmpegArgsFor(getPlacement('instagram.reel'), vertical, { audioFrom: 1 })
+    expect(graph(plan.args)).toContain('[1:a:0]apad,atrim=duration=15[a]')
+    expect(plan.args).not.toContain('0:a:0')
+    expect(arg(plan.args, '-c:a')).toBe('aac')
+    const open = ffmpegArgsFor(
+      getPlacement('instagram.reel'),
+      { ...vertical, durationSec: null },
+      { audioFrom: 1 },
+    )
+    expect(open.args).toContain('-shortest')
+  })
+
   it('reduces 120 fps by whole frames and adds a silent track for Instagram reels', () => {
     const plan = ffmpegArgsFor(getPlacement('instagram.reel'), {
       width: 1280,

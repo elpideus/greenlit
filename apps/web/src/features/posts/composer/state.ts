@@ -1,4 +1,4 @@
-import type { Account, Media, Post } from '@greenlit/shared'
+import type { Account, Media, MediaFormat, Post } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { qk } from '@/lib/query'
@@ -31,21 +31,29 @@ export function useComposer() {
   return c
 }
 
+const toPostFormat = (f: MediaFormat) => ({
+  key: f.key,
+  label: f.label,
+  width: f.width,
+  height: f.height,
+  duration: f.duration,
+  previewUrl: f.urls.preview ?? (f.kind === 'image' ? (f.urls.poster ?? f.urls.original) : f.urls.original),
+  posterUrl: f.urls.poster,
+})
+
 export function toPostMedia(m: Media): PostMediaItem {
   return {
     mediaId: m.id,
     title: m.title,
     kind: m.kind,
     thumbnailUrl: m.thumbnailUrl,
-    formats: m.formats.map((f) => ({
-      key: f.key,
-      label: f.label,
-      width: f.width,
-      height: f.height,
-      duration: f.duration,
-      previewUrl:
-        f.urls.preview ?? (f.kind === 'image' ? (f.urls.poster ?? f.urls.original) : f.urls.original),
-      posterUrl: f.urls.poster,
+    formats: m.formats.map(toPostFormat),
+    versions: m.versions.map((v) => ({ key: v.key, label: v.label, formats: v.formats.map(toPostFormat) })),
+    audioTracks: m.audioTracks.map((a) => ({
+      key: a.key,
+      label: a.label,
+      duration: a.duration,
+      previewUrl: a.urls.preview ?? a.urls.original,
     })),
   }
 }

@@ -101,7 +101,9 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
     const [m] = await ctx.db.select().from(media).where(eq(media.id, format.mediaId))
     if (m) {
       const patch: Partial<typeof media.$inferInsert> = {}
-      if (format.isPrimary && m.kind !== kind) patch.kind = kind
+      // The item's kind follows its main file (not another version's, nor an audio track).
+      if (format.isPrimary && format.role === 'format' && !format.version && m.kind !== kind)
+        patch.kind = kind
       if (!m.takenAt && takenAt && !Number.isNaN(takenAt.getTime()) && takenAt.getFullYear() > 1980)
         patch.takenAt = takenAt
       if (Object.keys(patch).length) await ctx.db.update(media).set(patch).where(eq(media.id, m.id))

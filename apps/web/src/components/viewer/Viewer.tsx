@@ -1,4 +1,4 @@
-import type { Media } from '@greenlit/shared'
+import { type Media, type MediaFormat, versionFormats } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -33,6 +33,7 @@ import { SidePanel } from './SidePanel'
 import { Stage } from './Stage'
 import { Transport } from './Transport'
 import { stepFrames } from './usePlayer'
+import { NewVersionDialog, VersionSwitcher } from './VersionSwitcher'
 
 /**
  * The stage column is always dark (`force-dark`), whatever the mode: its lamps (pins, markers, the playhead) take the
@@ -78,7 +79,14 @@ export function Viewer({
   const set = useViewer((s) => s.set)
   const stageVars = useStageVars()
 
-  const format = media ? formatByKey(media, params.get('format')) : undefined
+  // ?version=<key> (another version of the item), ?format=<key>, ?audio=<track key>
+  const wantedVersion = params.get('version')
+  const version =
+    media && wantedVersion && media.versions.some((v) => v.key === wantedVersion) ? wantedVersion : ''
+  const format = media ? formatByKey(media, params.get('format'), version) : undefined
+  const audioParam = params.get('audio')
+  const audioTrack = media?.audioTracks.some((a) => a.key === audioParam) ? audioParam : null
+  const [newVersion, setNewVersion] = useState(false)
 
   // reset the shared state per item / format, keep playback preferences
   useEffect(() => {
@@ -91,8 +99,12 @@ export function Viewer({
       formatId: format?.id ?? null,
       kind: format?.kind ?? null,
       duration: format?.duration ?? 0,
+      audioTrack,
     })
   }, [mediaId, format?.id])
+  useEffect(() => {
+    useViewer.getState().set({ audioTrack })
+  }, [audioTrack])
 
   // deep links: ?t=<seconds>, ?comment=<id>
   const deepLinked = useRef<string | null>(null)
@@ -207,12 +219,40 @@ export function Viewer({
     )
   if (isLoading || !media || !format) return <ViewerSkeleton embedded={embedded} />
 
+  const formats = versionFormats(media, version)
   const selectFormat = (key: string) => {
     const next = new URLSearchParams(params)
-    if (key === media.formats.find((f) => f.isPrimary)?.key) next.delete('format')
+    if (key === (formats.find((f) => f.isPrimary) ?? formats[0])?.key) next.delete('format')
     else next.set('format', key)
     setParams(next, { replace: true })
   }
+  // Same shape in the other version when it has one, else its main one.
+  const selectVersion = (key: string) => {
+    const next = new URLSearchParams(params)
+    if (key) next.set('version', key)
+    else next.delete('version')
+    const target = versionFormats(media, key)
+    const primary = target.find((f) => f.isPrimary) ?? target[0]
+    if (!target.some((f) => f.key === format.key) || primary?.key === format.key) next.delete('format')
+    else next.set('format', format.key)
+    setParams(next, { replace: true })
+  }
+  const versionProps = {
+    version,
+    formats,
+    format,
+    onVersion: selectVersion,
+    onNewVersion: () => setNewVersion(true),
+  }
+  const dialogs = (
+    <NewVersionDialog
+      media={media}
+      format={format}
+      open={newVersion}
+      onOpenChange={setNewVersion}
+      onCreated={selectVersion}
+    />
+  )
 
   const panel = <SidePanel media={media} format={format} />
 
@@ -227,7 +267,7 @@ export function Viewer({
         <div ref={column} className="force-dark flex shrink-0 flex-col bg-stage" style={stageVars}>
           <ViewerBar
             media={media}
-            formatKey={format.key}
+            {...versionProps}
             onFormat={selectFormat}
             embedded={embedded}
             onClose={onClose}
@@ -246,6 +286,7 @@ export function Viewer({
           )}
         </div>
         <div className="h-[100dvh] shrink-0">{panel}</div>
+        {dialogs}
       </div>
     )
   }
@@ -259,7 +300,7 @@ export function Viewer({
       >
         <ViewerBar
           media={media}
-          formatKey={format.key}
+          {...versionProps}
           onFormat={selectFormat}
           embedded={embedded}
           onClose={onClose}
@@ -281,6 +322,7 @@ export function Viewer({
           </aside>
         </>
       )}
+      {dialogs}
     </div>
   )
 }
@@ -310,7 +352,11 @@ function ResizeHandle({ width, onWidth }: { width: number; onWidth: (w: number) 
 
 function ViewerBar({
   media,
-  formatKey,
+  version,
+  formats,
+  format,
+  onVersion,
+  onNewVersion,
   onFormat,
   embedded,
   onClose,
@@ -319,7 +365,11 @@ function ViewerBar({
   compact,
 }: {
   media: Media
-  formatKey: string
+  version: string
+  formats: MediaFormat[]
+  format: MediaFormat
+  onVersion: (key: string) => void
+  onNewVersion: () => void
   onFormat: (key: string) => void
   embedded?: boolean
   onClose?: () => void
@@ -336,7 +386,6 @@ function ViewerBar({
   const { data: projects } = useProjects()
   const [renaming, setRenaming] = useState(false)
   const project = projects?.find((p) => p.id === media.projectId)
-  const format = formatByKey(media, formatKey)!
   const canEdit = can(me, 'media.edit')
 
   const back = () => {
@@ -432,8 +481,16 @@ function ViewerBar({
           />
         </div>
         {!compact && media.formats.length > 0 && (
-          <div className="flex shrink-0 items-center">
-            <FormatSwitcher media={media} format={format} onSelect={onFormat} />
+          <div className="flex shrink-0 items-center gap-2">
+            <VersionSwitcher media={media} version={version} onSelect={onVersion} onNew={onNewVersion} />
+            <FormatSwitcher
+              media={media}
+              formats={formats}
+              version={version}
+              format={format}
+              onSelect={onFormat}
+              onNewVersion={onNewVersion}
+            />
           </div>
         )}
         <div className={cn('flex flex-1 items-center justify-end gap-0.5', compact && 'flex-none')}>
@@ -454,9 +511,17 @@ function ViewerBar({
           )}
         </div>
       </div>
-      {compact && media.formats.length > 1 && (
-        <div className="no-scrollbar flex shrink-0 justify-center overflow-x-auto px-2 pb-2">
-          <FormatSwitcher media={media} format={format} onSelect={onFormat} />
+      {compact && (formats.length > 1 || media.versions.length > 1 || !!version) && (
+        <div className="no-scrollbar flex shrink-0 justify-center gap-2 overflow-x-auto px-2 pb-2">
+          <VersionSwitcher media={media} version={version} onSelect={onVersion} onNew={onNewVersion} />
+          <FormatSwitcher
+            media={media}
+            formats={formats}
+            version={version}
+            format={format}
+            onSelect={onFormat}
+            onNewVersion={onNewVersion}
+          />
         </div>
       )}
     </>

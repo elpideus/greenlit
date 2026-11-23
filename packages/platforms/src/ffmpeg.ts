@@ -186,7 +186,13 @@ function videoArgs(spec: PlacementSpec, enc: VideoEncode, src: Src, opt: Opt): F
 
   const filters = [`[0:v:0]${vf.join(',')}[v]`]
   const audioArgs: string[] = []
-  if (src.hasAudio) {
+  if (opt.audioFrom) {
+    // Another track: as long as the video exactly (silence after a shorter track, a longer one cut).
+    filters.push(`[${opt.audioFrom}:a:0]apad${duration ? `,atrim=duration=${fmt(duration)}` : ''}[a]`)
+    audioArgs.push('-map', '[a]')
+    if (!duration) audioArgs.push('-shortest')
+    notes.push('The sound comes from the chosen audio track instead of the video.')
+  } else if (src.hasAudio) {
     audioArgs.push('-map', '0:a:0')
   } else if (enc.audio.requireTrack) {
     filters.push(

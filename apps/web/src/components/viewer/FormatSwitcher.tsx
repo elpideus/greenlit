@@ -1,6 +1,6 @@
 import { aspectLabel, FORMAT_PRESETS, type Media, type MediaFormat } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, Pencil, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
+import { Download, Languages, Pencil, Plus, RefreshCw, Star, Trash2, Upload } from 'lucide-react'
 import { LayoutGroup, motion } from 'motion/react'
 import { useId, useRef, useState } from 'react'
 import { uploadMedia } from '@/data/media'
@@ -37,17 +37,26 @@ function slug(s: string) {
 }
 
 /**
- * The formats of one item as a segmented strip: one media, several shapes (16:9 main, 9:16 vertical, 1:1…).
- * Right-click a format to rename it, make it main, replace its file, download or remove it; "+" adds another.
+ * The formats of one item as a segmented strip: one media, several shapes (16:9 main, 9:16 vertical, 1:1…), for
+ * the version on screen. Right-click a format to rename it, make it main, replace its file, download or remove it;
+ * "+" adds another shape or a new version. In another version, the main version's shapes it lacks show as dashed
+ * chips to upload.
  */
 export function FormatSwitcher({
   media,
+  formats,
+  version = '',
   format,
   onSelect,
+  onNewVersion,
 }: {
   media: Media
+  /** The version's formats. */
+  formats: MediaFormat[]
+  version?: string
   format: MediaFormat
   onSelect: (key: string) => void
+  onNewVersion?: () => void
 }) {
   const t = useT('viewer')
   const qc = useQueryClient()
@@ -86,7 +95,12 @@ export function FormatSwitcher({
         ? t('fileReplaced', { format: p.label })
         : t('formatUploading', { name: files[0].name, format: p.label }),
     )
-    const ids = await uploadMedia([files[0]], { mediaId: media.id, formatKey: p.key, label: p.label })
+    const ids = await uploadMedia([files[0]], {
+      mediaId: media.id,
+      formatKey: p.key,
+      label: p.label,
+      ...(version ? { version } : {}),
+    })
     refresh()
     if (ids.length && !p.replace) {
       toast.done(t('formatAdded', { format: p.label }))
@@ -94,17 +108,21 @@ export function FormatSwitcher({
     }
   }
 
-  const used = new Set(media.formats.map((f) => f.key))
+  const used = new Set(formats.map((f) => f.key))
   const presets = FORMAT_PRESETS.filter((p) => !used.has(p.key))
+  // Another version: the main version's shapes it doesn't have yet.
+  const missing = version ? media.formats.filter((f) => !used.has(f.key)) : []
+  // Removing the last format of another version removes the version.
+  const removable = formats.length > 1 || !!version
 
   return (
     <LayoutGroup id={id}>
       <div className="flex items-center gap-1">
         <div className="flex items-center gap-0.5 rounded-control bg-white/6 p-[3px] shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)]">
-          {media.formats.map((f) => (
+          {formats.map((f) => (
             <FormatChip
               key={f.id}
-              media={media}
+              many={formats.length > 1}
               format={f}
               active={f.id === format.id}
               renaming={renaming === f.id}
@@ -130,9 +148,9 @@ export function FormatSwitcher({
                   icon: Download,
                   onSelect: () => window.open(f.urls.download, '_self'),
                 },
-                canEdit && media.formats.length > 1 && 'separator',
+                canEdit && removable && 'separator',
                 canEdit &&
-                  media.formats.length > 1 && {
+                  removable && {
                     label: t('removeFormat'),
                     icon: Trash2,
                     danger: true,
@@ -140,7 +158,7 @@ export function FormatSwitcher({
                       if (
                         !(await confirm({
                           title: t('removeFormatConfirm', { format: f.label }),
-                          body: t('removeFormatBody'),
+                          body: formats.length > 1 ? t('removeFormatBody') : t('removeLastFormatBody'),
                           confirm: t('removeFormat'),
                           danger: true,
                         }))
@@ -149,7 +167,8 @@ export function FormatSwitcher({
                       try {
                         await api.delete(`/media/${media.id}/formats/${f.id}`)
                         toast.done(t('formatRemoved', { format: f.label }))
-                        if (f.id === format.id) onSelect(media.formats.find((x) => x.id !== f.id)!.key)
+                        const next = formats.find((x) => x.id !== f.id)
+                        if (f.id === format.id && next) onSelect(next.key)
                         refresh()
                       } catch (err) {
                         toast.error(err)
@@ -159,19 +178,35 @@ export function FormatSwitcher({
               ]}
             />
           ))}
+          {canUpload &&
+            missing.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => pick(f.key, f.label)}
+                title={t('uploadMissing', { format: f.label })}
+                className="press flex h-7 items-center gap-1.5 rounded-[calc(var(--r-control)-3px)] border border-dashed border-white/20 px-2.5 t-callout whitespace-nowrap text-white/40 hover:border-white/40 hover:text-white/80"
+              >
+                <Upload size={12} />
+                {f.label}
+              </button>
+            ))}
         </div>
         {canUpload && (
           <Menu
             align="start"
-            width={232}
+            width={248}
             trigger={<IconButton icon={Plus} label={t('addFormat')} size="sm" />}
             items={[
               { group: t('addFormat') },
               ...presets
-                .filter((p) => p.key !== 'main')
+                .filter((p) => p.key !== 'main' || (version && !used.has('main')))
                 .map((p) => ({ label: p.label, icon: Upload, onSelect: () => pick(p.key, p.label) })),
               'separator',
               { label: t('customFormat'), icon: Plus, onSelect: () => setCustom(true) },
+              onNewVersion && 'separator',
+              onNewVersion && { group: t('versions') },
+              onNewVersion && { label: t('newVersion'), icon: Languages, onSelect: onNewVersion },
             ]}
           />
         )}
@@ -229,7 +264,7 @@ export function FormatSwitcher({
 }
 
 function FormatChip({
-  media,
+  many,
   format: f,
   active,
   renaming,
@@ -238,7 +273,7 @@ function FormatChip({
   onRename,
   menu,
 }: {
-  media: Media
+  many: boolean
   format: MediaFormat
   active: boolean
   renaming: boolean
@@ -261,7 +296,7 @@ function FormatChip({
         'press relative z-0 flex h-7 items-center gap-1.5 rounded-[calc(var(--r-control)-3px)] px-2.5 t-callout whitespace-nowrap',
         active ? 'font-[550] text-white' : 'text-white/55 hover:text-white/85',
       )}
-      title={media.formats.length > 1 ? f.filename : undefined}
+      title={many ? f.filename : undefined}
     >
       {active && (
         <motion.span
@@ -280,9 +315,7 @@ function FormatChip({
         className="max-w-[140px]"
       />
       {aspect && <span className="t-meta text-[10.5px] text-white/40">{aspect}</span>}
-      {f.isPrimary && media.formats.length > 1 && (
-        <span className="size-1 rounded-full bg-signal" role="img" aria-label="Main" />
-      )}
+      {f.isPrimary && many && <span className="size-1 rounded-full bg-signal" role="img" aria-label="Main" />}
     </button>
   )
 }

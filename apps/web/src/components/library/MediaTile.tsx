@@ -1,5 +1,5 @@
 import type { Media } from '@greenlit/shared'
-import { Check, Layers, MessageSquare } from 'lucide-react'
+import { AudioLines, Check, Languages, Layers, MessageSquare } from 'lucide-react'
 import { memo } from 'react'
 import { MediaThumb } from '@/components/MediaThumb'
 import { cn } from '@/lib/cn'
@@ -103,13 +103,33 @@ export const MediaTile = memo(function MediaTile({
         >
           <Check size={13} strokeWidth={3} />
         </button>
-        {formats > 1 && (
-          <Tooltip label={t('formats', { count: formats })}>
-            <span className="force-dark absolute top-2 right-2 flex h-[22px] items-center gap-1 rounded-[6px] bg-black/55 px-1.5 t-meta text-[11px] text-white/90 backdrop-blur-md">
-              <Layers size={11} strokeWidth={2} />
-              {formats}
-            </span>
-          </Tooltip>
+        {(formats > 1 || media.versions.length > 1 || media.audioTracks.length > 0) && (
+          <div className="force-dark absolute top-2 right-2 flex gap-1">
+            {media.versions.length > 1 && (
+              <Tooltip label={media.versions.map((v) => v.label).join(' · ')}>
+                <span className={badge}>
+                  <Languages size={11} strokeWidth={2} />
+                  {media.versions.length}
+                </span>
+              </Tooltip>
+            )}
+            {media.audioTracks.length > 0 && (
+              <Tooltip label={media.audioTracks.map((a) => a.label).join(' · ')}>
+                <span className={badge}>
+                  <AudioLines size={11} strokeWidth={2} />
+                  {media.audioTracks.length}
+                </span>
+              </Tooltip>
+            )}
+            {formats > 1 && (
+              <Tooltip label={t('formats', { count: formats })}>
+                <span className={badge}>
+                  <Layers size={11} strokeWidth={2} />
+                  {formats}
+                </span>
+              </Tooltip>
+            )}
+          </div>
         )}
       </div>
       <div className="mt-2 flex h-5 items-center gap-2 px-0.5">
@@ -141,3 +161,6 @@ export const MediaTile = memo(function MediaTile({
     </div>
   )
 })
+
+const badge =
+  'flex h-[22px] items-center gap-1 rounded-[6px] bg-black/55 px-1.5 t-meta text-[11px] text-white/90 backdrop-blur-md'

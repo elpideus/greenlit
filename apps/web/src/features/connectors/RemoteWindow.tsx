@@ -195,6 +195,14 @@ export function RemoteWindow({
       y: Math.round(((e.clientY - r.top) / r.height) * session.height),
     }
   }
+  /** Keys go to the hidden textarea, which turns them into `key` / `text` messages. */
+  const focusKeys = () => keys.current?.focus({ preventScroll: true })
+
+  // The page usually focuses its first field by itself: be ready to type as soon as it shows.
+  useEffect(() => {
+    if (hasFrame) keys.current?.focus({ preventScroll: true })
+  }, [hasFrame])
+
   const lastMove = useRef(0)
   const onPointer = (action: 'move' | 'down' | 'up') => (e: React.PointerEvent) => {
     if (e.pointerType === 'touch' && action === 'move' && !e.buttons) return
@@ -205,7 +213,7 @@ export function RemoteWindow({
     if (!p) return
     if (action === 'down') {
       e.currentTarget.setPointerCapture(e.pointerId)
-      keys.current?.focus({ preventScroll: true })
+      focusKeys()
     }
     send({
       type: 'mouse',
@@ -293,6 +301,8 @@ export function RemoteWindow({
           onPointerMove={onPointer('move')}
           onPointerDown={onPointer('down')}
           onPointerUp={onPointer('up')}
+          // A click would otherwise move the focus to the dialog (the nearest focusable box) and drop every key.
+          onMouseDown={(e) => e.preventDefault()}
           onContextMenu={(e) => e.preventDefault()}
           className={cn(
             'absolute inset-0 size-full object-fill transition-opacity duration-300 select-none',

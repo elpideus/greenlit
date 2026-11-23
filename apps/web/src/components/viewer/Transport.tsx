@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn'
 import { formatTimecode } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { IconButton, Menu, Popover, Slider } from '@/ui'
+import { AudioTrackMenu } from './AudioTracks'
 import { Scrubber } from './Scrubber'
 import { useViewer } from './store'
 
@@ -59,6 +60,7 @@ export function Transport({
           <span className="text-white/35"> / {tc(duration)}</span>
         </button>
         <span className="flex-1" />
+        {format.kind === 'video' && <AudioTrackMenu media={media} />}
         <Menu
           side="top"
           align="end"

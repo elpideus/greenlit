@@ -130,8 +130,8 @@
     "translationsHint": "Title and caption in other languages, where the platform supports them.",
     "addLanguage": "Add language",
     "removeLanguage": "Remove language",
-    "formats": "Format",
-    "formatsHint": "Which shape of each item this version uses.",
+    "formats": "Files",
+    "formatsHint": "Which version, shape and sound of each item is published here.",
     "best": "Best fit",
     "cover": "Cover",
     "coverAuto": "Platform picks",
@@ -177,7 +177,11 @@
     "accountError": "Can’t be reached",
     "coverHint": "The picture people see before the video plays.",
     "needsVideo": "Needs a video",
-    "needsPictures": "Needs pictures"
+    "needsPictures": "Needs pictures",
+    "version": "Version",
+    "mainVersion": "main",
+    "shape": "Shape",
+    "ownSound": "The video’s own sound"
   },
   "check": {
     "title": "Checks",

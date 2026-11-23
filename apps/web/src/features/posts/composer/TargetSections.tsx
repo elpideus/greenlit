@@ -45,13 +45,26 @@ export function useTargetContext(target: DraftTarget) {
   return { c, account, platform, spec, server }
 }
 
+/** The formats of the item's version this target uses (the main version's when none is chosen or it is gone). */
+export function formatsFor(item: PostMediaItem, target: DraftTarget) {
+  const version = target.versions[item.mediaId]
+  return (version && item.versions.find((v) => v.key === version)?.formats) || item.formats
+}
+
 /** The format of each item this version uses: chosen, or the best fit for the placement. */
 export function formatFor(item: PostMediaItem, target: DraftTarget, spec: ReturnType<typeof specOf>) {
+  const formats = formatsFor(item, target)
   const chosen = target.formats[item.mediaId]
-  const byKey = chosen ? item.formats.find((f) => f.key === chosen) : undefined
+  const byKey = chosen ? formats.find((f) => f.key === chosen) : undefined
   if (byKey) return byKey
-  const i = spec ? pickBestFormat(spec, item.formats) : 0
-  return item.formats[Math.max(0, i)] ?? item.formats[0]
+  const i = spec ? pickBestFormat(spec, formats) : 0
+  return formats[Math.max(0, i)] ?? formats[0]
+}
+
+/** The audio track that replaces the item's sound on this target, if any. */
+export function trackFor(item: PostMediaItem, target: DraftTarget) {
+  const key = target.audioTracks[item.mediaId]
+  return key && item.kind === 'video' ? item.audioTracks.find((a) => a.key === key) : undefined
 }
 
 export function TargetHeader({ target }: { target: DraftTarget }) {
@@ -205,39 +218,117 @@ function MoveButton({
   )
 }
 
+/** Which version, shape and sound of each item goes out here (only what an item offers a choice of). */
 export function FormatsSection({ target }: { target: DraftTarget }) {
   const t = useT('posts')
   const { c, spec } = useTargetContext(target)
-  const many = c.media.filter((m) => m.formats.length > 1)
-  if (!many.length) return null
+  const choices = c.media.filter(
+    (m) =>
+      m.versions.length > 1 ||
+      formatsFor(m, target).length > 1 ||
+      (m.kind === 'video' && m.audioTracks.length > 0),
+  )
+  if (!choices.length) return null
+  const without = (record: Record<string, string>, id: string) => {
+    const { [id]: _, ...rest } = record
+    return rest
+  }
   return (
     <Panel title={t('composer.formats')} hint={t('composer.formatsHint')}>
-      <div className="flex flex-col gap-2.5">
-        {many.map((m) => {
-          const best = spec ? item(m, pickBestFormat(spec, m.formats)) : undefined
+      <div className="flex flex-col gap-3.5">
+        {choices.map((m) => {
+          const formats = formatsFor(m, target)
+          const best = spec ? item(formats, pickBestFormat(spec, formats)) : undefined
+          const version = target.versions[m.mediaId]
+          const versionValue = version && m.versions.some((v) => v.key === version) ? version : '__main'
+          const track = trackFor(m, target)
           return (
-            <div key={m.mediaId} className="flex items-center gap-3">
+            <div key={m.mediaId} className="flex items-start gap-3">
               <span className="size-9 shrink-0 overflow-hidden rounded-[7px] bg-stage">
                 {m.thumbnailUrl && <img src={m.thumbnailUrl} alt="" className="size-full object-cover" />}
               </span>
-              <span className="min-w-0 flex-1 truncate t-callout text-ink">{m.title}</span>
-              <Select
-                className="w-56"
-                value={target.formats[m.mediaId] ?? '__best'}
-                disabled={!c.editable}
-                onChange={(v) => {
-                  const { [m.mediaId]: _, ...rest } = target.formats
-                  c.updateTarget(target.key, { formats: v === '__best' ? rest : { ...rest, [m.mediaId]: v } })
-                }}
-                options={[
-                  { value: '__best', label: t('composer.best'), hint: best ? best.label : undefined },
-                  ...m.formats.map((f) => ({
-                    value: f.key,
-                    label: f.label,
-                    hint: f.width && f.height ? `${f.width}×${f.height}` : undefined,
-                  })),
-                ]}
-              />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <span className="truncate pt-2 t-callout text-ink">{m.title}</span>
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+                  {m.versions.length > 1 && (
+                    <>
+                      <span className="t-caption text-ink-3">{t('composer.version')}</span>
+                      <Select
+                        value={versionValue}
+                        disabled={!c.editable}
+                        onChange={(v) =>
+                          c.updateTarget(target.key, {
+                            versions:
+                              v === '__main'
+                                ? without(target.versions, m.mediaId)
+                                : { ...target.versions, [m.mediaId]: v },
+                          })
+                        }
+                        options={m.versions.map((v) => ({
+                          value: v.key || '__main',
+                          label: v.label,
+                          hint: v.key ? undefined : t('composer.mainVersion'),
+                        }))}
+                      />
+                    </>
+                  )}
+                  {formats.length > 1 && (
+                    <>
+                      <span className="t-caption text-ink-3">{t('composer.shape')}</span>
+                      <Select
+                        value={
+                          target.formats[m.mediaId] &&
+                          formats.some((f) => f.key === target.formats[m.mediaId])
+                            ? target.formats[m.mediaId]!
+                            : '__best'
+                        }
+                        disabled={!c.editable}
+                        onChange={(v) =>
+                          c.updateTarget(target.key, {
+                            formats:
+                              v === '__best'
+                                ? without(target.formats, m.mediaId)
+                                : { ...target.formats, [m.mediaId]: v },
+                          })
+                        }
+                        options={[
+                          { value: '__best', label: t('composer.best'), hint: best ? best.label : undefined },
+                          ...formats.map((f) => ({
+                            value: f.key,
+                            label: f.label,
+                            hint: f.width && f.height ? `${f.width}×${f.height}` : undefined,
+                          })),
+                        ]}
+                      />
+                    </>
+                  )}
+                  {m.kind === 'video' && m.audioTracks.length > 0 && (
+                    <>
+                      <span className="t-caption text-ink-3">{t('composer.sound')}</span>
+                      <Select
+                        value={track?.key ?? '__own'}
+                        disabled={!c.editable}
+                        onChange={(v) =>
+                          c.updateTarget(target.key, {
+                            audioTracks:
+                              v === '__own'
+                                ? without(target.audioTracks, m.mediaId)
+                                : { ...target.audioTracks, [m.mediaId]: v },
+                          })
+                        }
+                        options={[
+                          { value: '__own', label: t('composer.ownSound') },
+                          ...m.audioTracks.map((a) => ({
+                            value: a.key,
+                            label: a.label,
+                            hint: a.duration ? formatDuration(a.duration) : undefined,
+                          })),
+                        ]}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )
         })}
@@ -245,7 +336,7 @@ export function FormatsSection({ target }: { target: DraftTarget }) {
     </Panel>
   )
 }
-const item = (m: PostMediaItem, i: number) => m.formats[Math.max(0, i)]
+const item = <T,>(formats: T[], i: number) => formats[Math.max(0, i)]
 
 /** The cover: the platform's choice, a frame of the video, or a picture from the library. */
 export function CoverSection({ target }: { target: DraftTarget }) {

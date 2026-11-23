@@ -44,9 +44,19 @@ export async function prepareTarget(
     .where(eq(postMedia.postId, t.postId))
     .orderBy(asc(postMedia.position))
   if (!items.length) throw badRequest('The post has no media')
-  const chosen: { blobId: string; kind: 'video' | 'image'; path: string; formatKey: string }[] = []
+  const chosen: {
+    blobId: string
+    kind: 'video' | 'image'
+    path: string
+    formatKey: string
+    /** An audio track that replaces the video's own sound. */
+    audio: { blobId: string; path: string } | null
+  }[] = []
   for (const it of items) {
-    const formats = await ctx.services.media.formatsOf(it.mediaId)
+    // The version this target uses (the main one when unset or gone), then its best or chosen format.
+    const formats = await ctx.services.media.formatsOf(it.mediaId, {
+      version: (t.versions as Record<string, string>)[it.mediaId],
+    })
     const wanted = (t.formats as Record<string, string>)[it.mediaId]
     let f = formats.find((x) => x.key === wanted)
     if (!f) {
@@ -59,7 +69,21 @@ export async function prepareTarget(
     if (!f || (f.kind !== 'video' && f.kind !== 'image'))
       throw badRequest('Only videos and pictures can be published')
     const blob = await files.get(f.blobId)
-    chosen.push({ blobId: blob.id, kind: f.kind, path: await files.readablePath(blob), formatKey: f.key })
+    let audio: { blobId: string; path: string } | null = null
+    const trackKey = (t.audioTracks as Record<string, string>)[it.mediaId]
+    if (trackKey && f.kind === 'video') {
+      const track = (await ctx.services.media.audioTracksOf(it.mediaId)).find((a) => a.key === trackKey)
+      if (!track) throw badRequest('The audio track chosen for this post no longer exists')
+      const trackBlob = await files.get(track.blobId)
+      audio = { blobId: trackBlob.id, path: await files.readablePath(trackBlob) }
+    }
+    chosen.push({
+      blobId: blob.id,
+      kind: f.kind,
+      path: await files.readablePath(blob),
+      formatKey: f.key,
+      audio,
+    })
   }
   const options = t.options as Record<string, unknown>
   const key = createHash('sha1')
@@ -67,6 +91,7 @@ export async function prepareTarget(
       JSON.stringify({
         spec: spec.key,
         blobs: chosen.map((c) => c.blobId),
+        audio: chosen.map((c) => c.audio?.blobId ?? null),
         boost: !!options.qualityBoost,
         fit: options.fit ?? 'auto',
         v: 1,
@@ -87,6 +112,9 @@ export async function prepareTarget(
   const out: PreparedFile[] = []
   for (const [i, c] of chosen.entries()) {
     const p = await probe(c.path)
+    // With another audio track, its sound replaces the video's (cut or padded with silence to the video's length).
+    const track = c.audio ? await probe(c.audio.path) : null
+    if (c.audio && !track?.hasAudio) throw badRequest('The chosen audio track has no sound')
     const plan = ffmpegArgsFor(
       spec,
       {
@@ -95,17 +123,21 @@ export async function prepareTarget(
         height: p.height ?? 1920,
         fps: p.fps,
         durationSec: p.durationSec,
-        hasAudio: p.hasAudio,
+        hasAudio: track ? true : p.hasAudio,
         hdr: isHdr(p) ? (p.colorTransfer === 'arib-std-b67' ? 'hlg' : 'pq') : false,
         ...(p.colorMatrix ? { colorMatrix: p.colorMatrix } : {}),
         ...(p.colorRange ? { colorRange: p.colorRange } : {}),
-        ...(p.audioChannels ? { audioChannels: p.audioChannels } : {}),
+        ...((track ?? p).audioChannels ? { audioChannels: (track ?? p).audioChannels! } : {}),
       },
-      { qualityBoost: !!options.qualityBoost, fit: (options.fit as 'auto') ?? 'auto' },
+      {
+        qualityBoost: !!options.qualityBoost,
+        fit: (options.fit as 'auto') ?? 'auto',
+        ...(track ? { audioFrom: 1 as const } : {}),
+      },
     )
     ctx.log.info({ target: t.id, placement: spec.key, notes: plan.notes }, 'preparing file for platform')
     const dest = await files.tmpPath(`.${plan.outputExt}`)
-    await ffmpeg(['-i', c.path, ...plan.args, dest], {
+    await ffmpeg(['-i', c.path, ...(c.audio ? ['-i', c.audio.path] : []), ...plan.args, dest], {
       durationSec: p.durationSec,
       onProgress: (f) => void job?.progress(((i + f) / chosen.length) * 0.6, `Optimising for ${spec.label}`),
       signal: job?.signal,

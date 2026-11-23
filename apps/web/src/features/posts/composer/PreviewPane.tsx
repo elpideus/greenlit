@@ -13,7 +13,7 @@ import { soundAudioUrl } from '../api'
 import { finalCaption, specOf } from '../model'
 import { useWhere } from '../parts'
 import { useComposer } from './state'
-import { formatFor } from './TargetSections'
+import { formatFor, trackFor } from './TargetSections'
 
 /** The side of the composer: the live preview of one version (and other features' tabs: notes, history). */
 export function PreviewPane() {
@@ -152,6 +152,7 @@ function LivePreview() {
             target.music ? soundAudioUrl(account.id, target.music.trackId, target.music.previewUrl) : null
           }
           musicStartAt={target.music?.startAt}
+          trackSrc={c.media[0] ? (trackFor(c.media[0], target)?.previewUrl ?? null) : null}
           audio={target.audio}
           location={target.location?.name ?? null}
           firstComment={target.firstComment}

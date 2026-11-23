@@ -24,6 +24,8 @@ export type DraftTarget = Pick<
   | 'audio'
   | 'options'
   | 'formats'
+  | 'versions'
+  | 'audioTracks'
   | 'scheduleAt'
 > & { id?: string; key: string }
 
@@ -56,6 +58,8 @@ export function draftFromPost(p: Post): Draft {
       audio: t.audio,
       options: t.options,
       formats: t.formats,
+      versions: t.versions,
+      audioTracks: t.audioTracks,
       scheduleAt: t.scheduleAt,
     })),
   }
@@ -79,6 +83,8 @@ export function newTarget(accountId: string, placement: Placement): DraftTarget 
     audio: { original: 1, music: 1 },
     options: {},
     formats: {},
+    versions: {},
+    audioTracks: {},
     scheduleAt: null,
   }
 }

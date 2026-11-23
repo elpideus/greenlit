@@ -27,6 +27,8 @@ export interface PlatformPreviewProps {
   music?: { title: string; artist: string; coverUrl?: string | null } | null
   /** An audio URL for the chosen sound (plays along when the preview is unmuted). */
   musicSrc?: string | null
+  /** An audio track that replaces the video's own sound (follows the video, at the original volume). */
+  trackSrc?: string | null
   musicStartAt?: number
   location?: string | null
   audio?: { original: number; music: number }

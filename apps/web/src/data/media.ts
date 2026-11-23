@@ -1,4 +1,10 @@
-import type { Media, MediaFormat, MediaListQuery, UpdateMediaInput } from '@greenlit/shared'
+import {
+  type Media,
+  type MediaFormat,
+  type MediaListQuery,
+  type UpdateMediaInput,
+  versionFormats,
+} from '@greenlit/shared'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -79,13 +85,40 @@ export function useBulkMedia() {
   })
 }
 
-/** The format to show by default: the primary one, else the first. */
-export function primaryFormat(m: Pick<Media, 'formats'>): MediaFormat | undefined {
-  return m.formats.find((f) => f.isPrimary) ?? m.formats[0]
+/** The format to show by default: the primary one, else the first (of the main version, or of `version`). */
+export function primaryFormat(m: WithFormats, version?: string | null): MediaFormat | undefined {
+  const fs = formatsOfVersion(m, version)
+  return fs.find((f) => f.isPrimary) ?? fs[0]
 }
 
-export function formatByKey(m: Pick<Media, 'formats'>, key: string | null | undefined) {
-  return (key && m.formats.find((f) => f.key === key)) || primaryFormat(m)
+/** A format of the main version (or of `version`) by key; the version's main format when it has none. */
+export function formatByKey(m: WithFormats, key: string | null | undefined, version?: string | null) {
+  return (key && formatsOfVersion(m, version).find((f) => f.key === key)) || primaryFormat(m, version)
+}
+
+type WithFormats = Pick<Media, 'formats'> & { versions?: Media['versions'] }
+const formatsOfVersion = (m: WithFormats, version?: string | null) =>
+  version && m.versions ? versionFormats({ formats: m.formats, versions: m.versions }, version) : m.formats
+
+/** The label of a version ('' = the main one). */
+export function versionLabel(m: Pick<Media, 'versions'>, version: string | null | undefined) {
+  return m.versions.find((v) => v.key === (version ?? ''))?.label ?? ''
+}
+
+/** A URL-safe key for a new version or audio track: from its name, never `main`, never one already taken. */
+export function keyFor(name: string, taken: Iterable<string>, fallback: string) {
+  const base =
+    name
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 34) || fallback
+  const used = new Set(taken)
+  used.add('main')
+  let key = base
+  for (let i = 2; used.has(key); i++) key = `${base}-${i}`
+  return key
 }
 
 /** Sprite sheet layout for hover-scrubbing (next to sprite.jpg). */
@@ -111,7 +144,8 @@ export function loadSprite(spriteUrl: string): Promise<SpriteInfo | null> {
 }
 
 /**
- * Uploads files as new media (in a project), or as a format / new file version of an existing item.
+ * Uploads files as new media (in a project), or into an existing item: a format (of the main version or of
+ * `version`, created as `versionLabel` when new), a new file for one, or an audio track (`audio`).
  * Resolves to the created media ids.
  */
 export async function uploadMedia(
@@ -122,6 +156,10 @@ export async function uploadMedia(
     formatKey?: string
     label?: string
     tags?: string[]
+    version?: string
+    versionLabel?: string
+    mainVersionLabel?: string
+    audio?: boolean
   } = {},
 ) {
   const results = await Promise.allSettled(

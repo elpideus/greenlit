@@ -95,6 +95,18 @@ export default defineModule({
     })
     ctx.realtime.guard('post', (actor, topic) => svc.canView(topic.split(':')[1]!, actor))
 
+    // A media item's main version changed: posts keep the files they chose (the promoted version is now the
+    // default, the old main one has a key of its own).
+    ctx.events.on('media.mainVersionChanged', async ({ id, promoted, demoted }) => {
+      await ctx.db.execute(sql`
+        update ${postTargets} t set versions = case
+          when t.versions ->> ${id}::text = ${promoted} then t.versions - ${id}::text
+          when t.versions ? ${id}::text then t.versions
+          else t.versions || jsonb_build_object(${id}::text, ${demoted}::text)
+        end
+        where t.post_id in (select pm.post_id from ${postMedia} pm where pm.media_id = ${id}::uuid)`)
+    })
+
     // Media used by a post scheduled in the future must stay hot (not archived).
     ctx.hooks.add(
       'storage.inUse' as never,
@@ -359,7 +371,9 @@ export default defineModule({
               ],
             }
           const m = post.media[0]
-          const f = m?.formats.find((x) => x.key === t.formats[m.mediaId]) ?? m?.formats[0]
+          const id = m?.mediaId ?? ''
+          const fs = m?.versions.find((v) => v.key === t.versions[id])?.formats ?? m?.formats
+          const f = fs?.find((x) => x.key === t.formats[id]) ?? fs?.[0]
           const src =
             f?.width && f.height
               ? {

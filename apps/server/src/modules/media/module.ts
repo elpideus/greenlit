@@ -10,6 +10,8 @@ import {
   Paginated,
   UpdateFormatInput,
   UpdateMediaInput,
+  UpdateVersionInput,
+  versionFormats,
 } from '@greenlit/shared'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import sharp from 'sharp'
@@ -33,6 +35,14 @@ declare module '../../core/services.ts' {
   }
 }
 
+/** A version's key in URLs: `main` stands for the main version (''). */
+const VersionKey = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{0,39}$/)
+  .refine((k) => k !== 'main', 'The key "main" is reserved for the main version')
+const VersionParams = IdParams.extend({ version: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/) })
+const versionKeyOf = (v: string) => (v === 'main' ? '' : v)
+
 const UploadTarget = z.object({
   projectId: z.uuid().nullable().optional(),
   mediaId: z.uuid().optional(),
@@ -41,6 +51,13 @@ const UploadTarget = z.object({
   title: z.string().optional(),
   note: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  /** Upload into this version of `mediaId` (created when new, named `versionLabel`). */
+  version: VersionKey.optional(),
+  versionLabel: z.string().max(60).optional(),
+  /** What to call the current one when the first other version is added ("Italiano"). */
+  mainVersionLabel: z.string().max(60).optional(),
+  /** Add the file to `mediaId` as an audio track (`formatKey` = the track's key). */
+  audio: z.boolean().optional(),
 })
 
 const BulkInput = z.object({
@@ -103,6 +120,7 @@ export default defineModule({
         takenAt: 'date',
         hiddenFrom: 'visibility',
         formats: 'formats',
+        versions: 'versions',
         deletedAt: 'trash',
       },
       ignore: ['blobIds'],
@@ -110,9 +128,10 @@ export default defineModule({
       snapshot: async (id) => {
         const [m] = await ctx.db.select().from(media).where(eq(media.id, id))
         if (!m) return null
-        const fs = await svc.formatsOf(id)
+        const fs = await svc.formatsOf(id, { all: true })
         return {
           title: m.title,
+          versions: m.versions,
           description: m.description,
           tags: m.tags,
           status: m.status,
@@ -124,6 +143,8 @@ export default defineModule({
             id: f.id,
             key: f.key,
             label: f.label,
+            role: f.role,
+            version: f.version,
             isPrimary: f.isPrimary,
             position: f.position,
             blobId: f.blobId,
@@ -148,6 +169,7 @@ export default defineModule({
             projectId: (d.projectId as string) ?? null,
             takenAt: d.takenAt ? new Date(d.takenAt as string) : null,
             hiddenFrom: (d.hiddenFrom as string[]) ?? [],
+            versions: (d.versions as { key: string; label: string }[]) ?? [],
             deletedAt: d.deletedAt ? new Date(d.deletedAt as string) : null,
             searchText: fold([d.title as string, d.description as string, ...tags].join(' \u2022 ')),
             updatedAt: new Date(),
@@ -157,6 +179,8 @@ export default defineModule({
           id: string
           key: string
           label: string
+          role?: string
+          version?: string
           isPrimary: boolean
           position: number
           blobId: string
@@ -167,7 +191,7 @@ export default defineModule({
           kind: string
         }
         const snap = (d.formats as Snap[]) ?? []
-        const current = await svc.formatsOf(id)
+        const current = await svc.formatsOf(id, { all: true })
         for (const f of current)
           if (!snap.some((s) => s.id === f.id))
             await ctx.db.delete(mediaFormats).where(eq(mediaFormats.id, f.id))
@@ -178,6 +202,8 @@ export default defineModule({
           const values = {
             key: s.key,
             label: s.label,
+            role: s.role ?? 'format',
+            version: s.version ?? '',
             isPrimary: s.isPrimary,
             position: s.position,
             blobId: s.blobId,
@@ -281,7 +307,15 @@ export default defineModule({
           const formatId = await svc.attachFile(
             target.mediaId,
             blob,
-            { formatKey: target.formatKey ?? 'main', label: target.label, note: target.note },
+            {
+              formatKey: target.formatKey ?? 'main',
+              label: target.label,
+              note: target.note,
+              version: target.version,
+              versionLabel: target.versionLabel,
+              mainVersionLabel: target.mainVersionLabel,
+              audio: target.audio,
+            },
             actor,
           )
           return { mediaId: target.mediaId, formatId }
@@ -432,6 +466,31 @@ export default defineModule({
       },
     })
     route(ctx.api, {
+      method: 'patch',
+      path: '/media/{id}/versions/{version}',
+      summary: 'Rename a version or make it the main one (`main` = the main version)',
+      tags,
+      access: 'media.edit',
+      params: VersionParams,
+      body: UpdateVersionInput,
+      response: Media,
+      handler: ({ actor, params, body }) =>
+        svc.updateVersion(params.id, versionKeyOf(params.version), body, actor),
+    })
+    route(ctx.api, {
+      method: 'delete',
+      path: '/media/{id}/versions/{version}',
+      summary: 'Remove a version and its formats (not the main one)',
+      tags,
+      access: 'media.edit',
+      params: VersionParams,
+      response: Media,
+      handler: async ({ actor, params }) => {
+        await svc.removeVersion(params.id, versionKeyOf(params.version), actor)
+        return svc.get(params.id, actor)
+      },
+    })
+    route(ctx.api, {
       method: 'get',
       path: '/media/{id}/files',
       summary: 'Every file version of every format',
@@ -555,11 +614,17 @@ export default defineModule({
         duration: f.duration,
         ready: f.processing.state === 'ready',
       })),
+      ...(m.versions.length
+        ? { versions: m.versions.map((v) => ({ key: v.key || 'main', label: v.label })) }
+        : {}),
+      ...(m.audioTracks.length
+        ? { audioTracks: m.audioTracks.map((a) => ({ key: a.key, label: a.label, duration: a.duration })) }
+        : {}),
       openComments: m.openCommentCount,
       createdAt: m.createdAt,
     })
     ctx.mcp.instruct(
-      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content. Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
+      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions (the same video with Italian or English text: each version has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video. Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
     )
     ctx.mcp.tool({
       name: 'media_search',
@@ -596,14 +661,15 @@ export default defineModule({
         id: z.uuid(),
         time: z.number().min(0).optional(),
         format: FormatKey.optional(),
+        version: z.string().optional().describe('A version key from media_get (default: the main version)'),
         width: z.number().int().min(160).max(1920).optional(),
       },
       access: 'media.read',
       readOnly: true,
-      handler: async ({ id, time, format, width }, { actor }) => {
+      handler: async ({ id, time, format, version, width }, { actor }) => {
         const m = await svc.get(id, actor)
-        const f =
-          m.formats.find((x) => x.key === format) ?? m.formats.find((x) => x.isPrimary) ?? m.formats[0]
+        const fs = versionFormats(m, version === 'main' ? '' : version)
+        const f = fs.find((x) => x.key === format) ?? fs.find((x) => x.isPrimary) ?? fs[0]
         if (!f) throw notFound('No file')
         const blob = await files.get((await svc.formatRow(f.id)).blobId)
         let image: Buffer

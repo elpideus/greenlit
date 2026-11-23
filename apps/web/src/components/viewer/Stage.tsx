@@ -6,7 +6,7 @@ import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { Button, ProgressRing } from '@/ui'
 import { useViewer } from './store'
-import { usePlayer } from './usePlayer'
+import { useAudioTrack, usePlayer } from './usePlayer'
 
 const BROWSER_IMAGES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml']
 
@@ -49,6 +49,9 @@ export function Stage({
     padding,
   )
   usePlayer(el, format.fps ?? 30)
+  const trackKey = useViewer((s) => s.audioTrack)
+  const track = format.kind === 'video' ? media.audioTracks.find((a) => a.key === trackKey) : undefined
+  useAudioTrack(el, track ? (track.urls.preview ?? track.urls.original) : null)
 
   useLayoutEffect(() => {
     const node = box.current

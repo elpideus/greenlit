@@ -51,6 +51,8 @@ export interface ViewerState {
   notesEnabled: boolean
   /** The side panel tab to show (`media.panels` entry id); features set it to bring their tab forward. */
   tab: string | null
+  /** The audio track that replaces the video's own sound (its key), or null for the video's sound. */
+  audioTrack: string | null
   /** Playback options. */
   rate: number
   loop: boolean
@@ -77,6 +79,7 @@ const initial = {
   activeNote: null,
   notesEnabled: true,
   tab: null,
+  audioTrack: null,
   rate: 1,
   loop: false,
   volume: 1,

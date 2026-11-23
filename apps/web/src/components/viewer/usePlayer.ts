@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { followVideo } from '@/lib/audioTrack'
 import { useViewer } from './store'
 
 /**
@@ -11,6 +12,8 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
   const loop = useViewer((s) => s.loop)
   const volume = useViewer((s) => s.volume)
   const muted = useViewer((s) => s.muted)
+  // Another audio track plays instead of the video's own sound (see useAudioTrack).
+  const replaced = useViewer((s) => !!s.audioTrack) && el instanceof HTMLVideoElement
 
   useEffect(() => {
     if (!el) return
@@ -67,12 +70,41 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
     el.playbackRate = rate
     el.loop = loop
     el.volume = volume
-    el.muted = muted
-  }, [el, rate, loop, volume, muted])
+    el.muted = muted || replaced
+  }, [el, rate, loop, volume, muted, replaced])
 
   useEffect(() => {
     useViewer.getState().set({ fps: fps || 30 })
   }, [fps])
+}
+
+/**
+ * Plays an audio track in place of the video's sound, locked to the video: play, pause, seek, speed and loop follow
+ * it, and a drift over 0.15 s is corrected. A shorter track falls silent at its end, like the published file.
+ */
+export function useAudioTrack(video: HTMLMediaElement | null, url: string | null) {
+  const volume = useViewer((s) => s.volume)
+  const muted = useViewer((s) => s.muted)
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    if (!video || !url) return
+    const a = new Audio()
+    a.preload = 'auto'
+    a.src = url
+    setAudio(a)
+    const stop = followVideo(video, a)
+    return () => {
+      stop()
+      setAudio(null)
+    }
+  }, [video, url])
+
+  useEffect(() => {
+    if (!audio) return
+    audio.volume = volume
+    audio.muted = muted
+  }, [audio, volume, muted])
 }
 
 /** Step by whole frames (negative = back). */
