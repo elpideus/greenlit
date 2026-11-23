@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { percentiles, Steadier } from './estimate.ts'
-import { inferenceSize } from './model.ts'
+import { inferenceSize, recoverShift } from './model.ts'
 
 /** A "disparity" frame: a left-to-right ramp, scaled and shifted the way Depth Anything's frames drift. */
 const ramp = (n: number, scale: number, shift: number) =>
@@ -42,5 +42,26 @@ describe('depth estimation', () => {
     const cut = s.next(ramp(n, -4, 5))
     expect(cut[0]!).toBeGreaterThan(cut[n - 1]!)
     expect(cut[0]!).toBeGreaterThan(0.9)
+  })
+
+  it('recovers the depth offset of a MoGe point map', () => {
+    // A box-like room seen by a camera with focal 1.3 (in half-diagonal units): depth 2..6, then shifted by -1.5,
+    // which is what MoGe leaves open. The offset that makes the points project onto the pixels again is +1.5.
+    const w = 64
+    const h = 48
+    const half = Math.hypot(w, h) / 2
+    const f = 1.3
+    const points = new Float32Array(w * h * 3)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const u = (x + 0.5 - w / 2) / half
+        const v = (y + 0.5 - h / 2) / half
+        const depth = 2 + 4 * (y / h) + Math.abs(u)
+        const i = (y * w + x) * 3
+        points[i] = (u * depth) / f
+        points[i + 1] = (v * depth) / f
+        points[i + 2] = depth - 1.5
+      }
+    expect(recoverShift(points, undefined, w, h)).toBeCloseTo(1.5, 2)
   })
 })

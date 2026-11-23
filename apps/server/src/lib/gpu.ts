@@ -105,19 +105,23 @@ export function nvidiaGpus(): Promise<GpuInfo[]> {
  */
 export async function openSession(
   path: string,
-  opts: { threads: number },
+  opts: { threads: number; avoid?: Backend[] },
 ): Promise<{
   session: ort.InferenceSession
   backend: Backend
   skipped: { backend: Backend; error: string }[]
 }> {
   const skipped: { backend: Backend; error: string }[] = []
-  for (const backend of backendOrder()) {
+  const order = backendOrder().filter((b) => b === 'cpu' || !opts.avoid?.includes(b))
+  for (const backend of order) {
     try {
       const session = await ort.InferenceSession.create(path, {
         executionProviders: backend === 'cpu' ? ['cpu'] : [backend, 'cpu'],
         intraOpNumThreads: opts.threads,
         graphOptimizationLevel: 'all',
+        // Memory goes back after each run instead of staying in ONNX Runtime's pool: a big model on the processor
+        // would otherwise keep gigabytes it needed once.
+        enableCpuMemArena: false,
         // Warnings only (which nodes run on the processor beside the card): not worth the log.
         logSeverityLevel: 3,
       })

@@ -12,7 +12,7 @@ import { backendOrder, gpuPreference, nvidiaGpus } from '../../lib/gpu.ts'
 import { media, mediaFormats } from '../media/schema.ts'
 import { projects } from '../projects/schema.ts'
 import { depthOfPicture, depthOfVideo } from './estimate.ts'
-import { DEPTH_MODEL, DepthModel } from './model.ts'
+import { DepthAnything, MOGE, MoGe, SMALL } from './model.ts'
 
 export interface DepthJobData {
   formatId: string
@@ -29,21 +29,27 @@ type FormatRow = typeof mediaFormats.$inferSelect
 /** Media in brand kits are logos, fonts and templates: depth maps mean nothing there. */
 const notInKit = sql`(${media.projectId} is null or ${media.projectId} in (select ${projects.id} from ${projects} where ${projects.kind} = 'project'))`
 
+/** The model Greenlit makes each kind's depth maps with now (DEPTH_GENERATORS in @greenlit/shared). */
+const MODEL_FOR = { image: MOGE.id, video: SMALL.id } as const
+
 /**
- * Makes depth maps with Depth Anything V2 Small, as a background job per format: the picture's (or video's) depth map
- * is attached to the format like an uploaded one, marked as Greenlit's (`meta.generated`, with the file version it
- * was made from). Only one runs at a time: it takes most of the processor.
+ * Makes depth maps as a background job per format, MoGe-2 for pictures and Depth Anything V2 Small for videos: the
+ * map is attached to the format like an uploaded one, marked as Greenlit's (`meta.generated`: the model, the file
+ * version it was made from, the distances it spans). Only one runs at a time: it takes the graphics card (or most of
+ * the processor).
  */
 export class DepthService {
   readonly ctx: ModuleContext
-  readonly model: DepthModel
+  readonly moge: MoGe
+  readonly small: DepthAnything
   readonly auto: SettingHandle<DepthAuto>
   /** Formats waiting or being worked on (format id → its item and progress), for the viewer and the counts. */
   private readonly jobs = new Map<string, { mediaId: string } & Omit<DepthJob, 'formatId'>>()
 
   constructor(ctx: ModuleContext) {
     this.ctx = ctx
-    this.model = new DepthModel(ctx.config.dataDir, ctx.log)
+    this.moge = new MoGe(MOGE, ctx.config.dataDir, ctx.log)
+    this.small = new DepthAnything(SMALL, ctx.config.dataDir, ctx.log)
     this.auto = ctx.settings.define('depth.auto', { schema: DepthAuto, default: () => DEPTH_AUTO_DEFAULT })
   }
 
@@ -70,19 +76,24 @@ export class DepthService {
           where d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key)
       group by m.kind`)
     const n = (k: string) => rows.find((r) => r.kind === k)?.n ?? 0
+    const old = await this.outdatedIds()
+    const model = (m: MoGe | DepthAnything, kind: 'images' | 'videos') => ({
+      id: m.spec.id,
+      name: m.spec.name,
+      license: m.spec.license,
+      size: m.spec.size,
+      for: kind,
+      installed: m.installed(),
+      backend: m.backend,
+    })
     return {
-      model: {
-        id: DEPTH_MODEL.id,
-        name: DEPTH_MODEL.name,
-        license: DEPTH_MODEL.license,
-        size: DEPTH_MODEL.size,
-        installed: this.model.installed(),
-      },
+      models: [model(this.moge, 'images'), model(this.small, 'videos')],
       auto: this.auto.get(),
       missing: { images: n('image'), videos: n('video') },
+      outdated: { images: old.images.length, videos: old.videos.length },
       queued: this.jobs.size,
       device: {
-        backend: this.model.backend,
+        backend: this.moge.backend ?? this.small.backend,
         order: backendOrder(),
         gpus: (await nvidiaGpus()).map(({ name, memoryMB }) => ({ name, memoryMB })),
         off: gpuPreference() === 'off',
@@ -158,6 +169,25 @@ export class DepthService {
     return rows.map((r) => r.id)
   }
 
+  /**
+   * Items whose main format has a map Greenlit made with a model it no longer uses for that kind (pictures made with
+   * Depth Anything V2 Small before MoGe-2).
+   */
+  async outdatedIds() {
+    const rows = await this.ctx.db.execute<{ id: string; kind: string }>(sql`
+      select m.id, m.kind from ${media} m
+      join ${mediaFormats} f on f.media_id = m.id and f.role = 'format' and f.version = '' and f.is_primary
+      join ${mediaFormats} d on d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key
+      where m.deleted_at is null and m.kind in ('image', 'video')
+        and d.meta ? 'generated'
+        and d.meta->'generated'->>'model' <> case m.kind when 'image' then ${MODEL_FOR.image} else ${MODEL_FOR.video} end
+      order by m.created_at desc`)
+    return {
+      images: rows.filter((r) => r.kind === 'image').map((r) => r.id),
+      videos: rows.filter((r) => r.kind === 'video').map((r) => r.id),
+    }
+  }
+
   /** A format finished processing: with the automatic setting on, make (or remake) its depth map. */
   async onProcessed(formatId: string) {
     const auto = this.auto.get()
@@ -192,10 +222,14 @@ export class DepthService {
       this.jobs.set(f.id, { mediaId: f.mediaId, state: 'running', progress: 0 })
       const progress = this.progressFor(f, job)
 
-      // The model, once (about 100 MB): the first tenth of the bar.
-      const downloading = !this.model.installed()
-      if (downloading) await job.progress(0, `Downloading ${DEPTH_MODEL.name} (99 MB)`).catch(() => {})
-      await this.model.ensure((x) => void progress(x * 0.1, downloading), job.signal)
+      // The model, once (MoGe-2 1.3 GB, Small 99 MB): the first tenth of the bar.
+      const model = f.kind === 'image' ? this.moge : this.small
+      // One model in memory at a time (jobs run one by one): the other kind's goes.
+      await (model === this.moge ? this.small : this.moge).close()
+      const downloading = !model.installed()
+      const size = `${Math.round(model.spec.size / 1e8) / 10} GB`
+      if (downloading) await job.progress(0, `Downloading ${model.spec.name} (${size})`).catch(() => {})
+      await model.ensure((x) => void progress(x * 0.1, downloading && model.spec.name), job.signal)
       const files = this.ctx.services.files
       const blob = await files.get(f.blobId)
       const src = await files.readablePath(blob)
@@ -206,15 +240,16 @@ export class DepthService {
         const start = downloading ? 0.1 : 0
         let out: string
         let mime: string
+        let metric: { near: number; far: number } | null = null
         if (f.kind === 'image') {
           out = join(dir, `${stem}_depth.png`)
           mime = 'image/png'
           await progress(start + 0.2)
-          await depthOfPicture(this.model, src, out)
+          metric = (await depthOfPicture(this.moge, src, out)).metric
         } else {
           out = join(dir, `${stem}_depth.mp4`)
           mime = 'video/mp4'
-          await depthOfVideo(this.model, src, out, await probe(src), {
+          await depthOfVideo(this.small, src, out, await probe(src), {
             signal: job.signal,
             onProgress: (x) => void progress(start + x * (1 - start)),
           })
@@ -232,9 +267,12 @@ export class DepthService {
             formatKey: f.key,
             version: f.version,
             depth: true,
-            note: `Made by Greenlit (${DEPTH_MODEL.name})`,
-            // Depth Anything gives disparity: near is light, whatever the map it replaces said.
-            meta: { near: 'light', generated: { model: DEPTH_MODEL.id, fromRevision: f.fileRevision } },
+            note: `Made by Greenlit (${model.spec.name})`,
+            // Disparity: near is light, whatever the map it replaces said.
+            meta: {
+              near: 'light',
+              generated: { model: model.spec.id, fromRevision: f.fileRevision, metric },
+            },
           },
           systemActor('depth maps'),
         )
@@ -251,7 +289,7 @@ export class DepthService {
   /** Reports progress to the task and the item's viewers (at most a few times a second). */
   private progressFor(f: FormatRow, job: JobContext) {
     let last = 0
-    return async (x: number, downloading = false) => {
+    return async (x: number, downloading: string | false = false) => {
       const entry = this.jobs.get(f.id)
       if (entry) entry.progress = x
       const now = Date.now()
@@ -259,7 +297,7 @@ export class DepthService {
       last = now
       this.announce(f.mediaId, f.id)
       // Never let a progress update fail the work (the server may be shutting down: the job is then retried).
-      await job.progress(x, downloading ? `Downloading ${DEPTH_MODEL.name}` : undefined).catch(() => {})
+      await job.progress(x, downloading ? `Downloading ${downloading}` : undefined).catch(() => {})
     }
   }
 
@@ -298,9 +336,10 @@ export class DepthService {
     return !!(d.meta as { generated?: unknown } | null)?.generated
   }
 
-  /** Greenlit's map was made from an older file of the picture. */
+  /** Greenlit's map was made from an older file of the picture, or with a model it no longer uses for that kind. */
   private isStale(d: FormatRow, f: FormatRow) {
-    const g = (d.meta as { generated?: { fromRevision?: number } } | null)?.generated
-    return g?.fromRevision !== f.fileRevision
+    const g = (d.meta as { generated?: { fromRevision?: number; model?: string } } | null)?.generated
+    const now = f.kind === 'image' ? MODEL_FOR.image : MODEL_FOR.video
+    return g?.fromRevision !== f.fileRevision || g?.model !== now
   }
 }

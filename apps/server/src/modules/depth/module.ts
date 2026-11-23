@@ -18,7 +18,7 @@ export default defineModule({
   id: 'depth',
   name: 'Depth maps',
   description:
-    'Makes depth maps of pictures and videos with Depth Anything V2 Small (on the processor, no service needed): on request, or for every new upload.',
+    'Makes depth maps of pictures (MoGe-2) and videos (Depth Anything V2 Small) on this computer, on its graphics card when it has one: on request, or for every new upload.',
   dependsOn: ['media', 'files', 'projects'],
   permissions: {
     'depth.manage': {
@@ -48,9 +48,14 @@ export default defineModule({
 
     const tags = ['Depth maps']
     const many = async (body: z.infer<typeof GenerateDepthManyInput>, actor: Actor) => {
-      if (body.missing) assertCan(actor, 'depth.manage')
-      const ids = body.missing ? await svc.missingIds(body.missing) : (body.ids ?? [])
-      if (!ids.length && !body.missing) throw badRequest('Choose some pictures or videos')
+      if (body.missing || body.outdated) assertCan(actor, 'depth.manage')
+      const old = body.outdated ? await svc.outdatedIds() : null
+      const ids = body.missing
+        ? [...(await svc.missingIds(body.missing)), ...(old ? [...old.images, ...old.videos] : [])]
+        : old
+          ? [...old.images, ...old.videos]
+          : (body.ids ?? [])
+      if (!ids.length && !body.missing && !body.outdated) throw badRequest('Choose some pictures or videos')
       const visible = (await ctx.services.media.many(ids, actor)).map((m) => m.id)
       return { queued: await svc.queueMany(visible, { replace: body.replace }, actor) }
     }
@@ -111,7 +116,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'depth_generate',
       description:
-        "Make depth maps with Greenlit's own model (Depth Anything V2 Small; near is light), in the background: give ids (each item's main version formats) or one id with a format key / version. Uploaded depth maps are kept unless replace:true. They then show in media_get (depthMaps) and media_view with depth:true.",
+        "Make depth maps with Greenlit's own models (MoGe-2 for pictures, with real distances; Depth Anything V2 Small for videos; near is light), in the background: give ids (each item's main version formats) or one id with a format key / version. Uploaded depth maps are kept unless replace:true. They then show in media_get (depthMaps) and media_view with depth:true.",
       input: {
         ids: z.array(z.uuid()).max(500).optional(),
         id: z.uuid().optional(),

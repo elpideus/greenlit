@@ -173,19 +173,25 @@ format's own, or lends another version the main version's map when the pictures 
   progress), the library's "Add depth maps" dialog, bulk-bar button and right-click items, Settings → Depth maps. A
   video map follows the stage's video frame by frame (`useViewer().element`, `followFrames`).
 
-**Made by Greenlit** (`apps/server/src/modules/depth/`): Depth Anything V2 Small (Apache-2.0; Base and Large are
-non-commercial), ONNX with `onnxruntime-node` on the graphics card when there is one (`lib/gpu.ts`: CUDA in the
-image's CUDA build, WebGPU through Vulkan outside Docker, else the processor; docs/DOCKER.md "Graphics card"). Its
-npm install script, which would fetch CUDA providers, stays off: the CUDA build adds them (`docker/gpu`). The model (99 MB, a pinned revision checked by SHA-256) is downloaded into
-`DATA_DIR/models/` the first time; `GREENLIT_DEPTH_MODEL` may point at a local copy.
+**Made by Greenlit** (`apps/server/src/modules/depth/`): pictures with **MoGe-2 ViT-L** (Microsoft, MIT: the cleanest
+shapes and real distances), videos with **Depth Anything V2 Small** (Apache-2.0; its Base and Large are
+non-commercial), as ONNX with `onnxruntime-node`. Each model runs in its own process (`lib/onnx-worker.ts`), only one
+at a time, ended after 2 minutes without work, so the memory (2–4 GB for MoGe-2) and the graphics card's context go
+back to the system; the server itself stays small. Backends: `lib/gpu.ts` (CUDA in the image's CUDA build, WebGPU
+through Vulkan outside Docker, else the processor; MoGe-2 skips WebGPU, which can't hold it; a run that fails on the
+card is done again on the processor). docs/DOCKER.md "Graphics card". The models (1.3 GB, 99 MB, pinned revisions
+checked by SHA-256) download into `DATA_DIR/models/<id>/` the first time each is needed.
 
-- Job `depth.generate` (one at a time, a task in Activity): a picture becomes a 16-bit grey PNG of its size (518 px
-  inference, upscaled); a video a grey MP4 of the same length (≤ 30 fps, ≤ 1920 px), each frame fitted to the
+- Job `depth.generate` (one at a time, a task in Activity): a picture becomes a 16-bit grey PNG of its size (MoGe-2 at
+  1036 px, 2500 tokens: its affine point map's depth plus the offset that makes it project onto the pixels, times its
+  metric scale, as disparity between the near and far distances, which `meta.generated.metric` keeps; sky = 0); a video a grey MP4 of the same length (≤ 30 fps, ≤ 1920 px), each frame fitted to the
   previous one (scale and offset by least squares) so it doesn't flicker; on the processor, above 24 fps, every other
-  frame goes through the model and the ones between are blended. About
-  0.5 s per picture and 0.4 s per video frame on 20 threads; about 0.1 s and 0.3 s (all frames) on an RTX 3060.
-- The map is attached like an upload, with `meta.generated = { model, fromRevision }` (near = light). Greenlit's own
-  maps are remade when the picture gets a new file; uploaded ones are kept unless `replace`.
+  frame goes through the model and the ones between are blended. A picture takes about 1 s on an RTX 3060 (CUDA)
+  and 9 s on 12 threads; a video frame about 0.13 s on the card and 0.4 s on the processor.
+- The map is attached like an upload, with `meta.generated = { model, fromRevision, metric? }` (near = light).
+  Greenlit's own maps are out of date when the picture gets a new file or was made with a model it no longer uses for
+  that kind (`outdated` in the status, `POST /depth/generate {outdated: true}`); uploaded ones are kept unless
+  `replace`.
 - Setting `depth.auto` (`{ enabled, kinds: all | images }`, permission `depth.manage`): on `media.processed` of a
   format, make its map. Brand kits are left out everywhere.
 - `POST /media/{id}/depth/generate {formatId?, replace?}`, `POST /depth/generate {ids | missing, replace?}`,

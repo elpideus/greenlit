@@ -1,4 +1,10 @@
-import type { DepthJob, Media, MediaFormat } from '@greenlit/shared'
+import {
+  DEPTH_GENERATORS,
+  type DepthJob,
+  generatorName,
+  type Media,
+  type MediaFormat,
+} from '@greenlit/shared'
 import type { TFunction } from 'i18next'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
@@ -6,11 +12,21 @@ import { qk, queryClient } from '@/lib/query'
 import { useTopic } from '@/lib/realtime'
 import { confirm, toast } from '@/ui'
 
-/** Whether a depth map is Greenlit's own and made from the picture's current file. */
+/**
+ * Whether a depth map is Greenlit's own: which model made it, the distances it spans (MoGe-2), and whether it is out
+ * of date (made from an older file of the picture, or with a model Greenlit no longer uses for that kind).
+ */
 export function generatedState(map: MediaFormat | undefined, format: MediaFormat) {
   const g = map?.depth?.generated
   if (!g) return null
-  return { model: g.model, stale: g.fromRevision !== format.fileRevision }
+  const kind = format.kind === 'video' ? 'videos' : 'images'
+  const oldModel = DEPTH_GENERATORS[g.model]?.for !== kind
+  return {
+    model: generatorName(g.model),
+    metric: g.metric ?? null,
+    stale: g.fromRevision !== format.fileRevision || oldModel,
+    oldModel,
+  }
 }
 
 /**

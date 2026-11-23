@@ -24,9 +24,29 @@ export const DepthInfo = z.object({
   /** How the preview spreads them: evenly, or on a log scale (distances, so near things stay apart). */
   curve: z.enum(['linear', 'log']),
   /** Made by Greenlit: with which model, from which file version of the picture. Null for an uploaded map. */
-  generated: z.object({ model: z.string(), fromRevision: z.number().int() }).nullable(),
+  generated: z
+    .object({
+      model: z.string(),
+      fromRevision: z.number().int(),
+      /**
+       * Real distances (MoGe-2): the map's levels run in disparity from `far` (black, 0) to `near` (white, 1) metres,
+       * so a level v is 1 / (v × (1/near − 1/far) + 1/far) metres away. The sky is 0.
+       */
+      metric: z.object({ near: z.number(), far: z.number() }).nullable().optional(),
+    })
+    .nullable(),
 })
 export type DepthInfo = z.infer<typeof DepthInfo>
+
+/**
+ * The models Greenlit makes depth maps with: MoGe-2 ViT-L (Microsoft, MIT) for pictures, the cleanest shapes and
+ * real distances; Depth Anything V2 Small (Apache-2.0) for videos, fast enough for every frame.
+ */
+export const DEPTH_GENERATORS: Record<string, { name: string; license: string; for: 'images' | 'videos' }> = {
+  'moge-2-vitl': { name: 'MoGe-2 ViT-L', license: 'MIT', for: 'images' },
+  'depth-anything-v2-small': { name: 'Depth Anything V2 Small', license: 'Apache-2.0', for: 'videos' },
+}
+export const generatorName = (id: string) => DEPTH_GENERATORS[id]?.name ?? id
 
 /** A depth map Greenlit is making for a format right now (or about to). */
 export const DepthJob = z.object({
@@ -47,17 +67,25 @@ export const DEPTH_AUTO_DEFAULT: DepthAuto = { enabled: false, kinds: 'all' }
 
 /** The depth generator: its model, the automatic setting, and how much is left without a depth map. */
 export const DepthStatus = z.object({
-  model: z.object({
-    id: z.string(),
-    name: z.string(),
-    license: z.string(),
-    size: z.number(),
-    /** Downloaded already (otherwise the first depth map downloads it). */
-    installed: z.boolean(),
-  }),
+  /** The models, the one for pictures first. */
+  models: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      license: z.string(),
+      size: z.number(),
+      for: z.enum(['images', 'videos']),
+      /** Downloaded already (otherwise the first depth map of its kind downloads it). */
+      installed: z.boolean(),
+      /** Where it runs, once opened (MoGe-2 skips WebGPU, which can't hold it). */
+      backend: z.enum(['cuda', 'webgpu', 'cpu']).nullable(),
+    }),
+  ),
   auto: DepthAuto,
   /** Pictures and videos (their main version's main format) without a depth map. */
   missing: z.object({ images: z.number().int(), videos: z.number().int() }),
+  /** Greenlit's own maps made with a model it no longer uses for that kind (Small, for pictures). */
+  outdated: z.object({ images: z.number().int(), videos: z.number().int() }),
   /** Depth maps waiting or being made. */
   queued: z.number().int(),
   /** Where the model runs: a graphics card (CUDA, WebGPU) or the processor. */
@@ -85,6 +113,8 @@ export const GenerateDepthInput = z.object({
 export const GenerateDepthManyInput = z.object({
   ids: z.array(Id).max(2000).optional(),
   missing: z.enum(['all', 'images']).optional(),
+  /** Remake Greenlit's maps that an older model made (pictures made with Small before MoGe-2). */
+  outdated: z.boolean().optional(),
   replace: z.boolean().optional(),
 })
 

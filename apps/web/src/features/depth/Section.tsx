@@ -235,7 +235,7 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
                 {map.filename}
               </div>
               <div className="t-caption text-ink-3">{busy ? t('preparing') : details.join(' · ')}</div>
-              {map.depth?.range && map.processing.state === 'ready' && (
+              {map.depth?.range && map.processing.state === 'ready' && !generated && (
                 <Tooltip label={t('rangeHint')}>
                   <div className="mt-0.5 w-fit t-caption text-ink-3">
                     {t(map.depth.curve === 'log' ? 'rangeLog' : 'range', {
@@ -248,10 +248,22 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
               {generated && (
                 <div className="mt-1 flex items-center gap-1 t-caption text-ink-3">
                   <Sparkles size={11} className="shrink-0" />
-                  {t('gen.madeBy')}
+                  {t('gen.madeBy', { model: generated.model })}
                 </div>
               )}
-              {generated?.stale && !job && <div className="mt-1 t-caption text-review">{t('gen.stale')}</div>}
+              {generated?.metric && (
+                <div className="mt-0.5 t-caption text-ink-3">
+                  {t('gen.metric', {
+                    near: formatMetres(generated.metric.near),
+                    far: formatMetres(generated.metric.far),
+                  })}
+                </div>
+              )}
+              {generated?.stale && !job && (
+                <div className="mt-1 t-caption text-review">
+                  {generated.oldModel ? t('gen.oldModel') : t('gen.stale')}
+                </div>
+              )}
               {found.inherited && <div className="mt-1 t-caption text-ink-2">{t('fromMainHint')}</div>}
               {map.processing.state === 'failed' && (
                 <div className="mt-1 t-caption text-cut">{t('unreadable')}</div>
@@ -331,6 +343,8 @@ function NearLabel({ near, text }: { near: DepthNear; text: string }) {
     </span>
   )
 }
+
+const formatMetres = (m: number) => (m >= 10 ? Math.round(m) : Number(m.toPrecision(2))).toLocaleString()
 
 const formatValue = (v: number) =>
   Math.abs(v) >= 1000 || Number.isInteger(v)

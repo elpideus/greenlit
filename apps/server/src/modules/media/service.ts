@@ -1218,7 +1218,7 @@ function depthInfo(f: FormatRow): NonNullable<MediaFormat['depth']> {
     float?: boolean
     range?: [number, number]
     curve?: 'linear' | 'log'
-    generated?: { model?: unknown; fromRevision?: unknown }
+    generated?: { model?: unknown; fromRevision?: unknown; metric?: { near?: unknown; far?: unknown } | null }
   }
   const g = meta.generated
   return {
@@ -1229,7 +1229,14 @@ function depthInfo(f: FormatRow): NonNullable<MediaFormat['depth']> {
     curve: meta.curve === 'log' ? 'log' : 'linear',
     generated:
       g && typeof g.model === 'string' && typeof g.fromRevision === 'number'
-        ? { model: g.model, fromRevision: g.fromRevision }
+        ? {
+            model: g.model,
+            fromRevision: g.fromRevision,
+            metric:
+              g.metric && typeof g.metric.near === 'number' && typeof g.metric.far === 'number'
+                ? { near: g.metric.near, far: g.metric.far }
+                : null,
+          }
         : null,
   }
 }

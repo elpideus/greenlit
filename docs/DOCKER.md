@@ -78,8 +78,8 @@ computer's.
 ## Graphics card
 
 Greenlit's own models (depth maps today) run on an NVIDIA graphics card when it has one, and on the processor
-otherwise: a picture's depth map drops from about a second to a fraction of one, a video's from about half a second
-per frame to about a tenth. ONNX Runtime tries CUDA, then WebGPU (Vulkan), then the processor
+otherwise: a picture's depth map (MoGe-2) takes about 1 s instead of 9, a video's (Depth Anything V2 Small) about
+0.13 s per frame instead of 0.4. ONNX Runtime tries CUDA, then WebGPU (Vulkan), then the processor
 (`apps/server/src/lib/gpu.ts`); Settings → Depth maps says which one it uses. `GREENLIT_GPU=off` keeps it on the
 processor (`cuda` or `webgpu` forces one).
 
@@ -100,7 +100,8 @@ In Docker it takes two things:
    (with the Android device on the card too: `compose.yaml:docker/compose.gpu.yaml:docker/android/compose.nvidia.yaml`).
 
 CUDA 13 needs an NVIDIA driver from 580 on. Outside Docker (`pnpm dev`), WebGPU uses the card through its Vulkan
-driver with nothing to install.
+driver with nothing to install, for videos; MoGe-2 needs more memory than WebGPU gives it, so pictures are made on
+the processor there.
 
 ## Cloudflare Tunnel
 

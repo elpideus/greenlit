@@ -93,7 +93,7 @@
     "videoHint": "Videos take a while: about half a second per frame on the processor, much less on a graphics card.",
     "staleShort": "Picture changed",
     "stale": "Made from an older file of the picture: make it again to match.",
-    "madeBy": "Made by Greenlit · Depth Anything V2 Small",
+    "madeBy": "Made by Greenlit · {{model}}",
     "started": "Making the depth map of {{format}}. It shows here when it’s ready.",
     "startedMany_one": "Making {{count}} depth map. Follow it in Activity.",
     "startedMany_other": "Making {{count}} depth maps. Follow them in Activity.",
@@ -101,17 +101,19 @@
     "replaceTitle": "Replace the uploaded depth map of {{format}}?",
     "replaceBody": "Greenlit makes a new one with Depth Anything V2 Small. The uploaded file stays in the item’s file history.",
     "replaceConfirm": "Make a new one",
-    "bulk": "Depth maps"
+    "bulk": "Depth maps",
+    "metric": "Distances {{near}} – {{far}} m",
+    "oldModel": "Made with an older model: make it again for a sharper map with real distances."
   },
   "settings": {
     "title": "Depth maps",
-    "description": "Greenlit makes depth maps on this computer with Depth Anything V2 Small: from the viewer, for a selection in the library, or for every new picture and video.",
+    "description": "Greenlit makes depth maps on this computer: from the viewer, for a selection in the library, or for every new picture and video.",
     "auto": "New uploads",
     "saved": "Saved",
     "autoOn": "Make a depth map for every new upload",
     "autoOnHint": "As soon as a picture or video is ready. Uploaded depth maps are kept; Greenlit’s own are made again when the file changes. Brand kits are left out.",
     "kinds": "For",
-    "kindsHint": "Videos take longest: on the processor about half a second per frame, on a graphics card a fraction of that.",
+    "kindsHint": "Videos take longest: on a graphics card about a tenth of a second per frame, on the processor about half a second.",
     "kindsAll": "Pictures and videos",
     "kindsImages": "Pictures only",
     "library": "Library",
@@ -126,7 +128,7 @@
     "allBodyVideos": "{{pictures}} take about a second each; {{videos}} take about half a second per frame. They are made one at a time in the background; follow them in Activity.",
     "allConfirm": "Make them",
     "model": "Model",
-    "modelHint": "Runs on this computer, on its graphics card when it can: nothing leaves it. Downloaded from Hugging Face the first time it’s used; the Small model is the one that may be used commercially.",
+    "modelHint": "They run on this computer, on its graphics card when it can: nothing leaves it. Each downloads from Hugging Face the first time it’s needed; both may be used commercially.",
     "installed": "Downloaded",
     "notInstalled": "Downloads on first use ({{size}})",
     "missing_one": "{{count}} item without a depth map ({{pictures}}, {{videos}})",
@@ -140,10 +142,18 @@
     "runsOn": "Runs on",
     "processor": "Processor",
     "gpuGeneric": "Graphics card",
-    "gpuOn": "Depth maps are made on the graphics card: a picture in a moment, a video several times faster than on the processor.",
-    "gpuFirst": "The graphics card is used from the first depth map on (it falls back to the processor if it can’t start).",
+    "gpuOn": "Both models run on the graphics card: a picture in under a second, a video several times faster than on the processor.",
     "gpuUnused": "{{card}} is here but can’t be used: run the CUDA build of Greenlit with the card passed in (docs/DOCKER.md, “Graphics card”).",
     "noGpu": "No graphics card Greenlit can use. On the processor a picture takes about a second and a video about half a second per frame.",
-    "gpuOff": "The graphics card is turned off (GREENLIT_GPU=off)."
+    "gpuOff": "The graphics card is turned off (GREENLIT_GPU=off).",
+    "for": {
+      "images": "Pictures: the cleanest shapes, with real distances in metres",
+      "videos": "Videos: fast enough for every frame"
+    },
+    "outdated_one": "{{count}} depth map made with an older model",
+    "outdated_other": "{{count}} depth maps made with an older model",
+    "outdatedHint": "Made before {{model}} was used for pictures. Making them again replaces them; the old files stay in each item’s history.",
+    "outdatedButton": "Make them again",
+    "gpuWebgpu": "WebGPU (outside Docker): videos run on the card; MoGe-2 needs more memory than WebGPU gives it, so pictures are made on the processor (a few seconds each). The CUDA build of Greenlit runs both on the card."
   }
 }

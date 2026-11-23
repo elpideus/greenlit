@@ -2,50 +2,60 @@ import { type ChildProcess, spawn } from 'node:child_process'
 import { once } from 'node:events'
 import sharp from 'sharp'
 import { ffmpegBin, type ProbeResult } from '../../lib/ffmpeg.ts'
-import { type DepthModel, inferenceSize } from './model.ts'
+import { type DepthAnything, inferenceSize, MOGE_LONG_SIDE, type MoGe } from './model.ts'
 
 /**
- * Depth maps made by Greenlit, from Depth Anything's disparity (bigger = closer, so near is light):
- * - a picture: one 16-bit grey PNG the size of the picture;
- * - a video: a grey MP4 of the same length (at most 30 frames a second and 1920 px wide), each frame lined up with
- *   the one before it so the map doesn't flicker (see Steadier). About 0.4 s per frame on a 20-thread processor.
+ * Depth maps made by Greenlit, as disparity (bigger = closer, so near is light):
+ * - a picture (MoGe-2): one 16-bit grey PNG the size of the picture, from MoGe's distances in metres; the near and far
+ *   distances it spans come back with it (DepthInfo.generated.metric);
+ * - a video (Depth Anything V2 Small): a grey MP4 of the same length (at most 30 frames a second and 1920 px wide),
+ *   each frame lined up with the one before it so the map doesn't flicker (see Steadier). About 0.1 s per frame on a
+ *   graphics card, 0.4 s on a 20-thread processor.
  */
 
 /** The values between these shares of a map become black and white (stray pixels don't flatten the rest). */
 const LOW = 0.005
 const HIGH = 0.995
 
-/** Picture → 16-bit depth PNG at `out`. Returns the size it was made at (the picture's, upright). */
-export async function depthOfPicture(model: DepthModel, src: string, out: string) {
+/** Picture → 16-bit depth PNG at `out`. Returns its size (the picture's, upright) and the distances it spans. */
+export async function depthOfPicture(model: MoGe, src: string, out: string) {
   const meta = await sharp(src, { failOn: 'none' }).metadata()
   const rotated = (meta.orientation ?? 1) >= 5
   const width = (rotated ? meta.height : meta.width) ?? 0
   const height = (rotated ? meta.width : meta.height) ?? 0
   if (!width || !height) throw new Error('Greenlit cannot read this picture')
-  const size = inferenceSize(width, height)
+  const k = Math.min(1, MOGE_LONG_SIDE / Math.max(width, height))
+  const w = Math.max(14, Math.round(width * k))
+  const h = Math.max(14, Math.round(height * k))
   const rgb = await sharp(src, { failOn: 'none' })
     .rotate()
     .removeAlpha()
     .toColourspace('srgb')
-    .resize(size.width, size.height, { fit: 'fill', kernel: 'cubic' })
+    .resize(w, h, { fit: 'fill', kernel: 'cubic' })
     .raw()
     .toBuffer()
-  const disparity = await model.infer(rgb, size.width, size.height)
-  const [lo, hi] = percentiles(disparity, LOW, HIGH)
+  const metres = await model.infer(rgb, w, h)
+  // Disparity between the far and near ends (stray pixels aside); the sky (Infinity) is 0.
+  const disparity = Float32Array.from(metres, (m) => (Number.isFinite(m) && m > 0 ? 1 / m : 0))
+  const valid = disparity.filter((v) => v > 0)
+  if (!valid.length) throw new Error('Greenlit found nothing at a distance in this picture')
+  const [lo, hi] = percentiles(valid, LOW, HIGH)
   const span = hi - lo || 1
   const px = new Uint16Array(disparity.length)
-  for (let i = 0; i < px.length; i++) px[i] = Math.round(clamp01((disparity[i]! - lo) / span) * 65535)
-  await sharp(px, { raw: { width: size.width, height: size.height, channels: 1 } })
+  for (let i = 0; i < px.length; i++)
+    px[i] = disparity[i]! > 0 ? Math.round(clamp01((disparity[i]! - lo) / span) * 65535) : 0
+  await sharp(px, { raw: { width: w, height: h, channels: 1 } })
     .toColourspace('grey16')
     .resize(width, height, { fit: 'fill', kernel: 'cubic' })
     .png({ compressionLevel: 7 })
     .toFile(out)
-  return { width, height }
+  const round = (v: number) => Number(v.toPrecision(4))
+  return { width, height, metric: { near: round(1 / hi), far: round(1 / Math.max(lo, 1e-6)) } }
 }
 
 /** Video → grey depth MP4 at `out`, the same length as the video. */
 export async function depthOfVideo(
-  model: DepthModel,
+  model: DepthAnything,
   src: string,
   out: string,
   p: ProbeResult,

@@ -93,7 +93,7 @@
     "videoHint": "I video richiedono un po’: circa mezzo secondo per fotogramma sul processore, molto meno sulla scheda grafica.",
     "staleShort": "Immagine cambiata",
     "stale": "Creata da un file precedente dell'immagine: ricreala perché combaci.",
-    "madeBy": "Creata da Greenlit · Depth Anything V2 Small",
+    "madeBy": "Creata da Greenlit · {{model}}",
     "started": "Creazione della mappa di profondità di {{format}}. Appare qui quando è pronta.",
     "startedMany_one": "Creazione di {{count}} mappa di profondità. Seguila in Attività.",
     "startedMany_other": "Creazione di {{count}} mappe di profondità. Seguile in Attività.",
@@ -101,17 +101,19 @@
     "replaceTitle": "Sostituire la mappa di profondità caricata di {{format}}?",
     "replaceBody": "Greenlit ne crea una nuova con Depth Anything V2 Small. Il file caricato resta nella cronologia dei file dell'elemento.",
     "replaceConfirm": "Creane una nuova",
-    "bulk": "Mappe di profondità"
+    "bulk": "Mappe di profondità",
+    "metric": "Distanze {{near}} – {{far}} m",
+    "oldModel": "Creata con un modello precedente: ricreala per una mappa più nitida con distanze reali."
   },
   "settings": {
     "title": "Mappe di profondità",
-    "description": "Greenlit crea mappe di profondità su questo computer con Depth Anything V2 Small: dal visualizzatore, per una selezione nella libreria, oppure per ogni nuova immagine e video.",
+    "description": "Greenlit crea mappe di profondità su questo computer: dal visualizzatore, per una selezione nella libreria, oppure per ogni nuova immagine e video.",
     "auto": "Nuovi caricamenti",
     "saved": "Salvato",
     "autoOn": "Crea una mappa di profondità per ogni nuovo caricamento",
     "autoOnHint": "Appena un'immagine o un video è pronto. Le mappe caricate restano; quelle di Greenlit vengono ricreate quando il file cambia. I brand kit sono esclusi.",
     "kinds": "Per",
-    "kindsHint": "I video richiedono più tempo: sul processore circa mezzo secondo per fotogramma, sulla scheda grafica una frazione.",
+    "kindsHint": "I video richiedono più tempo: sulla scheda grafica circa un decimo di secondo per fotogramma, sul processore circa mezzo secondo.",
     "kindsAll": "Immagini e video",
     "kindsImages": "Solo immagini",
     "library": "Libreria",
@@ -126,7 +128,7 @@
     "allBodyVideos": "{{pictures}}: circa un secondo ciascuna; {{videos}}: circa mezzo secondo per fotogramma. Vengono create una alla volta in background; seguile in Attività.",
     "allConfirm": "Creale",
     "model": "Modello",
-    "modelHint": "Funziona su questo computer, sulla scheda grafica quando può: nulla esce da qui. Scaricato da Hugging Face al primo utilizzo; il modello Small è quello che si può usare per scopi commerciali.",
+    "modelHint": "Funzionano su questo computer, sulla scheda grafica quando possono: nulla esce da qui. Ognuno si scarica da Hugging Face la prima volta che serve; entrambi si possono usare per scopi commerciali.",
     "installed": "Scaricato",
     "notInstalled": "Si scarica al primo utilizzo ({{size}})",
     "missing_one": "{{count}} elemento senza mappa di profondità ({{pictures}}, {{videos}})",
@@ -140,10 +142,18 @@
     "runsOn": "Funziona su",
     "processor": "Processore",
     "gpuGeneric": "Scheda grafica",
-    "gpuOn": "Le mappe di profondità si creano sulla scheda grafica: un’immagine in un attimo, un video molte volte più velocemente che sul processore.",
-    "gpuFirst": "La scheda grafica si usa dalla prima mappa di profondità (se non parte, si torna al processore).",
+    "gpuOn": "Entrambi i modelli funzionano sulla scheda grafica: un’immagine in meno di un secondo, un video molte volte più velocemente che sul processore.",
     "gpuUnused": "{{card}} c’è ma non si può usare: avvia la versione CUDA di Greenlit con la scheda collegata (docs/DOCKER.md, “Scheda grafica”).",
     "noGpu": "Nessuna scheda grafica utilizzabile. Sul processore un’immagine richiede circa un secondo e un video circa mezzo secondo per fotogramma.",
-    "gpuOff": "La scheda grafica è disattivata (GREENLIT_GPU=off)."
+    "gpuOff": "La scheda grafica è disattivata (GREENLIT_GPU=off).",
+    "for": {
+      "images": "Immagini: le forme più pulite, con distanze reali in metri",
+      "videos": "Video: abbastanza veloce per ogni fotogramma"
+    },
+    "outdated_one": "{{count}} mappa di profondità creata con un modello precedente",
+    "outdated_other": "{{count}} mappe di profondità create con un modello precedente",
+    "outdatedHint": "Create prima che si usasse {{model}} per le immagini. Ricrearle le sostituisce; i file vecchi restano nella cronologia di ogni elemento.",
+    "outdatedButton": "Ricreale",
+    "gpuWebgpu": "WebGPU (fuori da Docker): i video usano la scheda; MoGe-2 richiede più memoria di quella che WebGPU gli dà, quindi le immagini si creano sul processore (pochi secondi ciascuna). La versione CUDA di Greenlit li usa entrambi sulla scheda."
   }
 }

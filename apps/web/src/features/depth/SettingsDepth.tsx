@@ -68,6 +68,16 @@ export default function SettingsDepth() {
     }
   }
 
+  const remakeOutdated = async () => {
+    try {
+      const r = await api.post<{ queued: number }>('/depth/generate', { outdated: true })
+      toast.info(t('gen.startedMany', { count: r.queued }))
+      void qc.invalidateQueries({ queryKey: KEY })
+    } catch (err) {
+      toast.error(err)
+    }
+  }
+
   return (
     <SettingsSection title={t('settings.title')} description={t('settings.description')}>
       <SettingsGroup title={t('settings.auto')} aside={<SavedHint tick={tick} label={t('settings.saved')} />}>
@@ -109,19 +119,36 @@ export default function SettingsDepth() {
             {t('settings.allButton')}
           </Button>
         </SettingsRow>
+        {data.outdated.images + data.outdated.videos > 0 && (
+          <SettingsRow
+            label={t('settings.outdated', { count: data.outdated.images + data.outdated.videos })}
+            description={t('settings.outdatedHint', { model: data.models[0]?.name ?? '' })}
+          >
+            <Button size="sm" icon={Sparkles} onClick={() => void remakeOutdated()}>
+              {t('settings.outdatedButton')}
+            </Button>
+          </SettingsRow>
+        )}
       </SettingsGroup>
 
-      <SettingsGroup title={t('settings.model')}>
-        <SettingsRow label={data.model.name} description={t('settings.modelHint')}>
-          <div className="flex items-center gap-2 t-caption text-ink-3">
-            <Badge tone="neutral">{data.model.license}</Badge>
-            {data.model.installed ? (
-              <Badge tone="signal">{t('settings.installed')}</Badge>
-            ) : (
-              <span>{t('settings.notInstalled', { size: formatBytes(data.model.size) })}</span>
-            )}
-          </div>
-        </SettingsRow>
+      <SettingsGroup title={t('settings.model')} description={t('settings.modelHint')}>
+        {data.models.map((m) => (
+          <SettingsRow key={m.id} label={m.name} description={t(`settings.for.${m.for}`)}>
+            <div className="flex items-center gap-2 t-caption text-ink-3">
+              <Badge tone="neutral">{m.license}</Badge>
+              {m.backend && (
+                <Badge tone={m.backend === 'cpu' ? 'neutral' : 'signal'}>
+                  {m.backend === 'cpu' ? t('settings.processor') : m.backend === 'cuda' ? 'CUDA' : 'WebGPU'}
+                </Badge>
+              )}
+              {m.installed ? (
+                <Badge tone="signal">{t('settings.installed')}</Badge>
+              ) : (
+                <span>{t('settings.notInstalled', { size: formatBytes(m.size) })}</span>
+              )}
+            </div>
+          </SettingsRow>
+        ))}
         <RunsOn device={data.device} />
       </SettingsGroup>
     </SettingsSection>
@@ -131,28 +158,22 @@ export default function SettingsDepth() {
 /** Where the model runs: the graphics card (and through what) or the processor, and why not the card. */
 function RunsOn({ device }: { device: DepthStatus['device'] }) {
   const t = useT('depth')
-  const card = device.gpus[0]?.name ?? null
-  const gpu = device.backend === 'cuda' || device.backend === 'webgpu'
-  const next = device.order[0]
-  const label = gpu
-    ? `${card ?? t('settings.gpuGeneric')} · ${device.backend === 'cuda' ? 'CUDA' : 'WebGPU'}`
-    : device.backend === 'cpu'
-      ? t('settings.processor')
-      : next === 'cpu'
-        ? t('settings.processor')
-        : `${card ?? t('settings.gpuGeneric')} · ${next === 'cuda' ? 'CUDA' : 'WebGPU'}`
+  const card = device.gpus[0]?.name ?? t('settings.gpuGeneric')
+  // What this machine offers (the models then use the best of it they can; see their own badges above).
+  const best = device.off ? 'cpu' : device.order[0]
+  const label = best === 'cpu' ? t('settings.processor') : `${card} · ${best === 'cuda' ? 'CUDA' : 'WebGPU'}`
   const hint = device.off
     ? t('settings.gpuOff')
-    : gpu
+    : best === 'cuda'
       ? t('settings.gpuOn')
-      : device.backend === null && next !== 'cpu'
-        ? t('settings.gpuFirst')
-        : card
+      : best === 'webgpu'
+        ? t('settings.gpuWebgpu')
+        : device.gpus.length
           ? t('settings.gpuUnused', { card })
           : t('settings.noGpu')
   return (
     <SettingsRow label={t('settings.runsOn')} description={hint}>
-      <Badge tone={gpu ? 'signal' : 'neutral'}>{label}</Badge>
+      <Badge tone={best === 'cpu' ? 'neutral' : 'signal'}>{label}</Badge>
     </SettingsRow>
   )
 }
