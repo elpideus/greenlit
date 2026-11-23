@@ -1,0 +1,38 @@
+{
+  "nav": "Mappa",
+  "map": "Mappa",
+  "globe": "Globo",
+  "searchPlaceholder": "Cerca luoghi e progetti",
+  "inGreenlit": "In Greenlit",
+  "onTheMap": "Luoghi",
+  "projects": "Progetti",
+  "media": "Media",
+  "noMatches": "Nessun luogo o progetto corrisponde a “{{q}}”",
+  "searching": "Ricerca…",
+  "summary": "{{places}} luoghi · {{projects}} progetti · {{media}} media",
+  "zoomIn": "Avvicina",
+  "zoomOut": "Allontana",
+  "resetNorth": "Orienta a nord",
+  "locate": "Dove sono",
+  "fitAll": "Mostra tutto",
+  "locateFailed": "La tua posizione non è disponibile in questo browser.",
+  "empty": {
+    "title": "Ancora niente sulla mappa",
+    "body": "Assegna un luogo a un progetto nella scheda Informazioni, oppure a una foto o a un video nelle sue Info. Foto e video con il GPS vengono posizionati da soli."
+  },
+  "card": {
+    "items_one": "{{count}} elemento",
+    "items_other": "{{count}} elementi",
+    "mediaCount_one": "{{count}} media",
+    "mediaCount_other": "{{count}} media",
+    "nothingHere": "In Greenlit non c'è ancora niente qui.",
+    "copyCoords": "Copia le coordinate",
+    "coordsCopied": "Coordinate copiate",
+    "openOsm": "Apri in OpenStreetMap",
+    "rename": "Rinomina il luogo",
+    "zoomTo": "Avvicina qui",
+    "close": "Chiudi",
+    "inProject": "in {{name}}"
+  },
+  "cluster": "{{count}} luoghi"
+}

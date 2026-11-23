@@ -48,7 +48,10 @@ export function PlatformIcon({
         return (
           <>
             <circle cx="12" cy="12" r="10" fill={fill} />
-            <path d="M13.4 21.9v-7.1h2.4l.4-2.8h-2.8v-1.8c0-.8.2-1.4 1.4-1.4h1.5V6.3c-.3 0-1.1-.1-2.2-.1-2.2 0-3.6 1.3-3.6 3.7V12H8.1v2.8h2.4v7.1" fill={inner} />
+            <path
+              d="M13.4 21.9v-7.1h2.4l.4-2.8h-2.8v-1.8c0-.8.2-1.4 1.4-1.4h1.5V6.3c-.3 0-1.1-.1-2.2-.1-2.2 0-3.6 1.3-3.6 3.7V12H8.1v2.8h2.4v7.1"
+              fill={inner}
+            />
           </>
         )
       case 'tiktok':
@@ -73,7 +76,12 @@ export function PlatformIcon({
     return (
       <span
         className={cn('inline-grid shrink-0 place-items-center rounded-[28%]', className)}
-        style={{ width: size, height: size, background: bg, boxShadow: 'inset 0 0 0 .5px rgba(255,255,255,.14)' }}
+        style={{
+          width: size,
+          height: size,
+          background: bg,
+          boxShadow: 'inset 0 0 0 .5px rgba(255,255,255,.14)',
+        }}
         role="img"
         aria-label={PLATFORM_NAME[platform]}
       >

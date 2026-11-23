@@ -40,7 +40,13 @@ export function MediaPicker({
   const { data: projects } = useProjects()
   const kind = kinds?.length === 1 ? kinds[0] : undefined
   const list = useMediaList(
-    { q: q || undefined, projectId: scope === 'project' && project ? project : undefined, kind, sort: 'recent', limit: 90 },
+    {
+      q: q || undefined,
+      projectId: scope === 'project' && project ? project : undefined,
+      kind,
+      sort: 'recent',
+      limit: 90,
+    },
     { enabled: open },
   )
   const items = useMemo(
@@ -119,7 +125,10 @@ export function MediaPicker({
               setProject(v === 'all' ? null : v)
               setScope(v === 'all' ? 'all' : 'project')
             }}
-            options={[{ value: 'all', label: 'All projects' }, ...(projects ?? []).map((p) => ({ value: p.id, label: p.name }))]}
+            options={[
+              { value: 'all', label: 'All projects' },
+              ...(projects ?? []).map((p) => ({ value: p.id, label: p.name })),
+            ]}
             className="w-52"
           />
         )}
@@ -145,12 +154,19 @@ export function MediaPicker({
                 onDoubleClick={() => finish([m])}
                 className="press group text-left"
               >
-                <div className={cn('relative rounded-tile transition-shadow duration-150', on && 'shadow-[0_0_0_2px_var(--signal)]')}>
+                <div
+                  className={cn(
+                    'relative rounded-tile transition-shadow duration-150',
+                    on && 'shadow-[0_0_0_2px_var(--signal)]',
+                  )}
+                >
                   <MediaThumb media={m} className="aspect-video" />
                   <span
                     className={cn(
                       'absolute top-1.5 left-1.5 grid size-5 place-items-center rounded-full transition-all duration-150',
-                      on ? 'bg-signal text-signal-ink' : 'bg-black/40 text-transparent opacity-0 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,.7)] group-hover:opacity-100',
+                      on
+                        ? 'bg-signal text-signal-ink'
+                        : 'bg-black/40 text-transparent opacity-0 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,.7)] group-hover:opacity-100',
                     )}
                   >
                     <Check size={12} strokeWidth={3} />

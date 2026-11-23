@@ -1,5 +1,5 @@
 import type { Media, MediaFormat } from '@greenlit/shared'
-import { AudioLines, FileText, File as FileIcon, Image as ImageIcon, Video } from 'lucide-react'
+import { AudioLines, File as FileIcon, FileText, Image as ImageIcon, Video } from 'lucide-react'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { loadSprite, primaryFormat, type SpriteInfo } from '@/data/media'
 import { cn } from '@/lib/cn'
@@ -63,7 +63,8 @@ export function MediaThumb({
     const bw = box.current.clientWidth
     const bh = box.current.clientHeight
     // scale one tile to cover the box
-    const scale = fit === 'cover' ? Math.max(bw / sprite.w, bh / sprite.h) : Math.min(bw / sprite.w, bh / sprite.h)
+    const scale =
+      fit === 'cover' ? Math.max(bw / sprite.w, bh / sprite.h) : Math.min(bw / sprite.w, bh / sprite.h)
     const tw = sprite.w * scale
     const th = sprite.h * scale
     spriteStyle = {

@@ -8,6 +8,8 @@ import { useEffect, useSyncExternalStore } from 'react'
 const BUNDLED_FONTS: Record<string, () => Promise<unknown>> = {
   'Jost Variable': () => import('@fontsource-variable/jost'),
   'Cinzel Variable': () => import('@fontsource-variable/cinzel'),
+  'JetBrains Mono Variable': () => import('@fontsource-variable/jetbrains-mono'),
+  'Inter Variable': () => import('@fontsource-variable/inter'),
 }
 
 export type ModePreference = 'system' | 'light' | 'dark'
@@ -59,7 +61,10 @@ function ensureFont(family: string, url?: string) {
   }
   if (url) {
     const face = new FontFace(family, `url(${url})`)
-    void face.load().then((f) => document.fonts.add(f)).catch(() => {})
+    void face
+      .load()
+      .then((f) => document.fonts.add(f))
+      .catch(() => {})
   }
 }
 

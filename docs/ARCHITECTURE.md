@@ -66,22 +66,25 @@ src/
   ui/           the design system (Button, Menu + right-click menus, Dialog, Toggle (semaphore), Signal, Segmented…)
   lib/          api client, realtime socket, session, theme, i18n, time zone formatting, uploads (tus), hotkeys
   data/         shared data hooks for areas many features read (media, projects, people, accounts, tags)
-  components/   shared domain components (MediaThumb, MediaPicker, PeoplePicker, PlatformIcon, viewer/store)
+  components/   shared domain components, used by several features:
+                viewer/ (the media viewer + its store), library/ (the media browser: grid, search tokens, selection),
+                map/ (MapLibre setup, basemap, MiniMap), platform-preview/ (phone emulations of each app),
+                MediaThumb, MediaPicker, PeoplePicker, PlatformIcon, DateTimeField, SettingsSection
   features/<id> one folder per feature: feature.ts(x), pages, components, api.ts, locales/{en,it}.json
 ```
 
 A feature is `features/<id>/feature.ts(x)` default-exporting `defineFeature({...})` (app/feature.ts):
 
-| Key | What it adds |
-| --- | --- |
-| `routes` | pages: `{ path, load: () => import('./Page'), layout: 'shell' \| 'full' \| 'public', permission }` |
-| `nav` | top-bar destinations (and phone tab bar): `{ id, label, to, icon, order, permission, match }` |
-| `commands` | ⌘K actions |
-| `settings` | Settings sections: `{ id, label, icon, group, order, permission, load }` → `/settings/<id>` |
-| `slots` | components rendered in other features' screens (below) |
-| `menus` | items added to other features' right-click / ⋯ menus (below) |
-| `globals` | components mounted once in the signed-in app (dialog hosts, listeners) |
-| `locales` | `{ en, it }` strings under the feature's namespace (`useT('<id>')`) |
+| Key        | What it adds                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| `routes`   | pages: `{ path, load: () => import('./Page'), layout: 'shell' \| 'full' \| 'public', permission }` |
+| `nav`      | top-bar destinations (and phone tab bar): `{ id, label, to, icon, order, permission, match }`      |
+| `commands` | ⌘K actions                                                                                         |
+| `settings` | Settings sections: `{ id, label, icon, group, order, permission, load }` → `/settings/<id>`        |
+| `slots`    | components rendered in other features' screens (below)                                             |
+| `menus`    | items added to other features' right-click / ⋯ menus (below)                                       |
+| `globals`  | components mounted once in the signed-in app (dialog hosts, listeners)                             |
+| `locales`  | `{ en, it }` strings under the feature's namespace (`useT('<id>')`)                                |
 
 Rules: a feature never imports another feature's folder. It talks to the rest through slots, menus, shared `data/`
 hooks, `components/` and the API. Delete a folder and the app still builds; its pages, tabs and menu items are gone.
@@ -91,33 +94,35 @@ hooks, `components/` and the API. Delete a folder and the app still builds; its 
 `<Slot name props />` renders every entry features registered for `name`; `useSlot(name, props)` returns them (for
 tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 
-| Slot | Props | Rendered as |
-| --- | --- | --- |
-| `nav.badge.<navId>` | `{}` | a count next to a top-bar item |
-| `palette.results` | `{ query, go }` | `<Command.Group>` of live results in ⌘K |
-| `library.toolbar` | `{ projectId }` | extra buttons in the library toolbar |
-| `media.bulk` | `{ ids, items, clear }` | buttons in the floating bulk bar |
-| `media.panels` | `{ media, format }` | tabs of the viewer's side panel (`label`, `icon` required) |
-| `media.info.sections` | `{ media }` | sections in the viewer's Info tab |
-| `media.viewer.tools` | `{ media, format }` | buttons in the viewer's top bar |
-| `media.viewer.overlay` | `{ media, format }` | layers drawn exactly over the frame (`components/viewer/store` has the frame rect) |
-| `media.decision` | `{ media }` | the decision area under the viewer's title (review) |
-| `project.tabs` | `{ project }` | tabs on a project page (`label`, `icon`) |
-| `project.about.sections` | `{ project }` | sections in a project's About tab |
-| `composition.panels` | `{ composition }` | tabs in the editor's right panel |
-| `post.panels` | `{ post }` | tabs in the post composer's side panel |
+| Slot                     | Props                         | Rendered as                                                                        |
+| ------------------------ | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `nav.badge.<navId>`      | `{}`                          | a count next to a top-bar item                                                     |
+| `palette.results`        | `{ query, go }`               | `<Command.Group>` of live results in ⌘K                                            |
+| `library.toolbar`        | `{ projectId }`               | extra buttons in the library toolbar                                               |
+| `media.bulk`             | `{ ids, items, clear }`       | buttons in the floating bulk bar                                                   |
+| `media.panels`           | `{ media, format }`           | tabs of the viewer's side panel (`label`, `icon` required)                         |
+| `media.info.sections`    | `{ media }`                   | sections in the viewer's Info tab                                                  |
+| `media.viewer.tools`     | `{ media, format }`           | buttons in the viewer's top bar                                                    |
+| `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect) |
+| `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                        |
+| `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                |
+| `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`)                                           |
+| `project.about.sections` | `{ project }`                 | sections in a project's About tab                                                  |
+| `composition.panels`     | `{ composition }`             | tabs in the editor's right panel                                                   |
+| `post.panels`            | `{ post }`                    | tabs in the post composer's side panel                                             |
 
 ### Menus
 
 `menuEntries(name, ctx, own)` (app/registry.ts) builds a menu from the owner's items plus every feature's `menus[name]`
-contribution, ordered (open/rename ≈ 0, workflow 20–60, files 80, delete 100) and separated by lines.
+contribution, ordered by `order`, with a line between bands: open/rename (< 20), workflow (20–79), files (80–99),
+delete (100+).
 
-| Menu | Context |
-| --- | --- |
-| `media` | `{ items: Media[], me }` — tiles, rows, the viewer's ⋯ (one or many items) |
-| `project` | `{ project, me }` |
-| `post` | `{ post, me }` |
-| `composition` | `{ composition, me }` |
+| Menu          | Context                                                                    |
+| ------------- | -------------------------------------------------------------------------- |
+| `media`       | `{ items: Media[], me }` — tiles, rows, the viewer's ⋯ (one or many items) |
+| `project`     | `{ project, me }`                                                          |
+| `post`        | `{ post, me }`                                                             |
+| `composition` | `{ composition, me }`                                                      |
 
 ## Data flow
 

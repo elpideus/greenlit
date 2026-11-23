@@ -56,7 +56,11 @@ export function MenuItems({ items }: { items: MenuEntry[] }) {
         const body = (
           <>
             <span className={cn('grid w-4 place-items-center', e.danger ? 'text-cut' : 'text-ink-2')}>
-              {e.checked ? <Check size={14} strokeWidth={2.2} className="text-signal" /> : Icon && <Icon size={15} strokeWidth={1.75} />}
+              {e.checked ? (
+                <Check size={14} strokeWidth={2.2} className="text-signal" />
+              ) : (
+                Icon && <Icon size={15} strokeWidth={1.75} />
+              )}
             </span>
             <span className={cn('min-w-0 flex-1 truncate', e.danger && 'text-cut')}>{e.label}</span>
             {e.hint && <span className="t-caption text-ink-3">{e.hint}</span>}
@@ -156,7 +160,10 @@ export function openContextMenu(x: number, y: number, items: MenuEntry[], header
  * Spread on any element to give it a right-click menu (`<div {...menu}>`). A long press opens it on touch screens.
  * `items` is called when the menu opens, so it always reflects the current selection.
  */
-export function useContextMenu(items: () => MenuEntry[], opts: { disabled?: boolean; header?: () => ReactNode } = {}) {
+export function useContextMenu(
+  items: () => MenuEntry[],
+  opts: { disabled?: boolean; header?: () => ReactNode } = {},
+) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -202,7 +209,14 @@ export function ContextMenuHost() {
   return (
     <M.Root open={open} onOpenChange={(o) => !o && close()} modal={false}>
       <M.Portal>
-        <M.Positioner anchor={anchor} className="z-[85] outline-none" side="bottom" align="start" sideOffset={2} collisionPadding={8}>
+        <M.Positioner
+          anchor={anchor}
+          className="z-[85] outline-none"
+          side="bottom"
+          align="start"
+          sideOffset={2}
+          collisionPadding={8}
+        >
           <M.Popup className="gl-pop floating min-w-[220px] p-[5px] outline-none">
             {header}
             <MenuItems items={items} />

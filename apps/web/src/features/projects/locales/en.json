@@ -1,0 +1,99 @@
+{
+  "nav": "Projects",
+  "title": "Projects",
+  "new": "New project",
+  "count_one": "{{count}} project",
+  "count_other": "{{count}} projects",
+  "media_one": "{{count}} item",
+  "media_other": "{{count}} items",
+  "edits_one": "{{count}} edit",
+  "edits_other": "{{count}} edits",
+  "active": "Active",
+  "archived": "Archived",
+  "archivedBadge": "Archived",
+  "search": "Find a project",
+  "sort": {
+    "label": "Sort",
+    "updated": "Recently active",
+    "name": "Name",
+    "size": "Largest first",
+    "media": "Most media"
+  },
+  "updated": "Updated {{when}}",
+  "empty": {
+    "title": "No projects yet",
+    "body": "A project holds a job’s footage, edits and posts together — a property, a renovation, a campaign.",
+    "archivedTitle": "Nothing archived",
+    "archivedBody": "Archived projects keep their media and leave the main list.",
+    "noResults": "No project matches “{{q}}”",
+    "readonly": "Projects shared with you appear here."
+  },
+  "create": {
+    "title": "New project",
+    "name": "Name",
+    "namePlaceholder": "Villa Cavallerizza",
+    "description": "Description",
+    "descriptionPlaceholder": "What this job is about, for whoever opens it next.",
+    "color": "Colour",
+    "noColor": "No colour",
+    "create": "Create project",
+    "created": "Created {{name}}"
+  },
+  "menu": {
+    "open": "Open",
+    "rename": "Rename",
+    "cover": "Set cover…",
+    "upload": "Upload to this project…",
+    "archive": "Archive",
+    "unarchive": "Move back to active",
+    "delete": "Delete…",
+    "color": "Colour"
+  },
+  "done": {
+    "archived": "Archived {{name}}",
+    "unarchived": "{{name}} is active again",
+    "deleted": "Deleted {{name}}",
+    "cover": "Cover changed",
+    "saved": "Saved"
+  },
+  "confirmDelete": {
+    "title": "Delete “{{name}}”?",
+    "body": "Its media stay in the library, without a project. Edits and posts keep working.",
+    "confirm": "Delete project"
+  },
+  "page": {
+    "back": "Projects",
+    "describe": "Add a description",
+    "upload": "Upload",
+    "tabs": {
+      "media": "Media",
+      "about": "About"
+    },
+    "notFound": "This project doesn’t exist",
+    "notFoundBody": "It may have been deleted, or it isn’t shared with you."
+  },
+  "about": {
+    "description": "Description",
+    "visibility": "Visibility",
+    "hiddenFrom": "Hidden from",
+    "hiddenFromHint": "These reviewers don’t see the project or its media.",
+    "everyone": "Visible to every reviewer",
+    "details": "Details",
+    "created": "Created",
+    "by": "Created by",
+    "size": "Storage",
+    "media": "Media"
+  },
+  "pickCover": "Choose the cover",
+  "useAsCover": "Use as cover",
+  "colors": {
+    "green": "Green",
+    "blue": "Blue",
+    "amber": "Amber",
+    "red": "Red",
+    "stone": "Stone",
+    "violet": "Violet",
+    "teal": "Teal",
+    "pink": "Pink"
+  }
+}

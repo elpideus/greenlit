@@ -52,7 +52,9 @@ export function Dialog({
                 <div className="flex items-start gap-3 px-6 pt-5 pb-1">
                   <div className="min-w-0 flex-1">
                     {title && <D.Title className="t-title-2 text-ink">{title}</D.Title>}
-                    {description && <D.Description className="mt-1 t-callout text-ink-3">{description}</D.Description>}
+                    {description && (
+                      <D.Description className="mt-1 t-callout text-ink-3">{description}</D.Description>
+                    )}
                   </div>
                   <D.Close
                     className="press -mt-0.5 -mr-2 grid size-7 place-items-center rounded-control text-ink-3 hover:bg-hover hover:text-ink"
@@ -98,12 +100,19 @@ export function Sheet({
         >
           <div className="flex h-14 shrink-0 items-center gap-3 px-5">
             <D.Title className="t-headline min-w-0 flex-1 truncate text-ink">{title}</D.Title>
-            <D.Close className="press grid size-7 place-items-center rounded-control text-ink-3 hover:bg-hover hover:text-ink" aria-label="Close">
+            <D.Close
+              className="press grid size-7 place-items-center rounded-control text-ink-3 hover:bg-hover hover:text-ink"
+              aria-label="Close"
+            >
               <X size={16} />
             </D.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
-          {footer && <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-5 py-3">{footer}</div>}
+          {footer && (
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-5 py-3">
+              {footer}
+            </div>
+          )}
         </D.Popup>
       </D.Portal>
     </D.Root>
@@ -120,10 +129,12 @@ interface ConfirmRequest {
   danger?: boolean
   resolve: (ok: boolean) => void
 }
-const useConfirmStore = create<{ req: ConfirmRequest | null; set: (r: ConfirmRequest | null) => void }>((set) => ({
-  req: null,
-  set: (req) => set({ req }),
-}))
+const useConfirmStore = create<{ req: ConfirmRequest | null; set: (r: ConfirmRequest | null) => void }>(
+  (set) => ({
+    req: null,
+    set: (req) => set({ req }),
+  }),
+)
 
 /** `if (await confirm({ title: 'Delete 3 items?', confirm: 'Delete', danger: true })) …` */
 export function confirm(opts: Omit<ConfirmRequest, 'resolve'>): Promise<boolean> {

@@ -48,7 +48,8 @@ export function CommandPalette() {
     set(false)
     navigate(to)
   }
-  const allowed = <T extends { permission?: string }>(xs: T[]) => xs.filter((x) => !x.permission || can(me, x.permission))
+  const allowed = <T extends { permission?: string }>(xs: T[]) =>
+    xs.filter((x) => !x.permission || can(me, x.permission))
 
   return (
     <D.Root
@@ -75,14 +76,23 @@ export function CommandPalette() {
               <Kbd combo="escape" />
             </div>
             <Command.List className="max-h-[min(60dvh,520px)] overflow-y-auto overscroll-contain p-1.5 [&_[cmdk-list-sizer]]:flex [&_[cmdk-list-sizer]]:flex-col">
-              <Command.Empty className="px-4 py-10 text-center t-callout text-ink-3">{t('shell.noResults', { q: deferred })}</Command.Empty>
-              {deferred.trim().length >= 2 && <Slot<PaletteResultsProps> name="palette.results" props={{ query: deferred.trim(), go }} />}
+              <Command.Empty className="px-4 py-10 text-center t-callout text-ink-3">
+                {t('shell.noResults', { q: deferred })}
+              </Command.Empty>
+              {deferred.trim().length >= 2 && (
+                <Slot<PaletteResultsProps> name="palette.results" props={{ query: deferred.trim(), go }} />
+              )}
               <Command.Group heading={t('shell.goTo')} className={paletteGroupClass}>
                 {allowed(navItems).map((n) => {
                   const Icon = n.icon
                   const label = t(`${n.feature}:${n.label}`, { defaultValue: n.label })
                   return (
-                    <Command.Item key={n.id} value={`go ${label}`} onSelect={() => go(n.to)} className={paletteItemClass}>
+                    <Command.Item
+                      key={n.id}
+                      value={`go ${label}`}
+                      onSelect={() => go(n.to)}
+                      className={paletteItemClass}
+                    >
                       <Icon size={16} strokeWidth={1.75} className="text-ink-3" />
                       <span className="flex-1">{label}</span>
                       <ArrowRight size={14} className="text-ink-4" />
@@ -93,7 +103,12 @@ export function CommandPalette() {
                   const Icon = s.icon
                   const label = t(`${s.feature}:${s.label}`, { defaultValue: s.label })
                   return (
-                    <Command.Item key={s.id} value={`settings ${label}`} onSelect={() => go(`/settings/${s.id}`)} className={paletteItemClass}>
+                    <Command.Item
+                      key={s.id}
+                      value={`settings ${label}`}
+                      onSelect={() => go(`/settings/${s.id}`)}
+                      className={paletteItemClass}
+                    >
                       <Icon size={16} strokeWidth={1.75} className="text-ink-3" />
                       <span className="flex-1">
                         <span className="text-ink-3">{t('shell.settings')} › </span>

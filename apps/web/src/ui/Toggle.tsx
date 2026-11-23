@@ -141,7 +141,11 @@ export function Checkbox({
       style={{ width: size, height: size }}
     >
       <BCheckbox.Indicator className="grid place-items-center transition-transform duration-150 data-[unchecked]:scale-50">
-        {indeterminate ? <Minus size={size - 5} strokeWidth={3} /> : <Check size={size - 5} strokeWidth={3} />}
+        {indeterminate ? (
+          <Minus size={size - 5} strokeWidth={3} />
+        ) : (
+          <Check size={size - 5} strokeWidth={3} />
+        )}
       </BCheckbox.Indicator>
     </BCheckbox.Root>
   )

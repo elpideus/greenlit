@@ -78,5 +78,12 @@
     "reload": "Ricarica",
     "forbidden": "Non puoi aprirlo",
     "forbiddenBody": "Chiedi l'accesso a un amministratore."
+  },
+  "dateTime": {
+    "pick": "Scegli data e ora",
+    "tomorrowAt": "Domani alle {{time}}",
+    "nextMonday": "Lunedì prossimo",
+    "prevMonth": "Mese precedente",
+    "nextMonth": "Mese successivo"
   }
 }

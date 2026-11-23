@@ -84,7 +84,10 @@ class Realtime {
 
   on(topic: string, handler: Handler) {
     let set = this.handlers.get(topic)
-    if (!set) this.handlers.set(topic, (set = new Set()))
+    if (!set) {
+      set = new Set()
+      this.handlers.set(topic, set)
+    }
     set.add(handler)
     if (topic !== '*') {
       const n = (this.counts.get(topic) ?? 0) + 1
@@ -112,7 +115,10 @@ class Realtime {
 export const realtime = new Realtime()
 
 /** Calls `handler` for every message on `topic` (null = nothing). */
-export function useTopic<T = unknown>(topic: string | null | undefined, handler: (msg: RealtimeMessage<T>) => void) {
+export function useTopic<T = unknown>(
+  topic: string | null | undefined,
+  handler: (msg: RealtimeMessage<T>) => void,
+) {
   const ref = useRef(handler)
   ref.current = handler
   useEffect(() => {

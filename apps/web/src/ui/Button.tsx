@@ -12,10 +12,12 @@ const variants: Record<ButtonVariant, string> = {
   // The one commit action of a view: lit like the lamp.
   primary:
     'bg-signal text-signal-ink hover-device:hover:bg-signal-hover shadow-[inset_0_1px_0_rgba(255,255,255,.18),0_1px_2px_rgba(0,0,0,.2)]',
-  secondary: 'bg-raised text-ink shadow-[inset_0_0_0_1px_var(--line-strong),var(--shadow-lift)] hover-device:hover:bg-[color-mix(in_oklab,var(--raised),var(--ink)_6%)]',
+  secondary:
+    'bg-raised text-ink shadow-[inset_0_0_0_1px_var(--line-strong),var(--shadow-lift)] hover-device:hover:bg-[color-mix(in_oklab,var(--raised),var(--ink)_6%)]',
   ghost: 'text-ink-2 hover-device:hover:bg-hover hover-device:hover:text-ink active:bg-press',
   quiet: 'text-ink-3 hover-device:hover:text-ink',
-  review: 'bg-review-soft text-review shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--review)_30%,transparent)] hover-device:hover:bg-[color-mix(in_oklab,var(--review)_22%,transparent)]',
+  review:
+    'bg-review-soft text-review shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--review)_30%,transparent)] hover-device:hover:bg-[color-mix(in_oklab,var(--review)_22%,transparent)]',
   danger: 'bg-cut text-white hover-device:hover:bg-[color-mix(in_oklab,var(--cut),black_10%)]',
   'danger-ghost': 'text-cut hover-device:hover:bg-cut-soft',
 }
@@ -39,7 +41,19 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'md', icon: Icon, iconRight: IconRight, loading, kbd, className, children, disabled, type = 'button', ...rest },
+  {
+    variant = 'secondary',
+    size = 'md',
+    icon: Icon,
+    iconRight: IconRight,
+    loading,
+    kbd,
+    className,
+    children,
+    disabled,
+    type = 'button',
+    ...rest
+  },
   ref,
 ) {
   return (
@@ -62,9 +76,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         Icon && <Icon size={iconSize[size]} strokeWidth={1.8} className="-ml-0.5 shrink-0" aria-hidden />
       )}
       {children}
-      {IconRight && <IconRight size={iconSize[size]} strokeWidth={1.8} className="-mr-0.5 shrink-0 opacity-80" aria-hidden />}
+      {IconRight && (
+        <IconRight
+          size={iconSize[size]}
+          strokeWidth={1.8}
+          className="-mr-0.5 shrink-0 opacity-80"
+          aria-hidden
+        />
+      )}
       {kbd && (
-        <span className={cn('t-meta ml-1 opacity-60', variant === 'primary' && 'opacity-70')}>{shortcutLabel(kbd)}</span>
+        <span className={cn('t-meta ml-1 opacity-60', variant === 'primary' && 'opacity-70')}>
+          {shortcutLabel(kbd)}
+        </span>
       )}
     </button>
   )
@@ -85,7 +108,19 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
 const iconBtnSize: Record<ButtonSize, string> = { xs: 'size-6', sm: 'size-7', md: 'size-8', lg: 'size-10' }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
-  { icon: Icon, label, shortcut, size = 'md', variant = 'ghost', active, tooltip = true, badge, className, type = 'button', ...rest },
+  {
+    icon: Icon,
+    label,
+    shortcut,
+    size = 'md',
+    variant = 'ghost',
+    active,
+    tooltip = true,
+    badge,
+    className,
+    type = 'button',
+    ...rest
+  },
   ref,
 ) {
   const btn = (
@@ -97,12 +132,16 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       className={cn(
         'press relative inline-flex shrink-0 items-center justify-center rounded-control disabled:pointer-events-none disabled:opacity-40',
         iconBtnSize[size],
-        variant === 'ghost' && 'text-ink-2 hover-device:hover:bg-hover hover-device:hover:text-ink active:bg-press',
+        variant === 'ghost' &&
+          'text-ink-2 hover-device:hover:bg-hover hover-device:hover:text-ink active:bg-press',
         variant === 'quiet' && 'text-ink-3 hover-device:hover:text-ink',
-        variant === 'secondary' && 'bg-raised text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover-device:hover:bg-hover',
+        variant === 'secondary' &&
+          'bg-raised text-ink shadow-[inset_0_0_0_1px_var(--line-strong)] hover-device:hover:bg-hover',
         variant === 'primary' && 'bg-signal text-signal-ink hover-device:hover:bg-signal-hover',
-        variant === 'overlay' && 'force-dark bg-black/45 text-white backdrop-blur-md hover-device:hover:bg-black/65',
-        active && 'bg-signal-soft text-signal hover-device:hover:bg-signal-soft hover-device:hover:text-signal',
+        variant === 'overlay' &&
+          'force-dark bg-black/45 text-white backdrop-blur-md hover-device:hover:bg-black/65',
+        active &&
+          'bg-signal-soft text-signal hover-device:hover:bg-signal-soft hover-device:hover:text-signal',
         className,
       )}
       {...rest}

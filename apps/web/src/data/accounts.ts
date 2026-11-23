@@ -9,5 +9,9 @@ import { useCan } from '@/lib/session'
 export function useAccounts() {
   useLiveQuery('connectors', [qk.accounts])
   const allowed = useCan('connectors.read')
-  return useQuery({ queryKey: qk.accounts, queryFn: () => api.get<Account[]>('/connectors/accounts'), enabled: allowed })
+  return useQuery({
+    queryKey: qk.accounts,
+    queryFn: () => api.get<Account[]>('/connectors/accounts'),
+    enabled: allowed,
+  })
 }

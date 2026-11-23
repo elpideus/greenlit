@@ -47,11 +47,18 @@ export function Select<V extends string>({
         )}
       >
         {current?.icon}
-        <span className={cn('min-w-0 flex-1 truncate', !current && 'text-ink-3')}>{current?.label ?? placeholder}</span>
+        <span className={cn('min-w-0 flex-1 truncate', !current && 'text-ink-3')}>
+          {current?.label ?? placeholder}
+        </span>
         <ChevronsUpDown size={13} className="shrink-0 text-ink-3" />
       </S.Trigger>
       <S.Portal>
-        <S.Positioner className="z-[80] outline-none" sideOffset={6} align={align} alignItemWithTrigger={false}>
+        <S.Positioner
+          className="z-[80] outline-none"
+          sideOffset={6}
+          align={align}
+          alignItemWithTrigger={false}
+        >
           <S.Popup className="gl-pop floating max-h-[min(var(--available-height),360px)] min-w-[var(--anchor-width)] overflow-y-auto p-[5px] outline-none">
             {options.map((o) => (
               <S.Item

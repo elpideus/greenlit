@@ -1,0 +1,43 @@
+{
+  "section": "Link condivisi",
+  "description": "Link monouso che fanno accedere una persona e aprono una sola cosa: un post, un media, un progetto o il calendario. Un link smette di funzionare una volta usato o alla scadenza.",
+  "menu": "Link condiviso…",
+  "calendarCommand": "Condividi il calendario…",
+  "dialog": {
+    "title": "Condividi {{what}}",
+    "body": "Il link fa accedere {{who}} e lo apre, una sola volta. Nient'altro diventa visibile.",
+    "bodyNobody": "Il link fa accedere la persona che scegli e lo apre, una sola volta.",
+    "person": "Chi lo apre",
+    "personPlaceholder": "Scegli una persona",
+    "expires": "Valido per",
+    "day": "1 giorno",
+    "days3": "3 giorni",
+    "week": "1 settimana",
+    "month": "30 giorni",
+    "create": "Crea link",
+    "ready": "Link pronto",
+    "readyBody": "Mandalo a {{who}}. Lo vedi solo ora: funziona una volta, fino a {{when}}.",
+    "copy": "Copia link",
+    "copied": "Copiato",
+    "done": "Fatto",
+    "calendar": "il calendario"
+  },
+  "list": {
+    "empty": "Ancora nessun link condiviso",
+    "emptyBody": "Creane uno dal menu ⋯ di un post, di un media o di un progetto.",
+    "open": "Attivo",
+    "used": "Usato",
+    "expired": "Scaduto",
+    "by": "da {{name}}",
+    "expires": "Scade {{when}}",
+    "usedAt": "Aperto {{when}}",
+    "expiredAt": "Scaduto {{when}}",
+    "revoke": "Revoca",
+    "revoked": "Link revocato",
+    "revokeConfirm": "Revocare questo link per {{who}}?",
+    "revokeBody": "Smette subito di funzionare. Puoi crearne uno nuovo quando vuoi.",
+    "filterOpen": "Attivi",
+    "filterAll": "Tutti"
+  },
+  "type": { "post": "Post", "media": "Media", "project": "Progetto", "calendar": "Calendario" }
+}

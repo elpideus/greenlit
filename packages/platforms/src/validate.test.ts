@@ -5,7 +5,7 @@ const codes = (issues: { code: string }[]) => issues.map((i) => i.code)
 
 describe('validateForPlacement', () => {
   it('takes one picture as a plain post, not a short carousel', () => {
-    for (const id of ['facebook.feed', 'instagram.feed'])
+    for (const id of ['facebook.feed', 'instagram.feed'] as const)
       expect(codes(validateForPlacement(getPlacement(id), null, { items: 1 }))).not.toContain(
         'carousel.tooFew',
       )

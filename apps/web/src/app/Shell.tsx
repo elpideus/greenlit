@@ -62,12 +62,18 @@ function TopBar({ phone }: { phone: boolean }) {
     <header
       className={cn(
         'material-bar sticky top-0 z-40 h-[var(--bar-h)] transition-shadow duration-200',
-        scrolled ? 'shadow-[0_1px_0_var(--line),0_8px_24px_-16px_rgba(0,0,0,.5)]' : 'shadow-[0_1px_0_transparent]',
+        scrolled
+          ? 'shadow-[0_1px_0_var(--line),0_8px_24px_-16px_rgba(0,0,0,.5)]'
+          : 'shadow-[0_1px_0_transparent]',
       )}
     >
       <div className="mx-auto grid h-full max-w-[1680px] grid-cols-[1fr_auto_1fr] items-center gap-4 px-[var(--gutter)]">
         <div className="flex min-w-0 items-center gap-3">
-          <NavLink to="/" className="press -ml-1 flex h-9 items-center rounded-control px-1" aria-label="Home">
+          <NavLink
+            to="/"
+            className="press -ml-1 flex h-9 items-center rounded-control px-1"
+            aria-label="Home"
+          >
             <Brand compact={phone} />
           </NavLink>
           {status === 'closed' && (
@@ -126,14 +132,21 @@ function TopBar({ phone }: { phone: boolean }) {
           )}
           {!phone && (
             <span className="xl:hidden">
-              <IconButton icon={Search} label={t('shell.search')} shortcut="mod+k" onClick={() => openPalette()} />
+              <IconButton
+                icon={Search}
+                label={t('shell.search')}
+                shortcut="mod+k"
+                onClick={() => openPalette()}
+              />
             </span>
           )}
-          {!me.viaShareLink && <ActivityButton />}
+          {!me.viaShareLink && can(me, 'activity.read') && <ActivityButton />}
           <NotificationsButton />
           {can(me, 'platform.manage') && !phone && (
             <NavLink to="/settings" tabIndex={-1}>
-              {({ isActive: a }) => <IconButton icon={Settings} label={t('shell.settings')} active={a || undefined} />}
+              {({ isActive: a }) => (
+                <IconButton icon={Settings} label={t('shell.settings')} active={a || undefined} />
+              )}
             </NavLink>
           )}
           <AccountMenu />
@@ -150,7 +163,10 @@ function TabBar() {
   return (
     <nav
       className="material-bar fixed inset-x-0 bottom-0 z-40 flex shadow-[0_-1px_0_var(--line)]"
-      style={{ height: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{
+        height: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
       aria-label="Main"
     >
       {nav.map((item) => {
@@ -160,7 +176,10 @@ function TabBar() {
           <NavLink
             key={item.id}
             to={item.to}
-            className={cn('press flex flex-1 flex-col items-center justify-center gap-1 t-micro', active ? 'text-signal' : 'text-ink-3')}
+            className={cn(
+              'press flex flex-1 flex-col items-center justify-center gap-1 t-micro',
+              active ? 'text-signal' : 'text-ink-3',
+            )}
           >
             <span className="relative">
               <Icon size={21} strokeWidth={active ? 2 : 1.7} />

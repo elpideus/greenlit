@@ -1,0 +1,16 @@
+{
+  "nav": "Libreria",
+  "title": "Libreria",
+  "trashTitle": "Cestino",
+  "upload": "Carica",
+  "count_one": "{{count}} elemento",
+  "count_other": "{{count}} elementi",
+  "trashMeta": "Gli elementi restano qui finché non li elimini definitivamente.",
+  "backToLibrary": "Libreria",
+  "palette": {
+    "media": "Media",
+    "projects": "Progetti",
+    "upload": "Carica nella libreria",
+    "trash": "Apri il cestino"
+  }
+}

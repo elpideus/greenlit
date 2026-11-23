@@ -1,0 +1,139 @@
+{
+  "search": "Search title, notes, tags…",
+  "suggest": {
+    "filters": "Filters",
+    "status": "Status",
+    "kind": "Kind",
+    "tags": "Tags",
+    "projects": "Projects",
+    "exclude": "Without “{{word}}”",
+    "searchFor": "Search for “{{text}}”",
+    "hint": "Type status:, kind:, #tag or project: to filter"
+  },
+  "keys": {
+    "status": "status",
+    "kind": "kind",
+    "tag": "tag",
+    "project": "project",
+    "exclude": "not"
+  },
+  "filter": "Filter",
+  "sort": {
+    "label": "Sort",
+    "recent": "Newest first",
+    "oldest": "Oldest first",
+    "title": "Title",
+    "size": "Largest first",
+    "taken": "Date taken"
+  },
+  "view": {
+    "grid": "Grid",
+    "list": "List",
+    "size": "Tile size",
+    "fill": "Fill tiles",
+    "fit": "Fit whole frame"
+  },
+  "trash": "Trash",
+  "upload": "Upload",
+  "uploading_one": "Uploading {{name}}",
+  "uploading_other": "Uploading {{count}} files",
+  "uploadedTo": "Uploaded to {{place}}",
+  "drop": {
+    "title": "Drop to upload",
+    "to": "Files go to {{place}}",
+    "library": "the library"
+  },
+  "sections": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Earlier this week",
+    "undated": "Undated"
+  },
+  "count_one": "{{count}} item",
+  "count_other": "{{count}} items",
+  "notes_one": "{{count}} open note",
+  "notes_other": "{{count}} open notes",
+  "formats_one": "{{count}} format",
+  "formats_other": "{{count}} formats",
+  "empty": {
+    "title": "Nothing in the library yet",
+    "body": "Drop footage, pictures or documents anywhere on this page. Every file is processed for previews, scrubbing and the editor.",
+    "projectTitle": "This project is empty",
+    "projectBody": "Drop files here, or upload from this device. They stay in the library, filed under this project.",
+    "readonlyBody": "Nothing has been shared with you here yet.",
+    "noResults": "No media matches",
+    "noResultsBody": "Try fewer filters or other words.",
+    "clear": "Clear search",
+    "trashTitle": "Trash is empty",
+    "trashBody": "Items you move to the trash wait here until you delete them for good."
+  },
+  "selection": {
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "selectAll": "Select all",
+    "clear": "Clear selection"
+  },
+  "menu": {
+    "open": "Open",
+    "rename": "Rename",
+    "status": "Set status",
+    "move": "Move to project",
+    "noProject": "No project",
+    "addTag": "Add tags…",
+    "removeTag": "Remove tag",
+    "download": "Download",
+    "downloadMany": "Download {{count}} files",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "hideFrom": "Hide from",
+    "noReviewers": "No reviewers yet",
+    "trash": "Move to trash",
+    "trashMany": "Move {{count}} items to trash",
+    "restore": "Restore",
+    "restoreMany": "Restore {{count}} items",
+    "purge": "Delete forever",
+    "purgeMany": "Delete {{count}} items forever"
+  },
+  "done": {
+    "trashed_one": "Moved to trash",
+    "trashed_other": "Moved {{count}} items to trash",
+    "restored_one": "Restored",
+    "restored_other": "Restored {{count}} items",
+    "purged_one": "Deleted forever",
+    "purged_other": "Deleted {{count}} items forever",
+    "moved_one": "Moved to {{place}}",
+    "moved_other": "Moved {{count}} items to {{place}}",
+    "status_one": "Marked {{status}}",
+    "status_other": "Marked {{count}} items {{status}}",
+    "tagged_one": "Tags added",
+    "tagged_other": "Tags added to {{count}} items",
+    "hidden": "Visibility changed",
+    "renamed": "Renamed",
+    "undo": "Undo"
+  },
+  "confirmPurge": {
+    "title_one": "Delete “{{name}}” forever?",
+    "title_other": "Delete {{count}} items forever?",
+    "body": "Their files and formats are removed. Posts already on a platform stay there. This can’t be undone.",
+    "confirm": "Delete forever"
+  },
+  "tagDialog": {
+    "title_one": "Add tags",
+    "title_other": "Add tags to {{count}} items",
+    "placeholder": "Type a tag and press Enter",
+    "add": "Add tags",
+    "hint": "One concept per tag, lower case: villa, drone, interior."
+  },
+  "list": {
+    "title": "Title",
+    "kind": "Kind",
+    "status": "Status",
+    "formats": "Formats",
+    "duration": "Length",
+    "size": "Size",
+    "project": "Project",
+    "updated": "Added"
+  },
+  "inTrash": "In the trash",
+  "back": "Back to library"
+}

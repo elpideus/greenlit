@@ -1,0 +1,22 @@
+{
+  "title": "Places",
+  "empty": "Not on the map yet.",
+  "emptyGps": "Photos and videos with GPS are placed by themselves.",
+  "add": "Add a place",
+  "searchPlaceholder": "Search a place or an address",
+  "inGreenlit": "Used in Greenlit",
+  "onOsm": "OpenStreetMap",
+  "used_one": "{{count}} item",
+  "used_other": "{{count}} items",
+  "noMatches": "No place matches “{{q}}”",
+  "searching": "Searching…",
+  "added": "Added {{name}}",
+  "removed": "Removed {{name}}",
+  "undo": "Undo",
+  "remove": "Remove from this item",
+  "openOnMap": "Open on the map",
+  "copyCoords": "Copy coordinates",
+  "coordsCopied": "Coordinates copied",
+  "palette": "Places",
+  "exif": "From the file’s GPS"
+}

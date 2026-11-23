@@ -1,6 +1,6 @@
 import { TZDate } from '@date-fns/tz'
-import { useConfig } from './session'
 import { currentLanguage } from './i18n'
+import { useConfig } from './session'
 
 /**
  * Every date in Greenlit is shown in the platform time zone (Settings → General), never the browser's:
@@ -23,18 +23,29 @@ function fmt(tz: string, opts: Intl.DateTimeFormatOptions) {
   const lang = currentLanguage()
   const key = `${lang}|${tz}|${JSON.stringify(opts)}`
   let f = fmtCache.get(key)
-  if (!f) fmtCache.set(key, (f = new Intl.DateTimeFormat(lang, { timeZone: tz, ...opts })))
+  if (!f) {
+    f = new Intl.DateTimeFormat(lang, { timeZone: tz, ...opts })
+    fmtCache.set(key, f)
+  }
   return f
 }
 
-export function formatDate(d: DateInput, tz: string, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }) {
+export function formatDate(
+  d: DateInput,
+  tz: string,
+  opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' },
+) {
   return fmt(tz, opts).format(new Date(d))
 }
 
 export function formatDateTime(d: DateInput, tz: string) {
-  return fmt(tz, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(
-    new Date(d),
-  )
+  return fmt(tz, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(d))
 }
 
 export function formatTime(d: DateInput, tz: string) {

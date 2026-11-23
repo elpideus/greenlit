@@ -1,0 +1,288 @@
+{
+  "Posts": "Posts",
+  "nav": "Posts",
+  "title": "Posts",
+  "newPost": "New post",
+  "newPostFrom": "New post from {{count}} items",
+  "chooseMedia": "Choose what to post",
+  "createPost": "Create post",
+  "list": "List",
+  "calendar": "Calendar",
+  "meta": {
+    "scheduled": "{{count}} scheduled",
+    "drafts": "{{count}} drafts",
+    "attention": "{{count}} need attention"
+  },
+  "filter": {
+    "all": "All",
+    "draft": "Drafts",
+    "scheduled": "Scheduled",
+    "published": "Published",
+    "failed": "Needs attention",
+    "allPlatforms": "Every platform",
+    "allAccounts": "Every account",
+    "allProjects": "Every project",
+    "search": "Search posts"
+  },
+  "group": {
+    "attention": "Needs attention",
+    "upNext": "Up next",
+    "publishing": "Publishing",
+    "drafts": "Drafts",
+    "published": "Published"
+  },
+  "status": {
+    "draft": "Draft",
+    "scheduled": "Scheduled",
+    "publishing": "Publishing",
+    "published": "Published",
+    "partial": "Partly published",
+    "failed": "Failed"
+  },
+  "state": {
+    "draft": "Draft",
+    "queued": "Waiting",
+    "preparing": "Preparing",
+    "uploading": "Uploading",
+    "scheduled": "Scheduled",
+    "published": "Published",
+    "failed": "Failed",
+    "removed": "Removed"
+  },
+  "placement": {
+    "feed": "Post",
+    "reel": "Reel",
+    "story": "Story",
+    "video": "Video",
+    "short": "Short",
+    "photo": "Photo",
+    "post": "Community post"
+  },
+  "untitled": "Untitled post",
+  "noText": "No caption yet",
+  "noDestinations": "No destination yet",
+  "empty": {
+    "title": "No posts yet",
+    "body": "Turn a finished edit into a post for Instagram, Facebook, TikTok and YouTube, all from one place.",
+    "filtered": "No posts match",
+    "filteredBody": "Try another filter, or clear the search."
+  },
+  "menu": {
+    "open": "Open",
+    "duplicate": "Duplicate",
+    "duplicated": "Copied to a new draft",
+    "delete": "Delete post",
+    "deleteConfirm": "Delete “{{name}}”?",
+    "deleteBody": "The post and its drafts go. Versions already on a platform must be removed there first.",
+    "deleted": "Post deleted",
+    "createPost": "Create post",
+    "createPostMany": "Create post with {{count}} items",
+    "previewOn": "Preview on…"
+  },
+  "composer": {
+    "back": "Posts",
+    "namePlaceholder": "Name this post",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "unsaved": "Not saved",
+    "saveFailed": "Could not save",
+    "nameVersion": "Name this version…",
+    "versionName": "Version name",
+    "versionNamed": "Version named “{{name}}”",
+    "publish": "Publish…",
+    "everywhere": "Everywhere",
+    "media": "Media",
+    "mediaHint": "Drag to reorder. Several pictures make a carousel where the platform allows it.",
+    "addMedia": "Add",
+    "removeMedia": "Remove from post",
+    "carousel": "Carousel of {{count}}",
+    "destinations": "Where it goes",
+    "destinationsHint": "One sign-in can reach several channels and Pages. A project remembers where its posts went.",
+    "noAccounts": "No account connected",
+    "noAccountsBody": "Connect Instagram, Facebook, TikTok or YouTube in Settings → Connected accounts.",
+    "connectAccounts": "Connect accounts",
+    "readOnly": "Read only",
+    "needsLogin": "Sign in again",
+    "accountOff": "Turned off",
+    "text": "Text",
+    "caption": "Caption",
+    "captionPlaceholder": "Write the caption. Hashtags and @mentions work as on the apps.",
+    "title": "Title",
+    "titlePlaceholder": "A title for YouTube and TikTok photos",
+    "hashtags": "Hashtags",
+    "hashtagsPlaceholder": "Add a hashtag and press Enter",
+    "hashtagsHint": "Added after the caption where they are not already in it.",
+    "ytTags": "YouTube tags",
+    "ytTagsPlaceholder": "Add a tag and press Enter",
+    "own": "Own text for {{where}}",
+    "ownHint": "Off: uses the text written for everywhere.",
+    "counter": "{{count}} / {{max}}",
+    "strictest": "Shortest limit: {{where}}",
+    "schedule": "When",
+    "now": "When I press Publish",
+    "at": "At a time",
+    "sameTime": "Same as everywhere",
+    "ownTime": "Its own time",
+    "keepsSchedule": "{{where}} keeps the schedule: Greenlit can be offline then.",
+    "greenlitHolds": "Greenlit publishes it at that time (keep Greenlit running).",
+    "inPast": "That time has passed.",
+    "translations": "Translations",
+    "translationsHint": "Title and caption in other languages, where the platform supports them.",
+    "addLanguage": "Add language",
+    "removeLanguage": "Remove language",
+    "formats": "Format",
+    "formatsHint": "Which shape of each item this version uses.",
+    "best": "Best fit",
+    "cover": "Cover",
+    "coverAuto": "Platform picks",
+    "coverFrame": "A frame",
+    "coverPicture": "A picture",
+    "coverPick": "Choose a picture",
+    "coverChange": "Change",
+    "sound": "Sound",
+    "soundHint": "A track from {{where}}’s own library: it stays linked there, and people can tap it.",
+    "soundNone": "No sound from the library",
+    "soundSearch": "Search {{where}} sounds",
+    "soundRemove": "Remove sound",
+    "soundUsage": "{{n}} posts",
+    "soundStart": "Starts at {{time}}",
+    "soundUnavailable": "Sounds cannot be searched on this account right now.",
+    "soundNothing": "No sounds found",
+    "listen": "Listen",
+    "stop": "Stop",
+    "mix": "Volume",
+    "mixOriginal": "Your video",
+    "mixMusic": "Sound",
+    "muteOriginal": "Mute the video’s own sound",
+    "muteMusic": "Mute the sound",
+    "firstComment": "First comment",
+    "firstCommentPlaceholder": "Posted right after publishing (hashtags often go here)",
+    "location": "Location",
+    "locationPlaceholder": "Add a place",
+    "options": "Options",
+    "targetOnPlatform": "On {{where}}",
+    "openOnPlatform": "Open on {{where}}",
+    "reschedule": "Move…",
+    "removeFromPlatform": "Remove from {{where}}",
+    "removeConfirm": "Remove this version from {{where}}?",
+    "removeBody": "It is deleted on the platform. The post stays in Greenlit as a record.",
+    "removing": "Removing from {{where}}",
+    "rescheduled": "Moved to {{when}}",
+    "rescheduleConfirm": "Move it on {{where}} too?",
+    "rescheduleBody": "It is already scheduled there; the platform’s schedule moves to {{when}}.",
+    "pushedEdits": "Changes are sent to {{where}} as you save.",
+    "error": "{{where}} said: {{message}}",
+    "notes": "Not applied by the platform",
+    "selectTarget": "Pick where it goes to edit each version",
+    "accountError": "Can’t be reached",
+    "coverHint": "The picture people see before the video plays.",
+    "needsVideo": "Needs a video",
+    "needsPictures": "Needs pictures"
+  },
+  "check": {
+    "title": "Checks",
+    "allGood": "Ready for {{where}}",
+    "errors": "{{count}} problems",
+    "warnings": "{{count}} warnings"
+  },
+  "preview": {
+    "tab": "Preview",
+    "safeZones": "Safe areas",
+    "safeZonesHint": "Where the app’s own buttons and text cover the picture",
+    "noTarget": "Choose where the post goes to see it as people will.",
+    "noMedia": "Add media to see the preview.",
+    "close": "Close preview",
+    "previewAs": "Preview as",
+    "account": "Shown as"
+  },
+  "publish": {
+    "title": "Publish this post",
+    "scheduleTitle": "Schedule this post",
+    "body": "Each version goes to its account at its own time.",
+    "now": "Now",
+    "nothing": "Nothing to publish: every version is already on its platform or turned off.",
+    "blocked": "Fix the problems first",
+    "confirmNow": "Publish {{count}} now",
+    "confirmSchedule": "Schedule {{count}}",
+    "confirmMixed": "Publish and schedule {{count}}",
+    "started": "Publishing {{count}}",
+    "scheduled": "Scheduled {{count}}",
+    "public": "This posts publicly on your accounts."
+  },
+  "panel": {
+    "posts": "Posts",
+    "none": "Not in a post yet",
+    "noneBody": "Make a post from this item for Instagram, Facebook, TikTok or YouTube.",
+    "noneProject": "No posts in this project yet"
+  },
+  "palette": {
+    "group": "Posts"
+  },
+  "preview.tool": "Preview on…",
+  "options": {
+    "privacy": {
+      "label": "Who can watch",
+      "public": "Everyone",
+      "unlisted": "Anyone with the link",
+      "private": "Only me",
+      "friends": "Friends"
+    },
+    "audience": {
+      "label": "Audience",
+      "hint": "Pages always post publicly",
+      "public": "Public",
+      "friends": "Friends",
+      "only_me": "Only me"
+    },
+    "allowComments": {
+      "label": "Allow comments"
+    },
+    "allowDuet": {
+      "label": "Allow Duet"
+    },
+    "allowStitch": {
+      "label": "Allow Stitch"
+    },
+    "shareToFeed": {
+      "label": "Also show in the feed",
+      "hint": "The reel appears on the profile grid and in followers’ feeds"
+    },
+    "madeForKids": {
+      "label": "Made for kids",
+      "hint": "Required by YouTube; turns off comments and personalised ads"
+    },
+    "category": {
+      "label": "Category",
+      "none": "Channel default"
+    },
+    "aiGenerated": {
+      "label": "AI-generated content",
+      "hint": "Shows the platform’s AI label on the post"
+    },
+    "paidPartnership": {
+      "label": "Paid partnership label"
+    },
+    "brandOrganic": {
+      "label": "Promotes your own brand"
+    },
+    "brandedContent": {
+      "label": "Branded content",
+      "hint": "Promoting a third party; TikTok shows “Paid partnership”"
+    },
+    "pinFirstComment": {
+      "label": "Pin the first comment"
+    },
+    "qualityBoost": {
+      "label": "Upload in 1440p",
+      "hint": "YouTube then serves its higher-quality encodes, even to 1080p viewers"
+    },
+    "fit": {
+      "label": "Shape",
+      "hint": "When the format is not the platform’s shape",
+      "auto": "Automatic",
+      "keep": "Keep as it is",
+      "pad": "Add bars",
+      "crop": "Crop to fill"
+    }
+  }
+}

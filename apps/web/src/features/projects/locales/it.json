@@ -1,0 +1,99 @@
+{
+  "nav": "Progetti",
+  "title": "Progetti",
+  "new": "Nuovo progetto",
+  "count_one": "{{count}} progetto",
+  "count_other": "{{count}} progetti",
+  "media_one": "{{count}} elemento",
+  "media_other": "{{count}} elementi",
+  "edits_one": "{{count}} montaggio",
+  "edits_other": "{{count}} montaggi",
+  "active": "Attivi",
+  "archived": "Archiviati",
+  "archivedBadge": "Archiviato",
+  "search": "Trova un progetto",
+  "sort": {
+    "label": "Ordina",
+    "updated": "Attività recente",
+    "name": "Nome",
+    "size": "Più grandi",
+    "media": "Più media"
+  },
+  "updated": "Aggiornato {{when}}",
+  "empty": {
+    "title": "Ancora nessun progetto",
+    "body": "Un progetto tiene insieme riprese, montaggi e post di un lavoro: un immobile, una ristrutturazione, una campagna.",
+    "archivedTitle": "Niente in archivio",
+    "archivedBody": "I progetti archiviati mantengono i loro media ed escono dall'elenco principale.",
+    "noResults": "Nessun progetto corrisponde a “{{q}}”",
+    "readonly": "Qui compaiono i progetti condivisi con te."
+  },
+  "create": {
+    "title": "Nuovo progetto",
+    "name": "Nome",
+    "namePlaceholder": "Villa Cavallerizza",
+    "description": "Descrizione",
+    "descriptionPlaceholder": "Di cosa tratta questo lavoro, per chi lo apre dopo.",
+    "color": "Colore",
+    "noColor": "Nessun colore",
+    "create": "Crea progetto",
+    "created": "Creato {{name}}"
+  },
+  "menu": {
+    "open": "Apri",
+    "rename": "Rinomina",
+    "cover": "Imposta copertina…",
+    "upload": "Carica in questo progetto…",
+    "archive": "Archivia",
+    "unarchive": "Riporta tra gli attivi",
+    "delete": "Elimina…",
+    "color": "Colore"
+  },
+  "done": {
+    "archived": "{{name}} archiviato",
+    "unarchived": "{{name}} è di nuovo attivo",
+    "deleted": "{{name}} eliminato",
+    "cover": "Copertina cambiata",
+    "saved": "Salvato"
+  },
+  "confirmDelete": {
+    "title": "Eliminare “{{name}}”?",
+    "body": "I suoi media restano in libreria, senza progetto. Montaggi e post continuano a funzionare.",
+    "confirm": "Elimina progetto"
+  },
+  "page": {
+    "back": "Progetti",
+    "describe": "Aggiungi una descrizione",
+    "upload": "Carica",
+    "tabs": {
+      "media": "Media",
+      "about": "Informazioni"
+    },
+    "notFound": "Questo progetto non esiste",
+    "notFoundBody": "Potrebbe essere stato eliminato, oppure non è condiviso con te."
+  },
+  "about": {
+    "description": "Descrizione",
+    "visibility": "Visibilità",
+    "hiddenFrom": "Nascosto a",
+    "hiddenFromHint": "Questi revisori non vedono il progetto né i suoi media.",
+    "everyone": "Visibile a tutti i revisori",
+    "details": "Dettagli",
+    "created": "Creato",
+    "by": "Creato da",
+    "size": "Spazio occupato",
+    "media": "Media"
+  },
+  "pickCover": "Scegli la copertina",
+  "useAsCover": "Usa come copertina",
+  "colors": {
+    "green": "Verde",
+    "blue": "Blu",
+    "amber": "Ambra",
+    "red": "Rosso",
+    "stone": "Pietra",
+    "violet": "Viola",
+    "teal": "Verde acqua",
+    "pink": "Rosa"
+  }
+}

@@ -5,7 +5,7 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "node --watch-path=src --watch-path=drizzle --watch-path=../../packages --env-file-if-exists=../../.env src/main.ts",
+    "dev": "node --watch-path=src --watch-path=drizzle --watch-path=../../packages --env-file-if-exists=../../.env.development src/main.ts",
     "start": "node --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "tsc -p .",
     "db:generate": "drizzle-kit generate",

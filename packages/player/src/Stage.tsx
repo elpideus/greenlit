@@ -2,13 +2,13 @@ import {
   type Asset,
   type ClipState,
   type Composition,
-  isActive,
-  type OutputFormat,
   clipState,
   ease,
+  isActive,
+  type OutputFormat,
   visibleClips,
 } from '@greenlit/composition'
-import { createContext, type CSSProperties, memo, useContext, useEffect, useMemo, useRef } from 'react'
+import { type CSSProperties, createContext, memo, useContext, useEffect, useMemo, useRef } from 'react'
 import { htmlDocument } from './htmlRuntime.ts'
 
 export interface AssetResolver {
@@ -557,6 +557,7 @@ function ShapeLayer({ state }: { state: ClipState }) {
       height={h}
       viewBox={`0 0 ${w} ${h}`}
       style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
+      aria-hidden="true"
     >
       {el}
     </svg>

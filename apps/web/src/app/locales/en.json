@@ -78,5 +78,12 @@
     "reload": "Reload",
     "forbidden": "You cannot open this",
     "forbiddenBody": "Ask an admin for access."
+  },
+  "dateTime": {
+    "pick": "Pick a date and time",
+    "tomorrowAt": "Tomorrow {{time}}",
+    "nextMonday": "Next Monday",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month"
   }
 }

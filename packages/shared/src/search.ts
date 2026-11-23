@@ -26,7 +26,7 @@ export function parseQuery(input: string): ParsedQuery {
     const value = phrase ?? word ?? ''
     if (key) {
       const k = key.toLowerCase()
-      ;(out.filters[k] ??= []).push(value)
+      out.filters[k] = [...(out.filters[k] ?? []), value]
       continue
     }
     if (!value) continue

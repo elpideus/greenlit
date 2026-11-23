@@ -9,11 +9,13 @@
     <title>Greenlit</title>
     <script>
       // Paint the right mode before the app loads (no white flash).
-      try {
-        var m = localStorage.getItem('gl.mode') || 'system'
-        var dark = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-        document.documentElement.dataset.themeMode = dark ? 'dark' : 'light'
-      } catch (e) {}
+      ;(() => {
+        try {
+          const m = localStorage.getItem('gl.mode') || 'system'
+          const dark = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.dataset.themeMode = dark ? 'dark' : 'light'
+        } catch {}
+      })()
     </script>
   </head>
   <body>

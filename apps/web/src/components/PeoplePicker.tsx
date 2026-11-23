@@ -10,7 +10,7 @@ import { Avatar, AvatarStack, Popover, SearchInput } from '@/ui'
 export function PeoplePicker({
   value,
   onChange,
-  role,
+  only,
   multiple = true,
   placeholder = 'Choose people',
   excludeSelf = true,
@@ -18,7 +18,8 @@ export function PeoplePicker({
 }: {
   value: string[]
   onChange: (ids: string[]) => void
-  role?: 'admin' | 'reviewer'
+  /** Only people with this role. */
+  only?: 'admin' | 'reviewer'
   multiple?: boolean
   placeholder?: string
   excludeSelf?: boolean
@@ -29,7 +30,7 @@ export function PeoplePicker({
   const { data } = useDirectory()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
-  const people = (data ?? []).filter((p) => (!role || p.role === role) && (!excludeSelf || p.id !== me.id))
+  const people = (data ?? []).filter((p) => (!only || p.role === only) && (!excludeSelf || p.id !== me.id))
   const shown = people.filter((p) => p.displayName.toLowerCase().includes(q.toLowerCase()))
   const chosen = people.filter((p) => value.includes(p.id))
   const toggle = (p: DirectoryEntry) => {
@@ -57,7 +58,9 @@ export function PeoplePicker({
           {chosen.length ? (
             <>
               <AvatarStack users={chosen} size={20} />
-              <span className="min-w-0 flex-1 truncate t-callout text-ink">{chosen.map((c) => c.displayName).join(', ')}</span>
+              <span className="min-w-0 flex-1 truncate t-callout text-ink">
+                {chosen.map((c) => c.displayName).join(', ')}
+              </span>
             </>
           ) : (
             <span className="flex-1 t-callout text-ink-3">{placeholder}</span>
@@ -67,7 +70,9 @@ export function PeoplePicker({
       }
     >
       <div className="p-2">
-        {people.length > 6 && <SearchInput value={q} onChange={setQ} size="sm" autoFocus className="mb-1.5" />}
+        {people.length > 6 && (
+          <SearchInput value={q} onChange={setQ} size="sm" autoFocus className="mb-1.5" />
+        )}
         <div className="max-h-72 overflow-y-auto">
           {shown.map((p) => {
             const on = value.includes(p.id)
@@ -83,7 +88,9 @@ export function PeoplePicker({
                   <span className="block truncate t-callout text-ink">{p.displayName}</span>
                 </span>
                 <span className="t-caption text-ink-3">{t(`role.${p.role}`)}</span>
-                <span className="grid w-4 place-items-center">{on && <Check size={14} strokeWidth={2.4} className="text-signal" />}</span>
+                <span className="grid w-4 place-items-center">
+                  {on && <Check size={14} strokeWidth={2.4} className="text-signal" />}
+                </span>
               </button>
             )
           })}

@@ -29,11 +29,20 @@ export function Avatar({
   ring?: boolean
 }) {
   const [failed, setFailed] = useState(false)
-  if (!user) return <span className={cn('inline-block shrink-0 rounded-full bg-hover', className)} style={{ width: size, height: size }} />
+  if (!user)
+    return (
+      <span
+        className={cn('inline-block shrink-0 rounded-full bg-hover', className)}
+        style={{ width: size, height: size }}
+      />
+    )
   const tint = tintFor(user.id)
   return (
     <span
-      className={cn('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full select-none', className)}
+      className={cn(
+        'relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full select-none',
+        className,
+      )}
       style={{
         width: size,
         height: size,
@@ -47,7 +56,13 @@ export function Avatar({
       title={user.displayName}
     >
       {user.avatarUrl && !failed ? (
-        <img src={user.avatarUrl} alt="" className="size-full object-cover" onError={() => setFailed(true)} draggable={false} />
+        <img
+          src={user.avatarUrl}
+          alt=""
+          className="size-full object-cover"
+          onError={() => setFailed(true)}
+          draggable={false}
+        />
       ) : (
         initials(user.displayName)
       )}
@@ -119,7 +134,13 @@ export function Badge({
     solid: 'bg-signal text-signal-ink',
   }
   return (
-    <span className={cn('inline-flex h-[18px] items-center gap-1 rounded-tag px-1.5 t-micro tabular whitespace-nowrap', tones[tone], className)}>
+    <span
+      className={cn(
+        'inline-flex h-[18px] items-center gap-1 rounded-tag px-1.5 t-micro tabular whitespace-nowrap',
+        tones[tone],
+        className,
+      )}
+    >
       {children}
     </span>
   )
@@ -175,7 +196,17 @@ export function Chip({
 }
 
 /** Mono timecode; `frames` adds :ff. */
-export function Timecode({ seconds, fps = 30, frames, className }: { seconds: number; fps?: number; frames?: boolean; className?: string }) {
+export function Timecode({
+  seconds,
+  fps = 30,
+  frames,
+  className,
+}: {
+  seconds: number
+  fps?: number
+  frames?: boolean
+  className?: string
+}) {
   const text = frames ? formatTimecode(seconds, fps) : formatTimecode(seconds, fps).replace(/:\d+$/, '')
   return <span className={cn('t-meta tabular', className)}>{text}</span>
 }
@@ -207,7 +238,13 @@ export function Popover({
     <P.Root open={open} onOpenChange={onOpenChange ? (o) => onOpenChange(o) : undefined}>
       <P.Trigger render={trigger} />
       <P.Portal>
-        <P.Positioner side={side} align={align} sideOffset={sideOffset} collisionPadding={10} className="z-[80] outline-none">
+        <P.Positioner
+          side={side}
+          align={align}
+          sideOffset={sideOffset}
+          collisionPadding={10}
+          className="z-[80] outline-none"
+        >
           <P.Popup className={cn('gl-pop floating outline-none', className)} style={{ width }}>
             {children}
           </P.Popup>

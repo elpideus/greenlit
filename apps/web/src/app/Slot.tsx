@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, type ReactNode, Suspense } from 'react'
 import { can, useMe } from '@/lib/session'
 import type { SlotEntry } from './feature'
 import { slotEntries } from './registry'
@@ -24,7 +24,12 @@ export function Slot<P extends object>({
     <>
       {entries.map((e) => {
         const C = e.component
-        const child = <C {...props} />
+        // Entries may be lazy components (heavy panels load with their first use).
+        const child = (
+          <Suspense fallback={null}>
+            <C {...props} />
+          </Suspense>
+        )
         return <Fragment key={`${e.feature}:${e.id}`}>{wrap ? wrap(child, e) : child}</Fragment>
       })}
     </>

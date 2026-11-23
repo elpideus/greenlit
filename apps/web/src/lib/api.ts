@@ -49,7 +49,11 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
     data = text ? JSON.parse(text) : undefined
   } catch {
     // A proxy (Cloudflare) answered with its own HTML page.
-    throw new ApiError('bad_gateway', 'Greenlit is restarting or unreachable. Try again in a moment.', res.status)
+    throw new ApiError(
+      'bad_gateway',
+      'Greenlit is restarting or unreachable. Try again in a moment.',
+      res.status,
+    )
   }
   if (!res.ok) {
     const e = (data as { error?: { code: ErrorCode; message: string; details?: unknown } })?.error
@@ -59,8 +63,10 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
 }
 
 export const api = {
-  get: <T>(path: string, query?: Query, signal?: AbortSignal) => request<T>('GET', path, undefined, query, signal),
-  post: <T = { ok: true }>(path: string, body: unknown = {}, query?: Query) => request<T>('POST', path, body, query),
+  get: <T>(path: string, query?: Query, signal?: AbortSignal) =>
+    request<T>('GET', path, undefined, query, signal),
+  post: <T = { ok: true }>(path: string, body: unknown = {}, query?: Query) =>
+    request<T>('POST', path, body, query),
   patch: <T = { ok: true }>(path: string, body: unknown) => request<T>('PATCH', path, body),
   put: <T = { ok: true }>(path: string, body: unknown) => request<T>('PUT', path, body),
   delete: <T = { ok: true }>(path: string, query?: Query) => request<T>('DELETE', path, undefined, query),
@@ -68,7 +74,8 @@ export const api = {
   form: async <T>(path: string, form: FormData, method = 'POST') => {
     const res = await fetch(`/api${path}`, { method, body: form, credentials: 'include' })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new ApiError(data?.error?.code ?? 'internal', data?.error?.message ?? res.statusText, res.status)
+    if (!res.ok)
+      throw new ApiError(data?.error?.code ?? 'internal', data?.error?.message ?? res.statusText, res.status)
     return data as T
   },
   url: (path: string, query?: Query) => withQuery(path.startsWith('/api') ? path : `/api${path}`, query),

@@ -51,7 +51,8 @@ export function ActivityButton() {
   const overall =
     busy === 0
       ? 0
-      : (activeUploads.reduce((s, u) => s + u.progress, 0) + active.reduce((s, x) => s + x.progress, 0)) / busy
+      : (activeUploads.reduce((s, u) => s + u.progress, 0) + active.reduce((s, x) => s + x.progress, 0)) /
+        busy
 
   return (
     <Popover
@@ -64,7 +65,11 @@ export function ActivityButton() {
       width={360}
       trigger={
         busy > 0 ? (
-          <button type="button" className="press relative grid size-8 place-items-center rounded-control text-signal hover:bg-hover" aria-label={t('shell.activity')}>
+          <button
+            type="button"
+            className="press relative grid size-8 place-items-center rounded-control text-signal hover:bg-hover"
+            aria-label={t('shell.activity')}
+          >
             <ProgressRing value={overall} size={18} />
             <span className="absolute t-micro text-[9px] text-ink-2">{busy}</span>
           </button>
@@ -76,7 +81,12 @@ export function ActivityButton() {
       <div className="px-4 pt-3.5 pb-1 t-headline text-ink">{t('shell.activity')}</div>
       <div className="max-h-[min(70dvh,520px)] overflow-y-auto px-2 pb-2">
         {!uploads.length && !active.length && !data?.recent.length && (
-          <EmptyState compact icon={ActivityIcon} title={t('shell.noActivity')} body={t('shell.noActivityBody')} />
+          <EmptyState
+            compact
+            icon={ActivityIcon}
+            title={t('shell.noActivity')}
+            body={t('shell.noActivityBody')}
+          />
         )}
         {uploads.length > 0 && <Group label={t('shell.uploads')} />}
         {uploads.map((u) => (
@@ -85,13 +95,21 @@ export function ActivityButton() {
               <div className="flex items-baseline justify-between gap-3">
                 <span className="truncate t-callout text-ink">{u.label}</span>
                 <span className="shrink-0 t-meta text-ink-3">
-                  {u.state === 'failed' ? '—' : u.state === 'done' ? formatBytes(u.file.size) : `${Math.round(u.progress * 100)}%`}
+                  {u.state === 'failed'
+                    ? '—'
+                    : u.state === 'done'
+                      ? formatBytes(u.file.size)
+                      : `${Math.round(u.progress * 100)}%`}
                 </span>
               </div>
               {u.state === 'failed' ? (
                 <div className="mt-0.5 truncate t-caption text-cut">{u.error}</div>
               ) : (
-                <ProgressBar value={u.progress} className="mt-1.5" tone={u.state === 'done' ? 'ink' : 'signal'} />
+                <ProgressBar
+                  value={u.progress}
+                  className="mt-1.5"
+                  tone={u.state === 'done' ? 'ink' : 'signal'}
+                />
               )}
             </div>
             {u.state === 'failed' ? (
@@ -108,7 +126,10 @@ export function ActivityButton() {
         {!!data?.recent.length && <Group label={t('shell.recent')} />}
         {data?.recent.slice(0, 12).map((task) => (
           <div key={task.id} className="flex items-center gap-3 rounded-[9px] px-2 py-1.5">
-            <Tally tone={task.state === 'failed' ? 'failed' : task.state === 'done' ? 'greenlit' : 'draft'} size={7} />
+            <Tally
+              tone={task.state === 'failed' ? 'failed' : task.state === 'done' ? 'greenlit' : 'draft'}
+              size={7}
+            />
             <span className="min-w-0 flex-1 truncate t-callout text-ink-2">{task.title}</span>
             <span className="shrink-0 t-meta text-ink-4">{formatRelative(task.updatedAt, tz)}</span>
           </div>

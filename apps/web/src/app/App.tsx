@@ -1,6 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { type ComponentType, lazy, type ReactNode, Suspense, useEffect, useMemo } from 'react'
-import { createBrowserRouter, Navigate, Outlet, RouterProvider, useLocation, useRouteError } from 'react-router'
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  RouterProvider,
+  useLocation,
+  useRouteError,
+} from 'react-router'
 import { setLanguage, useT } from '@/lib/i18n'
 import { queryClient } from '@/lib/query'
 import { realtime } from '@/lib/realtime'
@@ -15,7 +22,10 @@ import { Shell } from './Shell'
 const pages = new Map<string, ComponentType>()
 function page(r: (typeof routes)[number]) {
   let C = pages.get(r.path)
-  if (!C) pages.set(r.path, (C = lazy(r.load)))
+  if (!C) {
+    C = lazy(r.load)
+    pages.set(r.path, C)
+  }
   return C
 }
 
@@ -118,7 +128,9 @@ function RouteError() {
       <Signal tone="changes" size={40} />
       <div className="mt-2 t-title-2">{t('errors.crashed')}</div>
       <div className="t-callout text-ink-3">{t('errors.crashedBody')}</div>
-      <pre className="mt-2 max-h-40 w-full overflow-auto rounded-panel bg-well p-3 text-left t-meta text-ink-3">{String(err?.stack ?? err)}</pre>
+      <pre className="mt-2 max-h-40 w-full overflow-auto rounded-panel bg-well p-3 text-left t-meta text-ink-3">
+        {String(err?.stack ?? err)}
+      </pre>
       <Button variant="primary" onClick={() => location.reload()}>
         {t('errors.reload')}
       </Button>
@@ -160,7 +172,14 @@ function buildRouter() {
         {
           element: <RequireSession />,
           children: [
-            { element: <Shell />, children: [{ index: true, element: <Home /> }, ...by('shell').map(toRoute), { path: '*', element: <NotFound /> }] },
+            {
+              element: <Shell />,
+              children: [
+                { index: true, element: <Home /> },
+                ...by('shell').map(toRoute),
+                { path: '*', element: <NotFound /> },
+              ],
+            },
             { element: <Full />, children: by('full').map(toRoute) },
           ],
         },
@@ -170,7 +189,7 @@ function buildRouter() {
 }
 
 function Providers({ children }: { children: ReactNode }) {
-  return providers.reduceRight<ReactNode>((acc, P) => <P>{acc}</P>, children)
+  return providers.reduceRight<ReactNode>((acc, P, i) => <P key={i}>{acc}</P>, children)
 }
 
 export function App() {

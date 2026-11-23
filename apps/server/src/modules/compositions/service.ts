@@ -179,16 +179,14 @@ export class CompositionsService {
         .update(compositions)
         .set({ document: next, revision, updatedAt: new Date() })
         .where(eq(compositions.id, id))
-      await tx
-        .insert(compositionOps)
-        .values({
-          compositionId: id,
-          revision,
-          ops,
-          authorId: actorUserId(actor),
-          source: actor.source,
-          clientId: opts.clientId ?? null,
-        })
+      await tx.insert(compositionOps).values({
+        compositionId: id,
+        revision,
+        ops,
+        authorId: actorUserId(actor),
+        source: actor.source,
+        clientId: opts.clientId ?? null,
+      })
       return { revision, document: next, projectId: r.projectId }
     })
     const author = actor.kind === 'user' ? { id: actor.user.id, displayName: actor.user.displayName } : null

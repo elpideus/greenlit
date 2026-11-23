@@ -31,7 +31,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   const h = { sm: 'h-7 t-callout', md: 'h-8 t-callout', lg: 'h-10 text-[14px]' }[size]
   if (!leading && !trailing)
-    return <input ref={ref} aria-invalid={invalid || undefined} className={cn(fieldBase, h, 'px-2.5', className)} {...rest} />
+    return (
+      <input
+        ref={ref}
+        aria-invalid={invalid || undefined}
+        className={cn(fieldBase, h, 'px-2.5', className)}
+        {...rest}
+      />
+    )
   return (
     <div className={cn('relative flex items-center', className)}>
       {leading && <span className="pointer-events-none absolute left-2.5 flex text-ink-3">{leading}</span>}

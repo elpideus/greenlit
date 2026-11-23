@@ -499,29 +499,25 @@ function build(ctx: ModuleContext) {
       for (const a of input.attachments) {
         if (a.kind === 'media') {
           if (!(await ctx.services.media.canView(a.mediaId, actor))) continue
-          await db
-            .insert(commentAttachments)
-            .values({
-              commentId: c!.id,
-              kind: 'media',
-              mediaId: a.mediaId,
-              formatId: a.formatId,
-              position: pos++,
-            })
+          await db.insert(commentAttachments).values({
+            commentId: c!.id,
+            kind: 'media',
+            mediaId: a.mediaId,
+            formatId: a.formatId,
+            position: pos++,
+          })
         } else {
           const blob = await files.get(a.id)
           if (blob.createdBy !== authorId && !isAdmin(actor)) throw forbidden('That file is not yours')
-          await db
-            .insert(commentAttachments)
-            .values({
-              commentId: c!.id,
-              kind: 'file',
-              blobId: blob.id,
-              name: blob.filename,
-              mime: blob.mime,
-              size: blob.size,
-              position: pos++,
-            })
+          await db.insert(commentAttachments).values({
+            commentId: c!.id,
+            kind: 'file',
+            blobId: blob.id,
+            name: blob.filename,
+            mime: blob.mime,
+            size: blob.size,
+            position: pos++,
+          })
         }
       }
       await ctx.versions.record('comment', c!.id, actor, { force: true })

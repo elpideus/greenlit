@@ -44,7 +44,11 @@ function matches(e: KeyboardEvent, combo: string) {
 export function isTypingTarget(t: EventTarget | null) {
   const el = t as HTMLElement | null
   if (!el) return false
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || !!el.closest?.('.cm-editor')
+  return (
+    el.isContentEditable ||
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) ||
+    !!el.closest?.('.cm-editor')
+  )
 }
 
 /**

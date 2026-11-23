@@ -1,0 +1,24 @@
+{
+  "tab": "Links",
+  "empty": "Not linked to anything",
+  "emptyBody": "Link the raw clips this came from, the edit it was cut in, the posts that use it.",
+  "add": "Add a link…",
+  "addTitle": "Link to…",
+  "relation": "How they relate",
+  "search": "Search",
+  "types": { "media": "Media", "project": "Project", "post": "Post", "composition": "Edit" },
+  "noResults": "Nothing found",
+  "link": "Link",
+  "linked": "Linked to {{title}}",
+  "remove": "Remove link",
+  "removed": "Link removed",
+  "auto": "Added by Greenlit",
+  "relations": {
+    "source_of": { "forward": "Source of", "inverse": "Made from" },
+    "uses": { "forward": "Uses", "inverse": "Used in" },
+    "rendered_to": { "forward": "Rendered to", "inverse": "Rendered from" },
+    "related": { "forward": "Related to", "inverse": "Related to" },
+    "reference_for": { "forward": "Reference for", "inverse": "Reference" },
+    "published_as": { "forward": "Published as", "inverse": "Publishes" }
+  }
+}

@@ -4,7 +4,22 @@ import { extendTailwindMerge } from 'tailwind-merge'
 const merge = extendTailwindMerge({
   extend: {
     classGroups: {
-      'font-size': [{ t: ['display', 'title-1', 'title-2', 'headline', 'body', 'callout', 'caption', 'micro', 'meta', 'label'] }],
+      'font-size': [
+        {
+          t: [
+            'display',
+            'title-1',
+            'title-2',
+            'headline',
+            'body',
+            'callout',
+            'caption',
+            'micro',
+            'meta',
+            'label',
+          ],
+        },
+      ],
     },
   },
 })

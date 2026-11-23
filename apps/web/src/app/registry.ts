@@ -4,7 +4,9 @@ import type { FeatureDefinition, MenuContribution, SlotEntry } from './feature'
 import common from './locales'
 
 /** Every folder in `features/` with a `feature.ts` or `feature.tsx`, found at build time. */
-const modules = import.meta.glob<{ default: FeatureDefinition }>('../features/*/feature.{ts,tsx}', { eager: true })
+const modules = import.meta.glob<{ default: FeatureDefinition }>('../features/*/feature.{ts,tsx}', {
+  eager: true,
+})
 
 export const features: FeatureDefinition[] = Object.values(modules)
   .map((m) => m.default)
@@ -15,7 +17,9 @@ registerLocales('common', common)
 for (const f of features) if (f.locales) registerLocales(f.id, f.locales)
 
 export const routes = features.flatMap((f) => (f.routes ?? []).map((r) => ({ ...r, feature: f.id })))
-export const navItems = features.flatMap((f) => (f.nav ?? []).map((n) => ({ ...n, feature: f.id }))).sort((a, b) => a.order - b.order)
+export const navItems = features
+  .flatMap((f) => (f.nav ?? []).map((n) => ({ ...n, feature: f.id })))
+  .sort((a, b) => a.order - b.order)
 export const commands = features.flatMap((f) => (f.commands ?? []).map((c) => ({ ...c, feature: f.id })))
 export const settingsSections = features
   .flatMap((f) => (f.settings ?? []).map((s) => ({ ...s, feature: f.id })))
@@ -49,15 +53,22 @@ for (const f of features) {
 for (const list of menuMap.values()) list.sort((a, b) => (a.order ?? 50) - (b.order ?? 50))
 
 /**
- * Everything features contribute to a named menu, in order, with separators between contributions.
+ * Everything features contribute to a named menu, in order, with a line between bands (see below).
  * `own` are the menu owner's items, placed by their `order` too.
  */
-export function menuEntries<C>(name: string, ctx: C, own: { order: number; items: MenuEntry[] }[] = []): MenuEntry[] {
+export function menuEntries<C>(
+  name: string,
+  ctx: C,
+  own: { order: number; items: MenuEntry[] }[] = [],
+): MenuEntry[] {
   const all = [
     ...own.map((o) => ({ order: o.order, items: () => o.items })),
     ...(menuMap.get(name) ?? []).map((c) => ({ order: c.order ?? 50, items: () => c.items(ctx) })),
   ].sort((a, b) => a.order - b.order)
+  // Lines separate bands, not contributions: open/rename (< 20), workflow (20–79), files (80–99), delete (100+).
+  const band = (order: number) => (order < 20 ? 0 : order < 80 ? 1 : order < 100 ? 2 : 3)
   const out: MenuEntry[] = []
+  let last: number | null = null
   for (const c of all) {
     let items: MenuEntry[] = []
     try {
@@ -66,8 +77,9 @@ export function menuEntries<C>(name: string, ctx: C, own: { order: number; items
       console.error(`menu ${name}`, err)
     }
     if (!items.length) continue
-    if (out.length) out.push('separator')
+    if (last !== null && band(c.order) !== last) out.push('separator')
     out.push(...items)
+    last = band(c.order)
   }
   return out
 }

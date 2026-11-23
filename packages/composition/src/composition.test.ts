@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyOps,
-  clipState,
   Composition,
-  describe as outline,
+  clipState,
   emptyComposition,
   FORMAT_SIZES,
   forFormat,
   OpError,
+  describe as outline,
   sample,
   visibleClips,
 } from './index.ts'

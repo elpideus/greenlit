@@ -1,0 +1,16 @@
+{
+  "nav": "Library",
+  "title": "Library",
+  "trashTitle": "Trash",
+  "upload": "Upload",
+  "count_one": "{{count}} item",
+  "count_other": "{{count}} items",
+  "trashMeta": "Items stay here until you delete them for good.",
+  "backToLibrary": "Library",
+  "palette": {
+    "media": "Media",
+    "projects": "Projects",
+    "upload": "Upload to the library",
+    "trash": "Open the trash"
+  }
+}

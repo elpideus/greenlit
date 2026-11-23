@@ -1,0 +1,38 @@
+{
+  "nav": "Map",
+  "map": "Map",
+  "globe": "Globe",
+  "searchPlaceholder": "Search places and projects",
+  "inGreenlit": "In Greenlit",
+  "onTheMap": "Places",
+  "projects": "Projects",
+  "media": "Media",
+  "noMatches": "No place or project matches “{{q}}”",
+  "searching": "Searching…",
+  "summary": "{{places}} places · {{projects}} projects · {{media}} media",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "resetNorth": "Point north",
+  "locate": "Where I am",
+  "fitAll": "Show everything",
+  "locateFailed": "Your location isn’t available in this browser.",
+  "empty": {
+    "title": "Nothing on the map yet",
+    "body": "Give a project a place in its About tab, or a picture or video in its Info. Photos and videos with GPS are placed by themselves."
+  },
+  "card": {
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "mediaCount_one": "{{count}} media item",
+    "mediaCount_other": "{{count}} media items",
+    "nothingHere": "Nothing in Greenlit is here yet.",
+    "copyCoords": "Copy coordinates",
+    "coordsCopied": "Coordinates copied",
+    "openOsm": "Open in OpenStreetMap",
+    "rename": "Rename place",
+    "zoomTo": "Zoom in here",
+    "close": "Close",
+    "inProject": "in {{name}}"
+  },
+  "cluster": "{{count}} places"
+}

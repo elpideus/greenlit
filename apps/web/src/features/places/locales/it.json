@@ -1,0 +1,22 @@
+{
+  "title": "Luoghi",
+  "empty": "Non ancora sulla mappa.",
+  "emptyGps": "Foto e video con il GPS vengono posizionati da soli.",
+  "add": "Aggiungi un luogo",
+  "searchPlaceholder": "Cerca un luogo o un indirizzo",
+  "inGreenlit": "Già in Greenlit",
+  "onOsm": "OpenStreetMap",
+  "used_one": "{{count}} elemento",
+  "used_other": "{{count}} elementi",
+  "noMatches": "Nessun luogo corrisponde a “{{q}}”",
+  "searching": "Ricerca…",
+  "added": "Aggiunto {{name}}",
+  "removed": "Rimosso {{name}}",
+  "undo": "Annulla",
+  "remove": "Rimuovi da questo elemento",
+  "openOnMap": "Apri sulla mappa",
+  "copyCoords": "Copia le coordinate",
+  "coordsCopied": "Coordinate copiate",
+  "palette": "Luoghi",
+  "exif": "Dal GPS del file"
+}

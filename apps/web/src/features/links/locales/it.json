@@ -1,0 +1,24 @@
+{
+  "tab": "Collegamenti",
+  "empty": "Non è collegato a niente",
+  "emptyBody": "Collega le riprese da cui nasce, il montaggio in cui è stato tagliato, i post che lo usano.",
+  "add": "Aggiungi un collegamento…",
+  "addTitle": "Collega a…",
+  "relation": "Che rapporto hanno",
+  "search": "Cerca",
+  "types": { "media": "Media", "project": "Progetto", "post": "Post", "composition": "Montaggio" },
+  "noResults": "Nessun risultato",
+  "link": "Collega",
+  "linked": "Collegato a {{title}}",
+  "remove": "Rimuovi il collegamento",
+  "removed": "Collegamento rimosso",
+  "auto": "Aggiunto da Greenlit",
+  "relations": {
+    "source_of": { "forward": "Origine di", "inverse": "Ricavato da" },
+    "uses": { "forward": "Usa", "inverse": "Usato in" },
+    "rendered_to": { "forward": "Esportato in", "inverse": "Esportato da" },
+    "related": { "forward": "Collegato a", "inverse": "Collegato a" },
+    "reference_for": { "forward": "Riferimento per", "inverse": "Riferimento" },
+    "published_as": { "forward": "Pubblicato come", "inverse": "Pubblica" }
+  }
+}

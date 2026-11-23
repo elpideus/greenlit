@@ -1,8 +1,8 @@
-@import 'tailwindcss';
-@import './tokens.css';
+@import "tailwindcss";
+@import "./tokens.css";
 
-@custom-variant dark (&:where([data-theme-mode='dark'], [data-theme-mode='dark'] *));
-@custom-variant light (&:where([data-theme-mode='light'], [data-theme-mode='light'] *));
+@custom-variant dark (&:where([data-theme-mode="dark"], [data-theme-mode="dark"] *));
+@custom-variant light (&:where([data-theme-mode="light"], [data-theme-mode="light"] *));
 @custom-variant hover-device (@media (hover: hover) and (pointer: fine));
 
 /* Tailwind names for the product tokens (bg-canvas, text-ink-2, rounded-control, ease-out…). */
@@ -65,7 +65,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'ss01' on, 'cv11' on;
+    font-feature-settings:
+      "ss01" on,
+      "cv11" on;
     -webkit-tap-highlight-color: transparent;
     transition: background-color 300ms var(--ease);
   }
@@ -90,7 +92,7 @@
     border-radius: var(--r-control);
   }
   button,
-  [role='button'] {
+  [role="button"] {
     cursor: default;
     user-select: none;
   }
@@ -232,7 +234,10 @@
     background: var(--material);
     -webkit-backdrop-filter: blur(28px) saturate(1.8);
     backdrop-filter: blur(28px) saturate(1.8);
-    box-shadow: var(--shadow-float), inset 0 0 0 0.5px var(--line-strong), inset 0 1px 0 var(--highlight);
+    box-shadow:
+      var(--shadow-float),
+      inset 0 0 0 0.5px var(--line-strong),
+      inset 0 1px 0 var(--highlight);
     border-radius: var(--r-panel);
   }
   .force-dark {
@@ -245,7 +250,7 @@
     --line: rgba(237, 239, 237, 0.09);
     --line-strong: rgba(237, 239, 237, 0.16);
     --ink: #edefed;
-    --ink-2: #a8acA9;
+    --ink-2: #a8aca9;
     --ink-3: #828683;
     --ink-4: #4f534f;
     --material: rgba(26, 28, 26, 0.72);
@@ -280,10 +285,14 @@
     display: none;
   }
   .press {
-    transition: transform var(--t-press) var(--ease), background-color var(--t-hover) var(--ease),
-      color var(--t-hover) var(--ease), box-shadow var(--t-hover) var(--ease), opacity var(--t-hover) var(--ease);
+    transition:
+      transform var(--t-press) var(--ease),
+      background-color var(--t-hover) var(--ease),
+      color var(--t-hover) var(--ease),
+      box-shadow var(--t-hover) var(--ease),
+      opacity var(--t-hover) var(--ease);
   }
-  .press:active:not(:disabled):not([aria-disabled='true']) {
+  .press:active:not(:disabled):not([aria-disabled="true"]) {
     transform: scale(0.97);
   }
 }
@@ -327,7 +336,10 @@
 /* ── Base UI popups: grow from their trigger, leave the way they came ───────────────── */
 .gl-pop {
   transform-origin: var(--transform-origin);
-  transition: opacity 140ms var(--ease), transform 180ms var(--ease), filter 180ms var(--ease);
+  transition:
+    opacity 140ms var(--ease),
+    transform 180ms var(--ease),
+    filter 180ms var(--ease);
 }
 .gl-pop[data-starting-style],
 .gl-pop[data-ending-style] {
@@ -340,7 +352,9 @@
 }
 .gl-tip {
   transform-origin: var(--transform-origin);
-  transition: opacity 120ms var(--ease), transform 140ms var(--ease);
+  transition:
+    opacity 120ms var(--ease),
+    transform 140ms var(--ease);
 }
 .gl-tip[data-starting-style],
 .gl-tip[data-ending-style] {
@@ -355,7 +369,10 @@
   opacity: 0;
 }
 .gl-dialog {
-  transition: opacity 200ms var(--ease), transform 280ms var(--ease), filter 200ms var(--ease);
+  transition:
+    opacity 200ms var(--ease),
+    transform 280ms var(--ease),
+    filter 200ms var(--ease);
 }
 .gl-dialog[data-starting-style],
 .gl-dialog[data-ending-style] {
@@ -367,7 +384,9 @@
   transition-duration: 150ms;
 }
 .gl-sheet-right {
-  transition: transform 340ms var(--ease), opacity 200ms var(--ease);
+  transition:
+    transform 340ms var(--ease),
+    opacity 200ms var(--ease);
 }
 .gl-sheet-right[data-starting-style],
 .gl-sheet-right[data-ending-style] {

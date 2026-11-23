@@ -8,7 +8,7 @@ import exifr from 'exifr'
 import sharp, { type Metadata } from 'sharp'
 import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
-import { ffmpeg, ffmpegBin, HDR_TO_SDR, isHdr, probe, type ProbeResult } from '../../lib/ffmpeg.ts'
+import { ffmpeg, ffmpegBin, HDR_TO_SDR, isHdr, type ProbeResult, probe } from '../../lib/ffmpeg.ts'
 import { media, mediaFormats } from './schema.ts'
 
 const SPRITE_COLS = 10

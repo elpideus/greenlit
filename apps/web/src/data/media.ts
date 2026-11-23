@@ -1,5 +1,11 @@
 import type { Media, MediaFormat, MediaListQuery, UpdateMediaInput } from '@greenlit/shared'
-import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { qk } from '@/lib/query'
 import { useLiveQuery } from '@/lib/realtime'
@@ -17,7 +23,11 @@ export function useMediaList(query: MediaQuery, opts: { enabled?: boolean } = {}
   return useInfiniteQuery({
     queryKey: qk.media(query),
     queryFn: ({ pageParam, signal }) =>
-      api.get<Page>('/media', { ...(query as Record<string, string>), cursor: pageParam ?? undefined, limit: query.limit ?? 120 }, signal),
+      api.get<Page>(
+        '/media',
+        { ...(query as Record<string, string>), cursor: pageParam ?? undefined, limit: query.limit ?? 120 },
+        signal,
+      ),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     placeholderData: keepPreviousData,
@@ -60,7 +70,8 @@ export type BulkAction =
 export function useBulkMedia() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ ids, ...rest }: { ids: string[] } & BulkAction) => api.post<{ count: number }>('/media/bulk', { ids, ...rest }),
+    mutationFn: ({ ids, ...rest }: { ids: string[] } & BulkAction) =>
+      api.post<{ count: number }>('/media/bulk', { ids, ...rest }),
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: qk.media() })
       void qc.invalidateQueries({ queryKey: qk.projects })
@@ -105,7 +116,13 @@ export function loadSprite(spriteUrl: string): Promise<SpriteInfo | null> {
  */
 export async function uploadMedia(
   files: File[],
-  target: { projectId?: string | null; mediaId?: string; formatKey?: string; label?: string; tags?: string[] } = {},
+  target: {
+    projectId?: string | null
+    mediaId?: string
+    formatKey?: string
+    label?: string
+    tags?: string[]
+  } = {},
 ) {
   const results = await Promise.allSettled(
     files.map((file) => upload(file, { purpose: 'media.upload', target, label: file.name })),

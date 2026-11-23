@@ -11,7 +11,7 @@
  */
 
 :root,
-[data-theme-mode='dark'] {
+[data-theme-mode="dark"] {
   --gl-bg: #0c0d0c;
   --gl-bg-subtle: #080908;
   --gl-surface: #131413;
@@ -33,9 +33,9 @@
   --gl-focus: #42d77b;
   --gl-overlay: rgba(4, 5, 4, 0.62);
 
-  --gl-font-ui: 'Geist Variable', Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --gl-font-display: 'Geist Variable', Geist, -apple-system, system-ui, sans-serif;
-  --gl-font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --gl-font-ui: "Geist Variable", Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gl-font-display: "Geist Variable", Geist, -apple-system, system-ui, sans-serif;
+  --gl-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --gl-display-transform: none;
   --gl-display-tracking: -0.024em;
   --gl-display-weight: 600;
@@ -44,15 +44,15 @@
   color-scheme: dark;
 
   /* depth, tuned per mode */
-  --shadow-float: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 18px 48px -12px rgba(0, 0, 0, 0.7),
-    0 4px 12px -4px rgba(0, 0, 0, 0.45);
+  --shadow-float:
+    0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 18px 48px -12px rgba(0, 0, 0, 0.7), 0 4px 12px -4px rgba(0, 0, 0, 0.45);
   --shadow-sheet: 0 0 0 0.5px rgba(0, 0, 0, 0.7), 0 40px 120px -20px rgba(0, 0, 0, 0.85);
   --shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.4);
   --highlight: rgba(255, 255, 255, 0.05);
   --material-alpha: 78%;
 }
 
-[data-theme-mode='light'] {
+[data-theme-mode="light"] {
   --gl-bg: #f5f7f6;
   --gl-bg-subtle: #eaedeb;
   --gl-surface: #ffffff;
@@ -76,7 +76,8 @@
 
   color-scheme: light;
 
-  --shadow-float: 0 0 0 0.5px rgba(20, 23, 21, 0.12), 0 18px 44px -14px rgba(20, 23, 21, 0.28),
+  --shadow-float:
+    0 0 0 0.5px rgba(20, 23, 21, 0.12), 0 18px 44px -14px rgba(20, 23, 21, 0.28),
     0 3px 10px -4px rgba(20, 23, 21, 0.14);
   --shadow-sheet: 0 0 0 0.5px rgba(20, 23, 21, 0.14), 0 40px 110px -24px rgba(20, 23, 21, 0.4);
   --shadow-lift: 0 1px 2px rgba(20, 23, 21, 0.08);

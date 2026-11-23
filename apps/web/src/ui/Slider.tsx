@@ -34,7 +34,10 @@ export function Slider({
       disabled={disabled}
       onValueChange={(v) => onChange(Array.isArray(v) ? (v[0] ?? 0) : (v as number))}
       onValueCommitted={(v) => onCommit?.(Array.isArray(v) ? (v[0] ?? 0) : (v as number))}
-      className={cn('relative flex h-5 w-full touch-none items-center select-none data-[disabled]:opacity-40', className)}
+      className={cn(
+        'relative flex h-5 w-full touch-none items-center select-none data-[disabled]:opacity-40',
+        className,
+      )}
       aria-label={label}
     >
       <S.Control className="flex h-5 w-full items-center">

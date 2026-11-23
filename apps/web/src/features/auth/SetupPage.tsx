@@ -28,7 +28,9 @@ export default function SetupPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const zones = useMemo(() => {
-    const list = (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? [browserTz]
+    const list = (Intl as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.(
+      'timeZone',
+    ) ?? [browserTz]
     return list.map((z) => ({ value: z, label: z.replace(/_/g, ' '), hint: zoneLabel(z) }))
   }, [browserTz])
 
@@ -41,7 +43,11 @@ export default function SetupPage() {
     setError(null)
     try {
       await api.post('/setup', { ...form, setupCode: form.setupCode || undefined })
-      const me = await api.post<Me>('/auth/login', { email: form.email, password: form.password, remember: true })
+      const me = await api.post<Me>('/auth/login', {
+        email: form.email,
+        password: form.password,
+        remember: true,
+      })
       await qc.invalidateQueries({ queryKey: qk.config })
       qc.setQueryData(qk.me, me)
       navigate('/library', { replace: true })
@@ -58,22 +64,51 @@ export default function SetupPage() {
       <form onSubmit={submit} className="mt-7 flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label={t('setup.name')}>
-            {(id) => <Input id={id} value={form.displayName} onChange={(e) => set('displayName', e.target.value)} required autoFocus />}
+            {(id) => (
+              <Input
+                id={id}
+                value={form.displayName}
+                onChange={(e) => set('displayName', e.target.value)}
+                required
+                autoFocus
+              />
+            )}
           </Field>
           <Field label={t('setup.workspace')}>
-            {(id) => <Input id={id} value={form.appName} onChange={(e) => set('appName', e.target.value)} required />}
+            {(id) => (
+              <Input id={id} value={form.appName} onChange={(e) => set('appName', e.target.value)} required />
+            )}
           </Field>
         </div>
         <Field label={t('email')}>
-          {(id) => <Input id={id} type="email" autoComplete="username" value={form.email} onChange={(e) => set('email', e.target.value)} required />}
+          {(id) => (
+            <Input
+              id={id}
+              type="email"
+              autoComplete="username"
+              value={form.email}
+              onChange={(e) => set('email', e.target.value)}
+              required
+            />
+          )}
         </Field>
         <Field label={t('password')} hint={t('setup.passwordHint')}>
           {(id) => (
-            <Input id={id} type="password" autoComplete="new-password" minLength={8} value={form.password} onChange={(e) => set('password', e.target.value)} required />
+            <Input
+              id={id}
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              required
+            />
           )}
         </Field>
         <Field label={t('setup.timeZone')} hint={t('setup.timeZoneHint')}>
-          {(id) => <Select id={id} value={form.timeZone} onChange={(v) => set('timeZone', v)} options={zones} />}
+          {(id) => (
+            <Select id={id} value={form.timeZone} onChange={(v) => set('timeZone', v)} options={zones} />
+          )}
         </Field>
         <Field label={t('setup.language')}>
           {(id) => (
@@ -90,7 +125,16 @@ export default function SetupPage() {
         </Field>
         {config?.setupNeedsCode && (
           <Field label={t('setup.code')} hint={<span className="t-meta">{t('setup.codeHint')}</span>}>
-            {(id) => <Input id={id} value={form.setupCode} onChange={(e) => set('setupCode', e.target.value.toUpperCase())} placeholder="ABCD-EFGH" required className="t-meta" />}
+            {(id) => (
+              <Input
+                id={id}
+                value={form.setupCode}
+                onChange={(e) => set('setupCode', e.target.value.toUpperCase())}
+                placeholder="ABCD-EFGH"
+                required
+                className="t-meta"
+              />
+            )}
           </Field>
         )}
         {error && <div className="t-callout text-cut">{error}</div>}

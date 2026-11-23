@@ -113,9 +113,17 @@ export default defineModule({
 
     // First run in production: a one-time setup code, printed in the log at every start until an admin exists.
     const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    const setupCode = Array.from({ length: 8 }, (_, i) => (i === 4 ? '-' : '') + ALPHABET[randomInt(ALPHABET.length)]).join('')
+    const setupCode = Array.from(
+      { length: 8 },
+      (_, i) => (i === 4 ? '-' : '') + ALPHABET[randomInt(ALPHABET.length)],
+    ).join('')
     const setupCodeMatches = (given: string | undefined) => {
-      const a = Buffer.from((given ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''))
+      const a = Buffer.from(
+        (given ?? '')
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, ''),
+      )
       const b = Buffer.from(setupCode.replace('-', ''))
       return a.length === b.length && timingSafeEqual(a, b)
     }

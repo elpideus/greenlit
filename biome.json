@@ -1,8 +1,19 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
-    "includes": ["**", "!**/dist", "!**/drizzle/meta", "!**/*.gen.ts", "!brand/**/*.svg", "!packages/api-anything"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/drizzle/meta",
+      "!**/*.gen.ts",
+      "!brand/**/*.svg",
+      "!packages/api-anything"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -11,15 +22,40 @@
     "lineWidth": 110
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded", "trailingCommas": "all" }
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all"
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
-      "style": { "noNonNullAssertion": "off" },
-      "suspicious": { "noExplicitAny": "warn" },
-      "a11y": { "noAutofocus": "off" }
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn"
+      },
+      "a11y": {
+        "noAutofocus": "off",
+        "noStaticElementInteractions": "warn",
+        "noLabelWithoutControl": "warn",
+        "useSemanticElements": "warn",
+        "useMediaCaption": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   }
 }

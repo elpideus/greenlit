@@ -4,7 +4,15 @@ import { cn } from '@/lib/cn'
 import { rise } from '@/lib/motion'
 
 /** A page inside the shell: max width, gutters, entrance. Full-bleed pages (viewer, editor, map) skip it. */
-export function Page({ children, className, width = 'wide' }: { children: ReactNode; className?: string; width?: 'wide' | 'text' | 'full' }) {
+export function Page({
+  children,
+  className,
+  width = 'wide',
+}: {
+  children: ReactNode
+  className?: string
+  width?: 'wide' | 'text' | 'full'
+}) {
   return (
     <motion.main
       {...rise}
@@ -42,7 +50,11 @@ export function PageHeader({
         {leading}
         <div className="min-w-0 flex-1">
           <h1 className="t-title-1 truncate text-ink">{title}</h1>
-          {meta && <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 t-callout text-ink-3">{meta}</div>}
+          {meta && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 t-callout text-ink-3">
+              {meta}
+            </div>
+          )}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
@@ -82,7 +94,15 @@ export function Section({
 }
 
 /** A panel surface (settings groups, side cards). Rows inside are separated by hairlines. */
-export function Card({ children, className, padded = true }: { children: ReactNode; className?: string; padded?: boolean }) {
+export function Card({
+  children,
+  className,
+  padded = true,
+}: {
+  children: ReactNode
+  className?: string
+  padded?: boolean
+}) {
   return (
     <div
       className={cn(
@@ -98,7 +118,17 @@ export function Card({ children, className, padded = true }: { children: ReactNo
 }
 
 /** A labelled row inside a Card: label left, control right. */
-export function Row({ label, description, children, className }: { label: ReactNode; description?: ReactNode; children?: ReactNode; className?: string }) {
+export function Row({
+  label,
+  description,
+  children,
+  className,
+}: {
+  label: ReactNode
+  description?: ReactNode
+  children?: ReactNode
+  className?: string
+}) {
   return (
     <div className={cn('flex min-h-12 items-center justify-between gap-6 py-2.5', className)}>
       <div className="min-w-0">

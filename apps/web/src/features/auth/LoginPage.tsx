@@ -47,7 +47,9 @@ export default function LoginPage() {
 
   return (
     <AuthFrame lit={lit}>
-      <h1 className="t-title-1 text-ink">{t('signInTo', { name: config?.branding.appName ?? 'Greenlit' })}</h1>
+      <h1 className="t-title-1 text-ink">
+        {t('signInTo', { name: config?.branding.appName ?? 'Greenlit' })}
+      </h1>
       {config?.branding.tagline && <p className="mt-2 t-body text-ink-3">{config.branding.tagline}</p>}
       <form onSubmit={submit} className="mt-8 flex flex-col gap-4">
         <Field label={t('email')}>

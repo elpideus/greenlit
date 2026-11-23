@@ -30,7 +30,8 @@ interface UploadsState {
 export const useUploads = create<UploadsState>((set) => ({
   items: [],
   update: (id, patch) => set((s) => ({ items: s.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
-  clearFinished: () => set((s) => ({ items: s.items.filter((i) => !['done', 'cancelled'].includes(i.state)) })),
+  clearFinished: () =>
+    set((s) => ({ items: s.items.filter((i) => !['done', 'cancelled'].includes(i.state)) })),
 }))
 
 const running = new Map<string, tus.Upload>()

@@ -1,7 +1,7 @@
-import wordmarkSvg from '../../../../brand/greenlit-wordmark-on-dark.svg?raw'
 import { motion } from 'motion/react'
 import { cn } from '@/lib/cn'
 import { spring } from '@/lib/motion'
+import wordmarkSvg from '../../../../brand/greenlit-wordmark-on-dark.svg?raw'
 
 /**
  * The signal: Greenlit's mark and its one recurring idea. A capsule with two lamps: the upper one holds
@@ -87,7 +87,17 @@ export function Signal({
   )
 }
 
-function Lamp({ cx, cy, color, animate }: { cx: number; cy: number; color: string | null; animate: boolean }) {
+function Lamp({
+  cx,
+  cy,
+  color,
+  animate,
+}: {
+  cx: number
+  cy: number
+  color: string | null
+  animate: boolean
+}) {
   return (
     <g>
       {/* the unlit socket: a ring */}
@@ -115,7 +125,17 @@ function Lamp({ cx, cy, color, animate }: { cx: number; cy: number; color: strin
 /**
  * A tally light: the lamp alone, for rows, tiles and chips. Draft = an empty ring.
  */
-export function Tally({ tone, size = 8, className, pulse }: { tone: Tone; size?: number; className?: string; pulse?: boolean }) {
+export function Tally({
+  tone,
+  size = 8,
+  className,
+  pulse,
+}: {
+  tone: Tone
+  size?: number
+  className?: string
+  pulse?: boolean
+}) {
   const t = TONE[tone]
   const color = t.lower ?? t.upper
   return (
@@ -136,11 +156,23 @@ export function Tally({ tone, size = 8, className, pulse }: { tone: Tone; size?:
 }
 
 /** Tally + label, e.g. in a status chip or the viewer's decision area. */
-export function StatusLabel({ status, label, className }: { status: string; label: string; className?: string }) {
+export function StatusLabel({
+  status,
+  label,
+  className,
+}: {
+  status: string
+  label: string
+  className?: string
+}) {
   const tone = toneFor(status)
   return (
     <span className={cn('inline-flex items-center gap-1.5 t-caption text-ink-2', className)}>
-      <Tally tone={tone} size={7} pulse={['queued', 'preparing', 'uploading', 'publishing', 'connecting'].includes(status)} />
+      <Tally
+        tone={tone}
+        size={7}
+        pulse={['queued', 'preparing', 'uploading', 'publishing', 'connecting'].includes(status)}
+      />
       {label}
     </span>
   )

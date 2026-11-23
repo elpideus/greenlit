@@ -14,8 +14,18 @@ export function Brand({ compact, className }: { compact?: boolean; className?: s
   const logo = mode === 'dark' ? (b?.logoDark ?? b?.logoLight) : (b?.logoLight ?? b?.logoDark)
   const name = b?.appName ?? 'Greenlit'
   if (logo && !compact)
-    return <img src={logo} alt={name} className={cn('h-6 w-auto max-w-[180px] object-contain', className)} draggable={false} />
-  if (compact && b?.mark) return <img src={b.mark} alt={name} className={cn('size-6 object-contain', className)} draggable={false} />
+    return (
+      <img
+        src={logo}
+        alt={name}
+        className={cn('h-6 w-auto max-w-[180px] object-contain', className)}
+        draggable={false}
+      />
+    )
+  if (compact && b?.mark)
+    return (
+      <img src={b.mark} alt={name} className={cn('size-6 object-contain', className)} draggable={false} />
+    )
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <Signal tone="greenlit" size={22} animate={false} title={name} />

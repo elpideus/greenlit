@@ -1,0 +1,139 @@
+{
+  "search": "Cerca titolo, note, tag…",
+  "suggest": {
+    "filters": "Filtri",
+    "status": "Stato",
+    "kind": "Tipo",
+    "tags": "Tag",
+    "projects": "Progetti",
+    "exclude": "Senza “{{word}}”",
+    "searchFor": "Cerca “{{text}}”",
+    "hint": "Scrivi status:, kind:, #tag o project: per filtrare"
+  },
+  "keys": {
+    "status": "stato",
+    "kind": "tipo",
+    "tag": "tag",
+    "project": "progetto",
+    "exclude": "senza"
+  },
+  "filter": "Filtra",
+  "sort": {
+    "label": "Ordina",
+    "recent": "Più recenti",
+    "oldest": "Meno recenti",
+    "title": "Titolo",
+    "size": "Più grandi",
+    "taken": "Data di scatto"
+  },
+  "view": {
+    "grid": "Griglia",
+    "list": "Elenco",
+    "size": "Dimensione",
+    "fill": "Riempi i riquadri",
+    "fit": "Mostra tutto il fotogramma"
+  },
+  "trash": "Cestino",
+  "upload": "Carica",
+  "uploading_one": "Caricamento di {{name}}",
+  "uploading_other": "Caricamento di {{count}} file",
+  "uploadedTo": "Caricato in {{place}}",
+  "drop": {
+    "title": "Rilascia per caricare",
+    "to": "I file vanno in {{place}}",
+    "library": "libreria"
+  },
+  "sections": {
+    "today": "Oggi",
+    "yesterday": "Ieri",
+    "week": "Questa settimana",
+    "undated": "Senza data"
+  },
+  "count_one": "{{count}} elemento",
+  "count_other": "{{count}} elementi",
+  "notes_one": "{{count}} nota aperta",
+  "notes_other": "{{count}} note aperte",
+  "formats_one": "{{count}} formato",
+  "formats_other": "{{count}} formati",
+  "empty": {
+    "title": "La libreria è ancora vuota",
+    "body": "Trascina riprese, foto o documenti in qualsiasi punto della pagina. Ogni file viene preparato per anteprime, scorrimento e editor.",
+    "projectTitle": "Questo progetto è vuoto",
+    "projectBody": "Trascina qui i file o caricali da questo dispositivo. Restano in libreria, archiviati in questo progetto.",
+    "readonlyBody": "Qui non è stato ancora condiviso niente con te.",
+    "noResults": "Nessun media corrisponde",
+    "noResultsBody": "Prova con meno filtri o altre parole.",
+    "clear": "Cancella ricerca",
+    "trashTitle": "Il cestino è vuoto",
+    "trashBody": "Gli elementi spostati nel cestino restano qui finché non li elimini definitivamente."
+  },
+  "selection": {
+    "selected_one": "{{count}} selezionato",
+    "selected_other": "{{count}} selezionati",
+    "selectAll": "Seleziona tutto",
+    "clear": "Deseleziona"
+  },
+  "menu": {
+    "open": "Apri",
+    "rename": "Rinomina",
+    "status": "Imposta stato",
+    "move": "Sposta nel progetto",
+    "noProject": "Nessun progetto",
+    "addTag": "Aggiungi tag…",
+    "removeTag": "Rimuovi tag",
+    "download": "Scarica",
+    "downloadMany": "Scarica {{count}} file",
+    "copyLink": "Copia link",
+    "linkCopied": "Link copiato",
+    "hideFrom": "Nascondi a",
+    "noReviewers": "Ancora nessun revisore",
+    "trash": "Sposta nel cestino",
+    "trashMany": "Sposta {{count}} elementi nel cestino",
+    "restore": "Ripristina",
+    "restoreMany": "Ripristina {{count}} elementi",
+    "purge": "Elimina definitivamente",
+    "purgeMany": "Elimina definitivamente {{count}} elementi"
+  },
+  "done": {
+    "trashed_one": "Spostato nel cestino",
+    "trashed_other": "{{count}} elementi spostati nel cestino",
+    "restored_one": "Ripristinato",
+    "restored_other": "{{count}} elementi ripristinati",
+    "purged_one": "Eliminato definitivamente",
+    "purged_other": "{{count}} elementi eliminati definitivamente",
+    "moved_one": "Spostato in {{place}}",
+    "moved_other": "{{count}} elementi spostati in {{place}}",
+    "status_one": "Segnato come {{status}}",
+    "status_other": "{{count}} elementi segnati come {{status}}",
+    "tagged_one": "Tag aggiunti",
+    "tagged_other": "Tag aggiunti a {{count}} elementi",
+    "hidden": "Visibilità aggiornata",
+    "renamed": "Rinominato",
+    "undo": "Annulla"
+  },
+  "confirmPurge": {
+    "title_one": "Eliminare definitivamente “{{name}}”?",
+    "title_other": "Eliminare definitivamente {{count}} elementi?",
+    "body": "File e formati vengono rimossi. I post già pubblicati sulle piattaforme restano lì. Non si può annullare.",
+    "confirm": "Elimina definitivamente"
+  },
+  "tagDialog": {
+    "title_one": "Aggiungi tag",
+    "title_other": "Aggiungi tag a {{count}} elementi",
+    "placeholder": "Scrivi un tag e premi Invio",
+    "add": "Aggiungi tag",
+    "hint": "Un concetto per tag, in minuscolo e in inglese: villa, drone, interior."
+  },
+  "list": {
+    "title": "Titolo",
+    "kind": "Tipo",
+    "status": "Stato",
+    "formats": "Formati",
+    "duration": "Durata",
+    "size": "Dimensione",
+    "project": "Progetto",
+    "updated": "Aggiunto"
+  },
+  "inTrash": "Nel cestino",
+  "back": "Torna alla libreria"
+}

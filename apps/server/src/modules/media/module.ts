@@ -19,8 +19,8 @@ import { badRequest, notFound } from '../../core/errors.ts'
 import { IdParams, Ok, route } from '../../core/http.ts'
 import { McpContent } from '../../core/mcp.ts'
 import { defineModule } from '../../core/module.ts'
-import { ffmpeg } from '../../lib/ffmpeg.ts'
 import { MIME } from '../../core/static.ts'
+import { ffmpeg } from '../../lib/ffmpeg.ts'
 import { blobs } from '../files/schema.ts'
 import { projects } from '../projects/schema.ts'
 import { processFormat } from './processing.ts'
@@ -195,29 +195,25 @@ export default defineModule({
               .set({ ...values, ...(changedFile ? { fileRevision: existing.fileRevision + 1 } : {}) })
               .where(eq(mediaFormats.id, s.id))
             if (changedFile) {
-              await ctx.db
-                .insert(mediaFiles)
-                .values({
-                  mediaId: id,
-                  formatId: s.id,
-                  blobId: s.blobId,
-                  fileRevision: existing.fileRevision + 1,
-                  filename: s.filename,
-                  size: s.size,
-                  note: `Restored file version ${s.fileRevision}`,
-                })
+              await ctx.db.insert(mediaFiles).values({
+                mediaId: id,
+                formatId: s.id,
+                blobId: s.blobId,
+                fileRevision: existing.fileRevision + 1,
+                filename: s.filename,
+                size: s.size,
+                note: `Restored file version ${s.fileRevision}`,
+              })
               await svc.enqueueProcessing(id, s.id)
             }
           } else {
-            await ctx.db
-              .insert(mediaFormats)
-              .values({
-                id: s.id,
-                mediaId: id,
-                fileRevision: s.fileRevision,
-                processingState: 'pending',
-                ...values,
-              })
+            await ctx.db.insert(mediaFormats).values({
+              id: s.id,
+              mediaId: id,
+              fileRevision: s.fileRevision,
+              processingState: 'pending',
+              ...values,
+            })
             await svc.enqueueProcessing(id, s.id)
           }
         }

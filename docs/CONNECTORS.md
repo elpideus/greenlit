@@ -9,22 +9,22 @@ The module is `apps/server/src/modules/connectors`; the web side is `apps/web/sr
 
 ## Two kinds of connector
 
-A connector (a *driver*, `drivers/*.ts`) is one way of reaching a platform. There are two kinds:
+A connector (a _driver_, `drivers/*.ts`) is one way of reaching a platform. There are two kinds:
 
 - **`api`** — every operation is a request the platform's own web (or app) frontend sends, replayed over plain
   HTTP by [API Anything](#api-anything) with the sign-in's cookies. The browser is only used to sign in.
 - **`browser`** — drives the platform's web UI like a person (Meta Business Suite, and the older YouTube Studio
   and TikTok Studio drivers). Kept where nothing better exists yet.
 
-| Connector | Kind | Platforms | Reads | Publishing |
-|---|---|---|---|---|
-| `youtube` | api | YouTube | channels, uploads, details, stats, sync, sounds for Shorts | uploads, details and deletes in Studio's own page, as the channel; Shorts with a sound from YouTube's library through the YouTube app's requests (both tested for real, Nov 2026) |
-| `facebook` | api | Facebook | profile and Pages, their posts (sync), sounds for a Page's reels | Pages: feed posts with pictures or text, now or scheduled on Facebook, and deleting them (tested for real, Nov 2026); reels, with a sound from Meta's music library or their own audio, through Business Suite's requests (tested for real, Nov 2026). The login's own profile: not yet |
-| `instagram` | api | Instagram | the account, its posts (sync), sounds for reels | reels, with a sound from Instagram's library or with their own audio, feed posts (a picture or a carousel of up to 10), stories (a picture or a video) and deleting posts, through the Instagram app's requests (all tested for real, Nov 2026). Edits: not yet |
-| `tiktok` | api | TikTok | the account, sounds for videos | videos with a sound from TikTok's library at both volumes, now or scheduled, and deleting them, made in TikTok Studio's own page in the account's browser profile (tested for real with an "Only you" post, Nov 2026) |
-| `meta-business-suite` | browser | Facebook Pages, Instagram | Pages, linked Instagram | posts, reels, stories, scheduling |
-| `tiktok-studio` | browser | TikTok | | uploads; its TikTok Studio steps (with the editor's sound step) are what the `tiktok` connector posts with |
-| `youtube-studio` | browser | YouTube | | uploads (kept for accounts connected with it) |
+| Connector             | Kind    | Platforms                 | Reads                                                            | Publishing                                                                                                                                                                                                                                                                              |
+| --------------------- | ------- | ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `youtube`             | api     | YouTube                   | channels, uploads, details, stats, sync, sounds for Shorts       | uploads, details and deletes in Studio's own page, as the channel; Shorts with a sound from YouTube's library through the YouTube app's requests (both tested for real, Nov 2026)                                                                                                       |
+| `facebook`            | api     | Facebook                  | profile and Pages, their posts (sync), sounds for a Page's reels | Pages: feed posts with pictures or text, now or scheduled on Facebook, and deleting them (tested for real, Nov 2026); reels, with a sound from Meta's music library or their own audio, through Business Suite's requests (tested for real, Nov 2026). The login's own profile: not yet |
+| `instagram`           | api     | Instagram                 | the account, its posts (sync), sounds for reels                  | reels, with a sound from Instagram's library or with their own audio, feed posts (a picture or a carousel of up to 10), stories (a picture or a video) and deleting posts, through the Instagram app's requests (all tested for real, Nov 2026). Edits: not yet                         |
+| `tiktok`              | api     | TikTok                    | the account, sounds for videos                                   | videos with a sound from TikTok's library at both volumes, now or scheduled, and deleting them, made in TikTok Studio's own page in the account's browser profile (tested for real with an "Only you" post, Nov 2026)                                                                   |
+| `meta-business-suite` | browser | Facebook Pages, Instagram | Pages, linked Instagram                                          | posts, reels, stories, scheduling                                                                                                                                                                                                                                                       |
+| `tiktok-studio`       | browser | TikTok                    |                                                                  | uploads; its TikTok Studio steps (with the editor's sound step) are what the `tiktok` connector posts with                                                                                                                                                                              |
+| `youtube-studio`      | browser | YouTube                   |                                                                  | uploads (kept for accounts connected with it)                                                                                                                                                                                                                                           |
 
 While an account's publishing is switched off (`capabilities.publish: false`), every write to it — publish,
 update, remove — is refused; only dry runs go through.
@@ -68,12 +68,12 @@ as "Scheduled in Greenlit", and `posts.due` (every minute) sends it when its tim
 if Greenlit is running at that time; one the platform keeps goes out even if Greenlit is off. A dry run of a held
 version says so in its first step and rehearses the publish as it will be sent then.
 
-| Connector | Kept on the platform | Held by Greenlit |
-|---|---|---|
-| `facebook` (a Page) | feed posts at least 10 minutes ahead | reels, and anything sooner |
-| `instagram` | nothing yet | feed posts, reels and stories |
-| `tiktok` | videos 15 minutes to 10 days ahead | a time sooner or later than that |
-| `youtube` | videos and Shorts | nothing |
+| Connector           | Kept on the platform                 | Held by Greenlit                 |
+| ------------------- | ------------------------------------ | -------------------------------- |
+| `facebook` (a Page) | feed posts at least 10 minutes ahead | reels, and anything sooner       |
+| `instagram`         | nothing yet                          | feed posts, reels and stories    |
+| `tiktok`            | videos 15 minutes to 10 days ahead   | a time sooner or later than that |
+| `youtube`           | videos and Shorts                    | nothing                          |
 
 Capabilities are saved on each account by its checks; when the server starts they are brought up to what the
 connectors of that version do, so a change like this one applies at once.
@@ -97,7 +97,7 @@ in a spec shared with the public catalog):
 
 `aa/engine.ts` runs it inside the server: state in `DATA_DIR/api-anything`, sessions sealed with a key derived
 from `GREENLIT_SECRET`, nothing shared or reported (`API_ANYTHING_LOCAL_ONLY`). Each sign-in is one API Anything
-*site* named `gl-<session>`, made from the platform's template spec in `aa/sites/<platform>.json`. After a
+_site_ named `gl-<session>`, made from the platform's template spec in `aa/sites/<platform>.json`. After a
 sign-in (or a cookie import) the browser profile's cookies are handed to that site's session.
 
 ### The specs
@@ -107,13 +107,13 @@ templates with `{param}` slots, cookie references (`cookie:c_user`), derived val
 up from its JSON token endpoint before each call) and generated ones (`sapisidhash`). They hold no session
 values; `aa/sites.test.ts` checks that and that every spec parses.
 
-| Spec | Operations |
-|---|---|
-| `youtube.json` | `channels` (every channel of the sign-in, with its pageId), `resolveHandle` (handle → channel id, public), `videos` (a channel's uploads as Studio lists them, paged), `video` |
-| `facebook.json` | `me` (the login's profile), `profiles` (every Page it can act as), `posts` (a timeline, streamed answer merged), `uploadPhoto`, `createPost`, `schedulePost`, `draftPost` and `deletePost` (learned with the requests aborted, as the profile and as a Page; not sent yet). A scheduled post or a draft is the same request as a post plus `unpublished_content_data`. From Business Suite (business.facebook.com, same login): `musicSearch`, `videoUploadStart`, `videoUploadBytes`, `videoUploadReceive` and `createReel` (see below) |
-| `instagram.json` | `profile` (an account by id; the signed-in one's id is the `ds_user_id` cookie) and `posts` (its grid), the GraphQL queries instagram.com's profile page sends; the form token is looked up in instagram.com's own page (`DTSGInitialData`). From the Instagram app: `musicSearch`, `uploadReelVideo`, `configureReelWithSound`, `configureReel`, `uploadPhoto`, `uploadVideo`, `configurePhoto`, `configureSidecar`, `configureStoryPhoto`, `configureStoryVideo` and `deleteMedia` (see [the platforms' Android apps](#the-platforms-android-apps)) |
-| `tiktok.json` | `account` (the signed-in account, from tiktok.com's passport request) |
-| `business-suite.json` | `uploadPhoto` and `createPost` (Business Suite's one request for Instagram and/or the Page, now or scheduled), recorded in dry runs with the final request aborted; not used by a connector yet |
+| Spec                  | Operations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `youtube.json`        | `channels` (every channel of the sign-in, with its pageId), `resolveHandle` (handle → channel id, public), `videos` (a channel's uploads as Studio lists them, paged), `video`                                                                                                                                                                                                                                                                                                                                                                        |
+| `facebook.json`       | `me` (the login's profile), `profiles` (every Page it can act as), `posts` (a timeline, streamed answer merged), `uploadPhoto`, `createPost`, `schedulePost`, `draftPost` and `deletePost` (learned with the requests aborted, as the profile and as a Page; not sent yet). A scheduled post or a draft is the same request as a post plus `unpublished_content_data`. From Business Suite (business.facebook.com, same login): `musicSearch`, `videoUploadStart`, `videoUploadBytes`, `videoUploadReceive` and `createReel` (see below)              |
+| `instagram.json`      | `profile` (an account by id; the signed-in one's id is the `ds_user_id` cookie) and `posts` (its grid), the GraphQL queries instagram.com's profile page sends; the form token is looked up in instagram.com's own page (`DTSGInitialData`). From the Instagram app: `musicSearch`, `uploadReelVideo`, `configureReelWithSound`, `configureReel`, `uploadPhoto`, `uploadVideo`, `configurePhoto`, `configureSidecar`, `configureStoryPhoto`, `configureStoryVideo` and `deleteMedia` (see [the platforms' Android apps](#the-platforms-android-apps)) |
+| `tiktok.json`         | `account` (the signed-in account, from tiktok.com's passport request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `business-suite.json` | `uploadPhoto` and `createPost` (Business Suite's one request for Instagram and/or the Page, now or scheduled), recorded in dry runs with the final request aborted; not used by a connector yet                                                                                                                                                                                                                                                                                                                                                       |
 
 A YouTube request acts as a channel with `x-goog-pageid` and the delegation context. A Facebook read acts as the
 login (`av` and `__user` from `c_user`); a write as a Page goes the way facebook.com sends it after switching to
@@ -300,11 +300,11 @@ publish requests held, so nothing was posted, and the held posts discarded in th
     long it plays (20 s), its audio address, DASH manifest, cover, title, monetization info and highlight times,
     which come from the sound search (`musicSearch` picks `dashManifest` and `monetization`). A sound the search
     gives no manifest for is left out and Greenlit says so.
-  The app also cross-posts stories to Facebook by itself (`share_to_facebook`); Greenlit's request leaves that out.
-  A story's Share answers "ok" before publishing and gives no id, so Greenlit cannot tell a story that never
-  appeared: check the account after a story with new request shapes (the phone's app can show a story minutes
-  late). Tested for real (Nov 2026): the 1 kHz test picture with "Gentle Resolve" from 1.5 s went up as a story
-  and played the sound; deleted in the app.
+    The app also cross-posts stories to Facebook by itself (`share_to_facebook`); Greenlit's request leaves that out.
+    A story's Share answers "ok" before publishing and gives no id, so Greenlit cannot tell a story that never
+    appeared: check the account after a story with new request shapes (the phone's app can show a story minutes
+    late). Tested for real (Nov 2026): the 1 kHz test picture with "Gentle Resolve" from 1.5 s went up as a story
+    and played the sound; deleted in the app.
 - A **video story with a sound** is the same (recorded with the Share held): the video's upload carries
   `music_burnin_params`, and `configureStoryVideoWithSound` is `configure_to_story/?video=1` with the music sticker,
   the sound playing as long as the video and the video's own sound muted (`audio_muted`, the app's "music only").

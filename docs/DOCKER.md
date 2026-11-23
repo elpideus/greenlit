@@ -2,12 +2,12 @@
 
 Greenlit runs as **one compose project** (`compose.yaml` at the repository root, project name `greenlit`):
 
-| Service | What it is | Data |
-|---|---|---|
-| `app` | API, background workers and the web app (`docker/Dockerfile`): Node, ffmpeg, Chromium (renders, platform sign-ins), adb | volume `media` → `/data` |
-| `db` | PostgreSQL 18 | volume `pgdata` |
+| Service   | What it is                                                                                                                                                                                | Data                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `app`     | API, background workers and the web app (`docker/Dockerfile`): Node, ffmpeg, Chromium (renders, platform sign-ins), adb                                                                   | volume `media` → `/data`                                    |
+| `db`      | PostgreSQL 18                                                                                                                                                                             | volume `pgdata`                                             |
 | `android` | Greenlit's Android device (`docker/android/Dockerfile`): the Android emulator, headless, with its own virtual camera, for what only a platform's Android app does (YouTube Shorts sounds) | volume `android` → `/data` (the device's accounts and apps) |
-| `tunnel` | the Cloudflare Tunnel (`docker/tunnel/Dockerfile`, Cloudflare's `cloudflared`): connects when `.env` has `CLOUDFLARE_TUNNEL_TOKEN`, idles otherwise | — |
+| `tunnel`  | the Cloudflare Tunnel (`docker/tunnel/Dockerfile`, Cloudflare's `cloudflared`): connects when `.env` has `CLOUDFLARE_TUNNEL_TOKEN`, idles otherwise                                       | —                                                           |
 
 Nothing else needs setting up on the machine: no Android SDK, no emulator, no webcam, no cloudflared. The services
 reach each other on the project's own network and **no port is published on the computer**: Greenlit is reachable
@@ -37,12 +37,12 @@ without hardware virtualization.
 Every service restarts by itself after a crash and whenever Docker starts. For that to include the computer's own
 start, Docker itself has to start at boot (on systemd: `sudo systemctl enable docker`).
 
-| | |
-|---|---|
-| update after pulling new code | `docker compose up -d --build` (rebuilds what changed, restarts only that) |
-| what is running, and is it healthy | `docker compose ps` |
-| logs | `docker compose logs -f app` (or `tunnel`, `db`, `android`) |
-| stop everything | `docker compose down` (the volumes, so all data, stay) |
+|                                    |                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| update after pulling new code      | `docker compose up -d --build` (rebuilds what changed, restarts only that) |
+| what is running, and is it healthy | `docker compose ps`                                                        |
+| logs                               | `docker compose logs -f app` (or `tunnel`, `db`, `android`)                |
+| stop everything                    | `docker compose down` (the volumes, so all data, stay)                     |
 
 Run them in the repository folder. Rebuilding the Android device needs `ANDROID_SDK_LICENSE` (below); without it,
 `docker compose up -d --build app` updates the app alone.
@@ -52,10 +52,10 @@ Run them in the repository folder. Rebuilding the Android device needs `ANDROID_
 Production never uses this; it is for working on Greenlit itself. `docker/compose.dev.yaml` (project
 `greenlit-devstack`) holds the development database and two ways to run the code against it:
 
-| | |
-| --- | --- |
+|                           |                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | **on the host** (fastest) | `docker compose -f docker/compose.dev.yaml up -d` (Postgres on 127.0.0.1:54329), then `pnpm install && pnpm dev` |
-| **fully in Docker** | `docker compose -f docker/compose.dev.yaml --profile app up` |
+| **fully in Docker**       | `docker compose -f docker/compose.dev.yaml --profile app up`                                                     |
 
 Both serve the web app on http://localhost:4300 (Vite, hot reload) and the API on :4310 (restarts when server code
 changes). The `app` service is the `dev` target of `docker/Dockerfile`: the same ffmpeg, Chromium and adb as
@@ -66,14 +66,14 @@ same Android service (`docker/android/compose.yaml`).
 
 ## Cloudflare Tunnel
 
-1. In Cloudflare (Zero Trust → Networks → Tunnels) create a tunnel of the *Cloudflared* kind and copy its token
+1. In Cloudflare (Zero Trust → Networks → Tunnels) create a tunnel of the _Cloudflared_ kind and copy its token
    into `.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
 2. Add a public hostname to the tunnel (e.g. `greenlit.example.com`) with the service **`http://app:8080`**: `app`
    is the app's name on the compose network, which the tunnel container is on.
 3. Set `GREENLIT_PUBLIC_URL` to that address (`https://greenlit.example.com`; a bare host name gets `https://`
    added) and run `docker compose up -d`.
 
-`docker compose ps` shows the tunnel *healthy* once it has a connection to Cloudflare; `docker compose logs tunnel`
+`docker compose ps` shows the tunnel _healthy_ once it has a connection to Cloudflare; `docker compose logs tunnel`
 shows the hostnames it serves. The tunnel only goes out to Cloudflare, so nothing on the machine or the router has
 to be opened. What Greenlit does for Cloudflare: uploads go in 48 MB pieces (Cloudflare refuses requests over
 100 MB), media answers are `private` so Cloudflare never caches them for someone else, the live-update socket
@@ -113,7 +113,7 @@ https.
   and the YouTube app) is copied once, on the device's first start, from Google's Play image of the same Android
   version: it boots on its own for a minute, the apps' files are copied to `/data/apps`, and the Play image is
   deleted again. YouTube is installed as an app.
-- **Updating apps** (YouTube refuses versions it no longer supports: *Precondition check failed*): start the device
+- **Updating apps** (YouTube refuses versions it no longer supports: _Precondition check failed_): start the device
   once in **update mode**, `ANDROID_UPDATE_APPS=1`. The system partition is then writable and the Play Store goes on
   as a privileged system app, so YouTube and Google Play services update through it; then start it normally again.
   Normal starts use the untouched system on purpose: the image's Google Play services is signed with another key
@@ -121,11 +121,11 @@ https.
   stub. The updates live in the device's data and stay. Root works in both modes.
 - **The device view** asks for raw frames (`screencap` without PNG: about 0.12 s instead of 0.5 s for the device to
   encode a PNG) and makes a 720 px JPEG of each on the server, about 0.16 s a frame in all.
-- **Signing in to apps**: Settings → Connected accounts → *Android device* shows the device's screen in Greenlit
+- **Signing in to apps**: Settings → Connected accounts → _Android device_ shows the device's screen in Greenlit
   (taps, swipes, typing), so nothing opens on the machine itself. What you type goes to the device only and is
   never logged. For YouTube Shorts sounds, sign in to the YouTube app with the Google account that manages the
-  channels; Greenlit then sends the app's requests itself with the app's token (`docs/CONNECTORS.md`, *The
-  platforms' Android apps*) and starts the app now and then so Google renews it.
+  channels; Greenlit then sends the app's requests itself with the app's token (`docs/CONNECTORS.md`, _The
+  platforms' Android apps_) and starts the app now and then so Google renews it.
 - **Access**: an adb server on the compose network (`android:5037`, `GREENLIT_ANDROID_ADB` in the app). It is not
   published on the host in production.
 - **Building it** downloads Google's SDK command-line tools, the emulator and platform-tools from Google's Android

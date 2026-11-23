@@ -10,13 +10,13 @@ The mark (`brand/`) is a signal with two lamps in one capsule: the **upper lamp 
 green**. The same lamp runs through the product, so it is never decoration — wherever it appears it tells the state
 of something.
 
-| State | Lamps | Used for |
-| --- | --- | --- |
-| draft | two empty rings | new work, nothing asked yet |
-| review | upper amber | waiting for a decision, work in progress (queued, uploading, publishing) |
-| changes | upper red | changes asked, failures, signed-out accounts |
-| greenlit | lower green | approved, done, connected, published |
-| scheduled | lower blue | cued up on a platform |
+| State     | Lamps           | Used for                                                                 |
+| --------- | --------------- | ------------------------------------------------------------------------ |
+| draft     | two empty rings | new work, nothing asked yet                                              |
+| review    | upper amber     | waiting for a decision, work in progress (queued, uploading, publishing) |
+| changes   | upper red       | changes asked, failures, signed-out accounts                             |
+| greenlit  | lower green     | approved, done, connected, published                                     |
+| scheduled | lower blue      | cued up on a platform                                                    |
 
 - `Signal` (`ui/Signal.tsx`) — the full mark, 14–64 px. Its lamp lights with a spring when the state changes
   (the only overshoot in the product).
@@ -28,7 +28,7 @@ Only lamps, their housings and avatars are round. Nothing else is a pill.
 
 ### Logo files
 
-`brand/greenlit-mark-*.svg` (mark on dark / on light / black / white), `greenlit-wordmark-*.svg` (the *i*'s dot is the
+`brand/greenlit-mark-*.svg` (mark on dark / on light / black / white), `greenlit-wordmark-*.svg` (the _i_'s dot is the
 green lamp), `greenlit-lockup-*.svg`, `greenlit-app-icon.svg` (graphite tile, 22% radius). Minimum mark size 14 px;
 clear space = the lamp's diameter on every side. Never recolour the housing with the signal colour, outline, stretch or
 rotate the mark (except the semaphore, which is the mark on its side by design).
@@ -44,20 +44,20 @@ gradients, no glows except a lit lamp's.
 
 Every colour is a role. Components never use raw colours; a theme pack (`themes/<id>/theme.json`) sets the roles.
 
-| Role (theme) | Token / Tailwind | Dark | Light | Use |
-| --- | --- | --- | --- | --- |
-| bg | `canvas` | `#0C0D0C` | `#F5F7F6` | pages, the top bar |
-| bgSubtle | `well` | `#080908` | `#EAEDEB` | inputs, search, segmented tracks (they receive content) |
-| surface | `panel` | `#131413` | `#FFFFFF` | side panels, cards, settings groups |
-| surfaceRaised | `raised` | `#1A1C1A` | `#FFFFFF` | menus, dialogs, toasts, secondary buttons |
-| — | `hover` / `press` | ink 6% / 10% | ink 6% / 10% | rows, ghost buttons, menu items |
-| — | `stage` | `#050605` | `#050605` | behind footage, always dark |
-| border / borderStrong | `line` / `line-strong` | ink 8% / 15% | ink 9% / 17% | hairlines; spacing separates groups first |
-| text, textMuted, textSubtle | `ink`, `ink-2`, `ink-3` (+ `ink-4`) | `#EDEFED` `#A8ACA9` `#828683` | `#141715` `#525753` `#686D69` | primary, secondary, meta, disabled |
-| accent | `signal` (+ `signal-ink`, `signal-soft`) | `#42D77B` | `#007F3D` | the one commit action, selection, playhead, focus, lit lamps — a few percent of a screen |
-| warning | `review` | `#F9B73F` | `#A35F00` | waiting for a decision |
-| danger | `cut` | `#F75D59` | `#C52C2A` | changes asked, errors, destructive |
-| info | `cue` | `#6AA7F4` | `#1C65C8` | scheduled, cued up |
+| Role (theme)                | Token / Tailwind                         | Dark                          | Light                         | Use                                                                                      |
+| --------------------------- | ---------------------------------------- | ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| bg                          | `canvas`                                 | `#0C0D0C`                     | `#F5F7F6`                     | pages, the top bar                                                                       |
+| bgSubtle                    | `well`                                   | `#080908`                     | `#EAEDEB`                     | inputs, search, segmented tracks (they receive content)                                  |
+| surface                     | `panel`                                  | `#131413`                     | `#FFFFFF`                     | side panels, cards, settings groups                                                      |
+| surfaceRaised               | `raised`                                 | `#1A1C1A`                     | `#FFFFFF`                     | menus, dialogs, toasts, secondary buttons                                                |
+| —                           | `hover` / `press`                        | ink 6% / 10%                  | ink 6% / 10%                  | rows, ghost buttons, menu items                                                          |
+| —                           | `stage`                                  | `#050605`                     | `#050605`                     | behind footage, always dark                                                              |
+| border / borderStrong       | `line` / `line-strong`                   | ink 8% / 15%                  | ink 9% / 17%                  | hairlines; spacing separates groups first                                                |
+| text, textMuted, textSubtle | `ink`, `ink-2`, `ink-3` (+ `ink-4`)      | `#EDEFED` `#A8ACA9` `#828683` | `#141715` `#525753` `#686D69` | primary, secondary, meta, disabled                                                       |
+| accent                      | `signal` (+ `signal-ink`, `signal-soft`) | `#42D77B`                     | `#007F3D`                     | the one commit action, selection, playhead, focus, lit lamps — a few percent of a screen |
+| warning                     | `review`                                 | `#F9B73F`                     | `#A35F00`                     | waiting for a decision                                                                   |
+| danger                      | `cut`                                    | `#F75D59`                     | `#C52C2A`                     | changes asked, errors, destructive                                                       |
+| info                        | `cue`                                    | `#6AA7F4`                     | `#1C65C8`                     | scheduled, cued up                                                                       |
 
 Neutrals carry a faint green tint. Green is a signal, not decoration: if a screen looks green, something is wrong.
 Platform colours (Instagram pink, YouTube red…) appear only on their own glyphs (`components/PlatformIcon`).
@@ -68,18 +68,18 @@ Platform colours (Instagram pink, YouTube red…) appear only on their own glyph
 450, 500, 550, 600 (650 only in the brand composition). Sentence case everywhere; no tracked capitals in the UI.
 Tracking and leading move with size:
 
-| Class | Size / leading | Tracking | Use |
-| --- | --- | --- | --- |
-| `t-display` | 34–56 / 1.02 | −0.036 em | once per screen at most (empty heroes, sign-in) |
-| `t-title-1` | 26 / 1.12 | −0.024 em | page titles (theme display face) |
-| `t-title-2` | 19 / 1.22 | −0.017 em | dialog titles, section heroes |
-| `t-headline` | 14.5 / 1.35, 600 | −0.011 em | group titles, card titles |
-| `t-body` | 14 / 1.55 | −0.006 em | reading text (notes, descriptions) |
-| `t-callout` | 13 / 1.4, 450 | −0.003 em | UI text: buttons, rows, menus |
-| `t-caption` | 12 / 1.35 | 0 | meta lines, hints (in `ink-3`) |
-| `t-micro` | 11 / 1.3, 500 | +0.01 em | group labels in menus, badges |
-| `t-meta` | 11.5 mono | −0.01 em | timecodes, sizes, counts |
-| `t-label` | 12.5, 550 | — | form labels |
+| Class        | Size / leading   | Tracking  | Use                                             |
+| ------------ | ---------------- | --------- | ----------------------------------------------- |
+| `t-display`  | 34–56 / 1.02     | −0.036 em | once per screen at most (empty heroes, sign-in) |
+| `t-title-1`  | 26 / 1.12        | −0.024 em | page titles (theme display face)                |
+| `t-title-2`  | 19 / 1.22        | −0.017 em | dialog titles, section heroes                   |
+| `t-headline` | 14.5 / 1.35, 600 | −0.011 em | group titles, card titles                       |
+| `t-body`     | 14 / 1.55        | −0.006 em | reading text (notes, descriptions)              |
+| `t-callout`  | 13 / 1.4, 450    | −0.003 em | UI text: buttons, rows, menus                   |
+| `t-caption`  | 12 / 1.35        | 0         | meta lines, hints (in `ink-3`)                  |
+| `t-micro`    | 11 / 1.3, 500    | +0.01 em  | group labels in menus, badges                   |
+| `t-meta`     | 11.5 mono        | −0.01 em  | timecodes, sizes, counts                        |
+| `t-label`    | 12.5, 550        | —         | form labels                                     |
 
 A theme can change the display face (GEM: Cinzel, uppercase, +0.03 em) — `t-display` and `t-title-1` follow it, the
 UI face stays readable.

@@ -16,7 +16,10 @@ import { Avatar, Button, EmptyState, IconButton, Popover, toast } from '@/ui'
 type Inbox = { items: Notification[]; unread: number }
 
 export function useNotifications() {
-  return useQuery({ queryKey: qk.notifications, queryFn: () => api.get<Inbox>('/notifications', { limit: 40 }) })
+  return useQuery({
+    queryKey: qk.notifications,
+    queryFn: () => api.get<Inbox>('/notifications', { limit: 40 }),
+  })
 }
 
 /** The bell: a dot when something is unread, a popover with the latest. New ones also arrive as a toast. */
@@ -33,7 +36,11 @@ export function NotificationsButton() {
     if (msg.event === 'notification.created') {
       void api.get<Inbox>('/notifications', { limit: 1 }).then((r) => {
         const n = r.items[0]
-        if (n && !open) toast.info(n.title, { description: n.body || undefined, action: n.link ? { label: t('open'), onClick: () => navigate(n.link!) } : undefined })
+        if (n && !open)
+          toast.info(n.title, {
+            description: n.body || undefined,
+            action: n.link ? { label: t('open'), onClick: () => navigate(n.link!) } : undefined,
+          })
       })
     }
   })
@@ -96,7 +103,9 @@ export function NotificationsButton() {
                 <Avatar user={n.actor} size={28} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className={cn('block t-callout', n.readAt ? 'text-ink-2' : 'font-[550] text-ink')}>{n.title}</span>
+                <span className={cn('block t-callout', n.readAt ? 'text-ink-2' : 'font-[550] text-ink')}>
+                  {n.title}
+                </span>
                 {n.body && <span className="mt-0.5 line-clamp-2 block t-caption text-ink-3">{n.body}</span>}
                 <span className="mt-1 block t-meta text-ink-4">{formatRelative(n.createdAt, tz)}</span>
               </span>

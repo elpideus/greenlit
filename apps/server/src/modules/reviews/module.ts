@@ -282,15 +282,13 @@ function build(ctx: ModuleContext) {
       if (!assignment) {
         // Admins can decide for everyone (useful when the boss doesn't mind).
         if (!isAdmin(actor)) throw forbidden('This review was not sent to you')
-        await db
-          .insert(reviewAssignments)
-          .values({
-            requestId: id,
-            userId: uid,
-            decision: input.decision,
-            note: input.note,
-            decidedAt: new Date(),
-          })
+        await db.insert(reviewAssignments).values({
+          requestId: id,
+          userId: uid,
+          decision: input.decision,
+          note: input.note,
+          decidedAt: new Date(),
+        })
       } else {
         await db
           .update(reviewAssignments)

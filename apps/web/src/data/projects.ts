@@ -11,13 +11,18 @@ export function useProjects() {
 
 export function useProject(id: string | null | undefined) {
   useLiveQuery(id ? `project:${id}` : null, [qk.project(id ?? '')], ['project.updated'])
-  return useQuery({ queryKey: qk.project(id ?? ''), queryFn: () => api.get<Project>(`/projects/${id}`), enabled: !!id })
+  return useQuery({
+    queryKey: qk.project(id ?? ''),
+    queryFn: () => api.get<Project>(`/projects/${id}`),
+    enabled: !!id,
+  })
 }
 
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: Partial<CreateProjectInput> & { name: string }) => api.post<Project>('/projects', input),
+    mutationFn: (input: Partial<CreateProjectInput> & { name: string }) =>
+      api.post<Project>('/projects', input),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.projects }),
   })
 }

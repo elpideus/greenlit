@@ -1,0 +1,43 @@
+{
+  "section": "Share links",
+  "description": "Single-use links that sign one person in and open one thing: a post, a media item, a project or the calendar. A link stops working once used or when it expires.",
+  "menu": "Share link…",
+  "calendarCommand": "Share the calendar…",
+  "dialog": {
+    "title": "Share {{what}}",
+    "body": "The link signs {{who}} in and opens it, once. Nothing else becomes visible to them.",
+    "bodyNobody": "The link signs the person you choose in and opens it, once.",
+    "person": "Who opens it",
+    "personPlaceholder": "Choose a person",
+    "expires": "Works for",
+    "day": "1 day",
+    "days3": "3 days",
+    "week": "1 week",
+    "month": "30 days",
+    "create": "Create link",
+    "ready": "Link ready",
+    "readyBody": "Send it to {{who}}. It is shown only now: it works once, until {{when}}.",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "done": "Done",
+    "calendar": "the calendar"
+  },
+  "list": {
+    "empty": "No share links yet",
+    "emptyBody": "Create one from the ⋯ menu of a post, a media item or a project.",
+    "open": "Open",
+    "used": "Used",
+    "expired": "Expired",
+    "by": "by {{name}}",
+    "expires": "Expires {{when}}",
+    "usedAt": "Opened {{when}}",
+    "expiredAt": "Expired {{when}}",
+    "revoke": "Revoke",
+    "revoked": "Link revoked",
+    "revokeConfirm": "Revoke this link for {{who}}?",
+    "revokeBody": "It stops working right away. You can create a new one at any time.",
+    "filterOpen": "Open",
+    "filterAll": "All"
+  },
+  "type": { "post": "Post", "media": "Media", "project": "Project", "calendar": "Calendar" }
+}

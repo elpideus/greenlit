@@ -21,7 +21,7 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
   done, send work for review, approve it themselves, and can hide items from specific reviewers.
 - **Everything is versioned** — titles, notes, tags, formats, files, posts and edits keep a full history you can
   compare, name, annotate and restore.
-- **Editor** — a lightweight timeline editor where compositions play live in the browser, *without rendering*:
+- **Editor** — a lightweight timeline editor where compositions play live in the browser, _without rendering_:
   video, pictures, audio, text, shapes and code layers (any HTML/CSS/JS animation, seeked frame by frame), keyframes,
   transitions, per-format reframing. Claude edits the same document through MCP and every open editor updates
   instantly; the page also exposes `window.greenlit.editor` for browser agents. Exports are frame-exact and land in
@@ -80,16 +80,16 @@ UI slots and menu contributions — add, change or remove a part without touchin
 ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The design system and brand rules are in
 [docs/DESIGN.md](docs/DESIGN.md).
 
-| | |
-|---|---|
-| `apps/server` | Hono API, Drizzle + Postgres, pg-boss jobs, WebSocket realtime, MCP |
-| `apps/web` | React 19, Vite, Tailwind 4, Base UI, Motion, TanStack Query, MapLibre |
-| `packages/composition` | the editing-project document model and ops |
-| `packages/player` | the stage that draws compositions (preview and export) |
-| `packages/platforms` | social platform specs, limits and encoding presets |
+|                         |                                                                                                                                  |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/server`           | Hono API, Drizzle + Postgres, pg-boss jobs, WebSocket realtime, MCP                                                              |
+| `apps/web`              | React 19, Vite, Tailwind 4, Base UI, Motion, TanStack Query, MapLibre                                                            |
+| `packages/composition`  | the editing-project document model and ops                                                                                       |
+| `packages/player`       | the stage that draws compositions (preview and export)                                                                           |
+| `packages/platforms`    | social platform specs, limits and encoding presets                                                                               |
 | `packages/api-anything` | a fork of [api-anything](https://github.com/goodnight000/api-anything) (MIT) with uploads: the platforms' own requests over HTTP |
-| `themes/` | built-in theme packs |
-| `brand/` | the Greenlit brand kit |
+| `themes/`               | built-in theme packs                                                                                                             |
+| `brand/`                | the Greenlit brand kit                                                                                                           |
 
 ## License
 

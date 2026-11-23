@@ -6,6 +6,7 @@ import { useIsPhone } from '@/lib/dom'
 import { useT } from '@/lib/i18n'
 import { ease } from '@/lib/motion'
 import { useConfig } from '@/lib/session'
+import { useThemePreview } from '@/lib/theme'
 import { Signal, type Tone } from '@/ui'
 
 /**
@@ -82,6 +83,15 @@ function Block({
 /** The brand kit's hero: green column with two signals, a pale panel with the lit one, amber and blue tiles. */
 function SignalArt({ lit }: { lit: boolean }) {
   const t = useT('auth')
+  const { data } = useConfig()
+  const preview = useThemePreview()
+  // The art panel is always dark: it takes the theme's dark palette whatever the mode.
+  const dark = ((preview && data?.themes.find((x) => x.id === preview)) || data?.theme)?.dark
+  const art = {
+    accent: dark?.accent ?? '#42d77b',
+    warning: dark?.warning ?? '#f9b73f',
+    info: dark?.info ?? '#6aa7f4',
+  }
   const ink = { color: '#0c0d0c', '--signal': '#0c0d0c', '--review': '#0c0d0c' } as CSSProperties
   const lower: Tone = lit ? 'greenlit' : 'review'
   return (
@@ -106,7 +116,11 @@ function SignalArt({ lit }: { lit: boolean }) {
       </div>
 
       {/* green column with two signals */}
-      <Block delay={0.05} className="top-0 right-[33%] h-[100%] w-[19%] bg-[#42d77b]" style={ink}>
+      <Block
+        delay={0.05}
+        className="top-0 right-[33%] h-[100%] w-[19%] "
+        style={{ ...ink, background: art.accent }}
+      >
         <div className="flex h-full flex-col items-center justify-start gap-[6%] pt-[14%]">
           <Signal tone="greenlit" size={150} animate={false} className="h-auto w-[54%] text-[#0c0d0c]" />
           <Signal tone="greenlit" size={150} animate={false} className="h-auto w-[54%] text-[#0c0d0c]" />
@@ -114,15 +128,27 @@ function SignalArt({ lit }: { lit: boolean }) {
       </Block>
 
       {/* pale panel: the lamp that lights when you sign in */}
-      <Block delay={0.18} className="right-[14%] bottom-0 h-[64%] w-[17%] bg-[#edefed]" style={{ color: '#0c0d0c' }}>
+      <Block
+        delay={0.18}
+        className="right-[14%] bottom-0 h-[64%] w-[17%] bg-[#edefed]"
+        style={{ color: '#0c0d0c' }}
+      >
         <div className="flex h-full items-start justify-center pt-[26%]">
           <Signal tone={lower} size={150} className="h-auto w-[58%] text-[#0c0d0c]" />
         </div>
       </Block>
 
       {/* amber and blue */}
-      <Block delay={0.3} className="top-[4%] right-[2.5%] aspect-square w-[10.5%] rounded-tr-[34%] bg-[#f9b73f]" />
-      <Block delay={0.4} className="top-[22%] right-[7.5%] aspect-square w-[4.5%] bg-[#6aa7f4]" />
+      <Block
+        delay={0.3}
+        className="top-[4%] right-[2.5%] aspect-square w-[10.5%] rounded-tr-[34%]"
+        style={{ background: art.warning }}
+      />
+      <Block
+        delay={0.4}
+        className="top-[22%] right-[7.5%] aspect-square w-[4.5%]"
+        style={{ background: art.info }}
+      />
     </div>
   )
 }

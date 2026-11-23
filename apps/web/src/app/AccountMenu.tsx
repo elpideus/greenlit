@@ -32,25 +32,50 @@ export function AccountMenu() {
           <Avatar user={me} size={34} />
           <div className="min-w-0">
             <div className="truncate t-callout font-[550] text-ink">{me.displayName}</div>
-            <div className="truncate t-caption text-ink-3">{me.viaShareLink ? t('shell.shareSession') : me.email}</div>
+            <div className="truncate t-caption text-ink-3">
+              {me.viaShareLink ? t('shell.shareSession') : me.email}
+            </div>
           </div>
         </div>
       }
       trigger={
-        <button type="button" className="press ml-1 rounded-full p-0.5 hover-device:hover:shadow-[0_0_0_2px_var(--line-strong)]" aria-label={t('shell.account')}>
+        <button
+          type="button"
+          className="press ml-1 rounded-full p-0.5 hover-device:hover:shadow-[0_0_0_2px_var(--line-strong)]"
+          aria-label={t('shell.account')}
+        >
           <Avatar user={me} size={28} />
         </button>
       }
       items={[
         'separator',
-        !me.viaShareLink && { label: t('shell.profile'), icon: UserRound, onSelect: () => navigate('/settings/profile') },
+        !me.viaShareLink && {
+          label: t('shell.profile'),
+          icon: UserRound,
+          onSelect: () => navigate('/settings/profile'),
+        },
         {
           label: t('shell.appearance'),
           icon: preference === 'dark' ? Moon : preference === 'light' ? Sun : Monitor,
           items: [
-            { label: t('shell.system'), icon: Monitor, checked: preference === 'system', onSelect: () => setModePreference('system') },
-            { label: t('shell.light'), icon: Sun, checked: preference === 'light', onSelect: () => setModePreference('light') },
-            { label: t('shell.dark'), icon: Moon, checked: preference === 'dark', onSelect: () => setModePreference('dark') },
+            {
+              label: t('shell.system'),
+              icon: Monitor,
+              checked: preference === 'system',
+              onSelect: () => setModePreference('system'),
+            },
+            {
+              label: t('shell.light'),
+              icon: Sun,
+              checked: preference === 'light',
+              onSelect: () => setModePreference('light'),
+            },
+            {
+              label: t('shell.dark'),
+              icon: Moon,
+              checked: preference === 'dark',
+              onSelect: () => setModePreference('dark'),
+            },
           ],
         },
         {

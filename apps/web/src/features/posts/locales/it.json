@@ -1,0 +1,288 @@
+{
+  "Posts": "Post",
+  "nav": "Post",
+  "title": "Post",
+  "newPost": "Nuovo post",
+  "newPostFrom": "Nuovo post da {{count}} elementi",
+  "chooseMedia": "Scegli cosa pubblicare",
+  "createPost": "Crea post",
+  "list": "Elenco",
+  "calendar": "Calendario",
+  "meta": {
+    "scheduled": "{{count}} programmati",
+    "drafts": "{{count}} bozze",
+    "attention": "{{count}} da sistemare"
+  },
+  "filter": {
+    "all": "Tutti",
+    "draft": "Bozze",
+    "scheduled": "Programmati",
+    "published": "Pubblicati",
+    "failed": "Da sistemare",
+    "allPlatforms": "Tutte le piattaforme",
+    "allAccounts": "Tutti gli account",
+    "allProjects": "Tutti i progetti",
+    "search": "Cerca post"
+  },
+  "group": {
+    "attention": "Da sistemare",
+    "upNext": "In arrivo",
+    "publishing": "In pubblicazione",
+    "drafts": "Bozze",
+    "published": "Pubblicati"
+  },
+  "status": {
+    "draft": "Bozza",
+    "scheduled": "Programmato",
+    "publishing": "In pubblicazione",
+    "published": "Pubblicato",
+    "partial": "Pubblicato in parte",
+    "failed": "Non riuscito"
+  },
+  "state": {
+    "draft": "Bozza",
+    "queued": "In attesa",
+    "preparing": "In preparazione",
+    "uploading": "Caricamento",
+    "scheduled": "Programmato",
+    "published": "Pubblicato",
+    "failed": "Non riuscito",
+    "removed": "Rimosso"
+  },
+  "placement": {
+    "feed": "Post",
+    "reel": "Reel",
+    "story": "Storia",
+    "video": "Video",
+    "short": "Short",
+    "photo": "Foto",
+    "post": "Post della community"
+  },
+  "untitled": "Post senza titolo",
+  "noText": "Nessuna didascalia",
+  "noDestinations": "Nessuna destinazione",
+  "empty": {
+    "title": "Ancora nessun post",
+    "body": "Trasforma un montaggio finito in un post per Instagram, Facebook, TikTok e YouTube, tutto da qui.",
+    "filtered": "Nessun post corrisponde",
+    "filteredBody": "Prova un altro filtro o cancella la ricerca."
+  },
+  "menu": {
+    "open": "Apri",
+    "duplicate": "Duplica",
+    "duplicated": "Copiato in una nuova bozza",
+    "delete": "Elimina post",
+    "deleteConfirm": "Eliminare “{{name}}”?",
+    "deleteBody": "Il post e le sue bozze vengono eliminati. Le versioni già pubblicate vanno prima rimosse dalla piattaforma.",
+    "deleted": "Post eliminato",
+    "createPost": "Crea post",
+    "createPostMany": "Crea post con {{count}} elementi",
+    "previewOn": "Anteprima su…"
+  },
+  "composer": {
+    "back": "Post",
+    "namePlaceholder": "Dai un nome al post",
+    "saving": "Salvataggio…",
+    "saved": "Salvato",
+    "unsaved": "Non salvato",
+    "saveFailed": "Salvataggio non riuscito",
+    "nameVersion": "Dai un nome a questa versione…",
+    "versionName": "Nome della versione",
+    "versionNamed": "Versione chiamata “{{name}}”",
+    "publish": "Pubblica…",
+    "everywhere": "Ovunque",
+    "media": "Media",
+    "mediaHint": "Trascina per riordinare. Più foto diventano un carosello dove la piattaforma lo consente.",
+    "addMedia": "Aggiungi",
+    "removeMedia": "Togli dal post",
+    "carousel": "Carosello di {{count}}",
+    "destinations": "Dove va",
+    "destinationsHint": "Un accesso può raggiungere più canali e Pagine. Il progetto ricorda dove sono andati i suoi post.",
+    "noAccounts": "Nessun account collegato",
+    "noAccountsBody": "Collega Instagram, Facebook, TikTok o YouTube in Impostazioni → Account collegati.",
+    "connectAccounts": "Collega account",
+    "readOnly": "Sola lettura",
+    "needsLogin": "Accedi di nuovo",
+    "accountOff": "Disattivato",
+    "text": "Testo",
+    "caption": "Didascalia",
+    "captionPlaceholder": "Scrivi la didascalia. Hashtag e @menzioni funzionano come nelle app.",
+    "title": "Titolo",
+    "titlePlaceholder": "Un titolo per YouTube e le foto TikTok",
+    "hashtags": "Hashtag",
+    "hashtagsPlaceholder": "Aggiungi un hashtag e premi Invio",
+    "hashtagsHint": "Aggiunti dopo la didascalia, se non ci sono già.",
+    "ytTags": "Tag di YouTube",
+    "ytTagsPlaceholder": "Aggiungi un tag e premi Invio",
+    "own": "Testo proprio per {{where}}",
+    "ownHint": "Spento: usa il testo scritto per ovunque.",
+    "counter": "{{count}} / {{max}}",
+    "strictest": "Limite più corto: {{where}}",
+    "schedule": "Quando",
+    "now": "Quando premo Pubblica",
+    "at": "A un orario",
+    "sameTime": "Come ovunque",
+    "ownTime": "Un orario proprio",
+    "keepsSchedule": "{{where}} conserva la programmazione: Greenlit può essere spento in quel momento.",
+    "greenlitHolds": "Greenlit lo pubblica a quell'ora (tieni Greenlit acceso).",
+    "inPast": "Quell'orario è passato.",
+    "translations": "Traduzioni",
+    "translationsHint": "Titolo e didascalia in altre lingue, dove la piattaforma lo supporta.",
+    "addLanguage": "Aggiungi lingua",
+    "removeLanguage": "Rimuovi lingua",
+    "formats": "Formato",
+    "formatsHint": "Quale forma di ogni elemento usa questa versione.",
+    "best": "Il più adatto",
+    "cover": "Copertina",
+    "coverAuto": "Sceglie la piattaforma",
+    "coverFrame": "Un fotogramma",
+    "coverPicture": "Una foto",
+    "coverPick": "Scegli una foto",
+    "coverChange": "Cambia",
+    "sound": "Audio",
+    "soundHint": "Un brano dalla libreria di {{where}}: resta collegato lì e le persone possono toccarlo.",
+    "soundNone": "Nessun audio dalla libreria",
+    "soundSearch": "Cerca audio su {{where}}",
+    "soundRemove": "Togli audio",
+    "soundUsage": "{{n}} post",
+    "soundStart": "Parte da {{time}}",
+    "soundUnavailable": "Su questo account ora non si possono cercare audio.",
+    "soundNothing": "Nessun audio trovato",
+    "listen": "Ascolta",
+    "stop": "Ferma",
+    "mix": "Volume",
+    "mixOriginal": "Il tuo video",
+    "mixMusic": "Audio",
+    "muteOriginal": "Disattiva l'audio del video",
+    "muteMusic": "Disattiva l'audio scelto",
+    "firstComment": "Primo commento",
+    "firstCommentPlaceholder": "Pubblicato subito dopo il post (spesso ci vanno gli hashtag)",
+    "location": "Luogo",
+    "locationPlaceholder": "Aggiungi un luogo",
+    "options": "Opzioni",
+    "targetOnPlatform": "Su {{where}}",
+    "openOnPlatform": "Apri su {{where}}",
+    "reschedule": "Sposta…",
+    "removeFromPlatform": "Rimuovi da {{where}}",
+    "removeConfirm": "Rimuovere questa versione da {{where}}?",
+    "removeBody": "Viene eliminata sulla piattaforma. Il post resta in Greenlit come archivio.",
+    "removing": "Rimozione da {{where}}",
+    "rescheduled": "Spostato a {{when}}",
+    "rescheduleConfirm": "Spostarlo anche su {{where}}?",
+    "rescheduleBody": "È già programmato lì; la programmazione della piattaforma passa a {{when}}.",
+    "pushedEdits": "Le modifiche vengono inviate a {{where}} quando salvi.",
+    "error": "{{where}} ha risposto: {{message}}",
+    "notes": "Non applicato dalla piattaforma",
+    "selectTarget": "Scegli dove va per modificare ogni versione",
+    "accountError": "Non raggiungibile",
+    "coverHint": "L'immagine che si vede prima che parta il video.",
+    "needsVideo": "Serve un video",
+    "needsPictures": "Servono foto"
+  },
+  "check": {
+    "title": "Controlli",
+    "allGood": "Pronto per {{where}}",
+    "errors": "{{count}} problemi",
+    "warnings": "{{count}} avvisi"
+  },
+  "preview": {
+    "tab": "Anteprima",
+    "safeZones": "Aree sicure",
+    "safeZonesHint": "Dove i pulsanti e i testi dell'app coprono l'immagine",
+    "noTarget": "Scegli dove va il post per vederlo come lo vedranno le persone.",
+    "noMedia": "Aggiungi un media per vedere l'anteprima.",
+    "close": "Chiudi anteprima",
+    "previewAs": "Anteprima come",
+    "account": "Mostrato come"
+  },
+  "publish": {
+    "title": "Pubblica questo post",
+    "scheduleTitle": "Programma questo post",
+    "body": "Ogni versione va al suo account al suo orario.",
+    "now": "Ora",
+    "nothing": "Niente da pubblicare: ogni versione è già sulla piattaforma o è spenta.",
+    "blocked": "Prima risolvi i problemi",
+    "confirmNow": "Pubblica {{count}} ora",
+    "confirmSchedule": "Programma {{count}}",
+    "confirmMixed": "Pubblica e programma {{count}}",
+    "started": "Pubblicazione di {{count}}",
+    "scheduled": "{{count}} programmati",
+    "public": "Viene pubblicato pubblicamente sui tuoi account."
+  },
+  "panel": {
+    "posts": "Post",
+    "none": "Non è ancora in un post",
+    "noneBody": "Crea un post da questo elemento per Instagram, Facebook, TikTok o YouTube.",
+    "noneProject": "Ancora nessun post in questo progetto"
+  },
+  "palette": {
+    "group": "Post"
+  },
+  "preview.tool": "Anteprima su…",
+  "options": {
+    "privacy": {
+      "label": "Chi può guardare",
+      "public": "Tutti",
+      "unlisted": "Chi ha il link",
+      "private": "Solo io",
+      "friends": "Amici"
+    },
+    "audience": {
+      "label": "Pubblico",
+      "hint": "Le Pagine pubblicano sempre in modo pubblico",
+      "public": "Pubblico",
+      "friends": "Amici",
+      "only_me": "Solo io"
+    },
+    "allowComments": {
+      "label": "Consenti i commenti"
+    },
+    "allowDuet": {
+      "label": "Consenti Duetti"
+    },
+    "allowStitch": {
+      "label": "Consenti Stitch"
+    },
+    "shareToFeed": {
+      "label": "Mostra anche nel feed",
+      "hint": "Il reel compare nella griglia del profilo e nei feed dei follower"
+    },
+    "madeForKids": {
+      "label": "Destinato ai bambini",
+      "hint": "Richiesto da YouTube; disattiva commenti e annunci personalizzati"
+    },
+    "category": {
+      "label": "Categoria",
+      "none": "Predefinita del canale"
+    },
+    "aiGenerated": {
+      "label": "Contenuto generato con l'IA",
+      "hint": "Mostra l'etichetta IA della piattaforma sul post"
+    },
+    "paidPartnership": {
+      "label": "Etichetta di partnership retribuita"
+    },
+    "brandOrganic": {
+      "label": "Promuove il tuo brand"
+    },
+    "brandedContent": {
+      "label": "Contenuto sponsorizzato",
+      "hint": "Promuovi terzi; TikTok mostra “Partnership retribuita”"
+    },
+    "pinFirstComment": {
+      "label": "Fissa il primo commento"
+    },
+    "qualityBoost": {
+      "label": "Carica in 1440p",
+      "hint": "YouTube usa così le codifiche di qualità più alta, anche per chi guarda in 1080p"
+    },
+    "fit": {
+      "label": "Forma",
+      "hint": "Quando il formato non è quello della piattaforma",
+      "auto": "Automatica",
+      "keep": "Lascia com'è",
+      "pad": "Aggiungi bande",
+      "crop": "Ritaglia per riempire"
+    }
+  }
+}
