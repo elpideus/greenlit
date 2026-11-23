@@ -68,6 +68,35 @@ export default function SettingsDepth() {
     }
   }
 
+  // Everything has one: Greenlit's own can be made again (uploaded ones stay).
+  const made = kinds === 'images' ? data.made.images : data.made.images + data.made.videos
+  const uploaded = kinds === 'images' ? data.uploaded.images : data.uploaded.images + data.uploaded.videos
+  const remakeAll = async () => {
+    const counts = {
+      pictures: t('settings.pictures', { count: data.made.images }),
+      videos: t('settings.videos', { count: data.made.videos }),
+    }
+    const body = [
+      kinds === 'all' && data.made.videos ? t('settings.againBodyVideos', counts) : t('settings.againBody'),
+      uploaded ? t('settings.againUploaded', { count: uploaded }) : '',
+    ]
+    if (
+      !(await confirm({
+        title: t('settings.againTitle', { count: made }),
+        body: body.filter(Boolean).join(' '),
+        confirm: t('settings.againConfirm'),
+      }))
+    )
+      return
+    try {
+      const r = await api.post<{ queued: number }>('/depth/generate', { everything: kinds, again: true })
+      toast.info(t('gen.startedMany', { count: r.queued }))
+      void qc.invalidateQueries({ queryKey: KEY })
+    } catch (err) {
+      toast.error(err)
+    }
+  }
+
   const remakeOutdated = async () => {
     try {
       const r = await api.post<{ queued: number }>('/depth/generate', { outdated: true })
@@ -115,9 +144,15 @@ export default function SettingsDepth() {
           }
           description={data.queued ? t('settings.queued', { count: data.queued }) : t('settings.missingHint')}
         >
-          <Button size="sm" icon={Sparkles} disabled={!missing} onClick={() => void makeMissing()}>
-            {t('settings.allButton')}
-          </Button>
+          {missing ? (
+            <Button size="sm" icon={Sparkles} onClick={() => void makeMissing()}>
+              {t('settings.allButton')}
+            </Button>
+          ) : (
+            <Button size="sm" icon={Sparkles} disabled={!made} onClick={() => void remakeAll()}>
+              {t('settings.againButton')}
+            </Button>
+          )}
         </SettingsRow>
         {data.outdated.images + data.outdated.videos > 0 && (
           <SettingsRow

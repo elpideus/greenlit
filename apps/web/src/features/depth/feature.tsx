@@ -5,7 +5,7 @@ import { i18next } from '@/lib/i18n'
 import { can } from '@/lib/session'
 import type { MenuEntry } from '@/ui'
 import { BulkDepth } from './BulkDepth'
-import { generateDepth, generateDepthMany } from './generate'
+import { depthFormats, generateDepth, generateDepthMany, generatedState } from './generate'
 import en from './locales/en.json'
 import it from './locales/it.json'
 import { DepthMapsButton, DepthMatchHost, useDepthMatch } from './MatchDialog'
@@ -72,8 +72,8 @@ export default defineFeature({
 })
 
 /**
- * Right-click on pictures and videos: make their depth maps, and (one item) add or replace its main format's map
- * with a file.
+ * Right-click on pictures and videos: make their depth maps (every format of every version), and (one item) add or
+ * replace its main format's map with a file.
  */
 function mediaMenuItems({ items, me }: { items: Media[]; me: Me }): MenuEntry[] {
   if (!can(me, 'media.upload')) return []
@@ -95,16 +95,39 @@ function mediaMenuItems({ items, me }: { items: Media[]; me: Me }): MenuEntry[] 
   const format = media.formats.find((f) => f.isPrimary) ?? media.formats[0]
   if (!format || (format.kind !== 'image' && format.kind !== 'video')) return []
   const own = media.depthMaps.find((d) => d.key === format.key && d.version === format.version)
+  const fileItem: MenuEntry = {
+    label: own ? t('menu.replace') : t('menu.add'),
+    icon: own ? RefreshCw : Upload,
+    onSelect: () => void addDepthMap(media, format, t),
+  }
+  // Several formats or versions: make them all (each version gets its own map).
+  const formats = depthFormats(media)
+  if (formats.length > 1) {
+    const mapOf = (f: MediaFormat) => media.depthMaps.find((d) => d.key === f.key && d.version === f.version)
+    const todo = formats.filter((f) => {
+      const map = mapOf(f)
+      return !map || generatedState(map, f)?.stale
+    })
+    const made = formats.filter((f) => mapOf(f)?.depth?.generated).length
+    const make: MenuEntry = todo.length
+      ? {
+          label: t('menu.makeFormats', { count: todo.length }),
+          icon: Sparkles,
+          onSelect: () => void generateDepthMany([media.id], t),
+        }
+      : made > 0 && {
+          label: t('menu.makeAgain', { count: made }),
+          icon: Sparkles,
+          onSelect: () => void generateDepthMany([media.id], t, { again: true }),
+        }
+    return [make, fileItem]
+  }
   return [
     {
       label: own?.depth?.generated ? t('gen.again') : own ? t('gen.instead') : t('gen.make'),
       icon: Sparkles,
       onSelect: () => void generateDepth(media, format, t, formatName(media, format)),
     },
-    {
-      label: own ? t('menu.replace') : t('menu.add'),
-      icon: own ? RefreshCw : Upload,
-      onSelect: () => void addDepthMap(media, format, t),
-    },
+    fileItem,
   ]
 }

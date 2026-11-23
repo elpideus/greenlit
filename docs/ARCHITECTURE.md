@@ -193,8 +193,12 @@ checked by SHA-256) download into `DATA_DIR/models/<id>/` the first time each is
   that kind (`outdated` in the status, `POST /depth/generate {outdated: true}`); uploaded ones are kept unless
   `replace`.
 - Setting `depth.auto` (`{ enabled, kinds: all | images }`, permission `depth.manage`): on `media.processed` of a
-  format, make its map. Brand kits are left out everywhere.
-- `POST /media/{id}/depth/generate {formatId?, replace?}`, `POST /depth/generate {ids | missing, replace?}`,
+  format (of any version), make its map. Brand kits are left out everywhere.
+- Many at once (`queueMany`): every picture and video format of every version, pictures and main versions first; a
+  version that borrows the main version's map counts as missing until it has its own. `{everything, again: true}`
+  remakes all of Greenlit's own maps (Settings → Depth maps, "Make them again").
+- `POST /media/{id}/depth/generate {formatId?, replace?}`,
+  `POST /depth/generate {ids | missing | outdated | everything, again?, replace?}`,
   `GET /depth/status`, `PATCH /depth/auto`; MCP `depth_generate`. Progress goes to the realtime topic
   `depth:<media id>` (`depth.progress`), and `Media.depthJobs` lists what is being made.
 

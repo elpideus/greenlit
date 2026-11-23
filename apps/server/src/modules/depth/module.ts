@@ -48,16 +48,18 @@ export default defineModule({
 
     const tags = ['Depth maps']
     const many = async (body: z.infer<typeof GenerateDepthManyInput>, actor: Actor) => {
-      if (body.missing || body.outdated) assertCan(actor, 'depth.manage')
-      const old = body.outdated ? await svc.outdatedIds() : null
-      const ids = body.missing
-        ? [...(await svc.missingIds(body.missing)), ...(old ? [...old.images, ...old.videos] : [])]
-        : old
-          ? [...old.images, ...old.videos]
-          : (body.ids ?? [])
-      if (!ids.length && !body.missing && !body.outdated) throw badRequest('Choose some pictures or videos')
-      const visible = (await ctx.services.media.many(ids, actor)).map((m) => m.id)
-      return { queued: await svc.queueMany(visible, { replace: body.replace }, actor) }
+      const library = !!(body.missing || body.outdated || body.everything)
+      if (library) assertCan(actor, 'depth.manage')
+      const ids = new Set(library ? [] : (body.ids ?? []))
+      if (body.everything) for (const id of await svc.allIds(body.everything)) ids.add(id)
+      if (body.missing) for (const id of await svc.missingIds(body.missing)) ids.add(id)
+      if (body.outdated) {
+        const old = await svc.outdatedIds()
+        for (const id of [...old.images, ...old.videos]) ids.add(id)
+      }
+      if (!ids.size && !library) throw badRequest('Choose some pictures or videos')
+      const visible = (await ctx.services.media.many([...ids], actor)).map((m) => m.id)
+      return { queued: await svc.queueMany(visible, { replace: body.replace, again: body.again }, actor) }
     }
 
     route(ctx.api, {
@@ -104,7 +106,9 @@ export default defineModule({
     route(ctx.api, {
       method: 'post',
       path: '/depth/generate',
-      summary: 'Make depth maps for many items, or for everything that has none (`missing`)',
+      summary: 'Make depth maps for many items (every version and format), or for the whole library',
+      description:
+        "`missing`: everything with a format that has none; `everything` with `again`: remake all of Greenlit's own. Uploaded depth maps are kept unless `replace`.",
       tags,
       access: 'media.upload',
       body: GenerateDepthManyInput,
@@ -116,16 +120,20 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'depth_generate',
       description:
-        "Make depth maps with Greenlit's own models (MoGe-2 for pictures, with real distances; Depth Anything V2 Small for videos; near is light), in the background: give ids (each item's main version formats) or one id with a format key / version. Uploaded depth maps are kept unless replace:true. They then show in media_get (depthMaps) and media_view with depth:true.",
+        "Make depth maps with Greenlit's own models (MoGe-2 for pictures, with real distances; Depth Anything V2 Small for videos; near is light), in the background: give ids (every format of every version of each item; again:true remakes Greenlit's own maps that are up to date) or one id with a format key / version. Uploaded depth maps are kept unless replace:true. They then show in media_get (depthMaps) and media_view with depth:true.",
       input: {
         ids: z.array(z.uuid()).max(500).optional(),
         id: z.uuid().optional(),
         format: z.string().optional().describe('A format key of `id` (default: its main one)'),
         version: z.string().optional().describe('A version key of `id` (default: the main one)'),
         replace: z.boolean().optional(),
+        again: z
+          .boolean()
+          .optional()
+          .describe("With ids: make Greenlit's own maps again even when up to date"),
       },
       access: 'media.upload',
-      handler: async ({ ids, id, format, version, replace }, { actor }) => {
+      handler: async ({ ids, id, format, version, replace, again }, { actor }) => {
         if (id) {
           const m = await ctx.services.media.get(id, actor)
           const v = version === 'main' ? '' : (version ?? '')
@@ -134,7 +142,7 @@ export default defineModule({
           if (!f) throw notFound('No such format')
           return { queued: (await svc.queue(f.id, { replaceUploaded: replace, force: true }, actor)) ? 1 : 0 }
         }
-        return many({ ids, replace }, actor)
+        return many({ ids, replace, again }, actor)
       },
     })
   },

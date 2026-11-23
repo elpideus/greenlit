@@ -82,10 +82,14 @@ export const DepthStatus = z.object({
     }),
   ),
   auto: DepthAuto,
-  /** Pictures and videos (their main version's main format) without a depth map. */
+  /** Pictures and videos with a format (of any version) that has no depth map of its own. */
   missing: z.object({ images: z.number().int(), videos: z.number().int() }),
   /** Greenlit's own maps made with a model it no longer uses for that kind (Small, for pictures). */
   outdated: z.object({ images: z.number().int(), videos: z.number().int() }),
+  /** Depth maps Greenlit made (every version and format), which "make them again" remakes. */
+  made: z.object({ images: z.number().int(), videos: z.number().int() }),
+  /** Depth maps that were uploaded: Greenlit keeps them. */
+  uploaded: z.object({ images: z.number().int(), videos: z.number().int() }),
   /** Depth maps waiting or being made. */
   queued: z.number().int(),
   /** Where the model runs: a graphics card (CUDA, WebGPU) or the processor. */
@@ -109,12 +113,20 @@ export const GenerateDepthInput = z.object({
   replace: z.boolean().optional(),
 })
 
-/** Make depth maps for many items (their main version's formats), or for everything without one (`missing`). */
+/**
+ * Make depth maps for many items (every format of every version): `ids`, everything without one (`missing`), or the
+ * whole library (`everything`, with `again` to remake Greenlit's maps that are up to date). Uploaded maps are kept
+ * unless `replace`.
+ */
 export const GenerateDepthManyInput = z.object({
   ids: z.array(Id).max(2000).optional(),
   missing: z.enum(['all', 'images']).optional(),
   /** Remake Greenlit's maps that an older model made (pictures made with Small before MoGe-2). */
   outdated: z.boolean().optional(),
+  /** Every picture (and video, with 'all') in the library, outside brand kits. */
+  everything: z.enum(['all', 'images']).optional(),
+  /** Make Greenlit's own maps again even when they are up to date. */
+  again: z.boolean().optional(),
   replace: z.boolean().optional(),
 })
 

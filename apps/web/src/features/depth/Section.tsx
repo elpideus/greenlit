@@ -138,6 +138,15 @@ export function DepthSection({ media, format }: { media: Media; format: MediaFor
         <h3 className="t-label">
           {t('title')} <span className="font-normal text-ink-3">· {format.label}</span>
         </h3>
+        {map && found.inherited && canUpload && !job && (
+          // A version borrowing the main version's map: it can have its own (made from its own file).
+          <IconButton
+            size="xs"
+            icon={Sparkles}
+            label={t('gen.forVersion')}
+            onClick={() => void generateDepth(media, format, t, formatName(media, format))}
+          />
+        )}
         {map && !found.inherited && (
           <div className="flex items-center gap-0.5">
             {canUpload && !job && (

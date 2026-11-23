@@ -85,7 +85,13 @@ export function DepthTool({ media, format }: { media: Media; format: MediaFormat
     found && 'separator',
     canUpload &&
       !job && {
-        label: generated ? t('gen.again') : own ? t('gen.instead') : t('gen.make'),
+        label: generated
+          ? t('gen.again')
+          : own
+            ? t('gen.instead')
+            : found
+              ? t('gen.forVersion')
+              : t('gen.make'),
         icon: Sparkles,
         hint: generated?.stale ? t('gen.staleShort') : undefined,
         onSelect: () => void generateDepth(media, format, t, name),

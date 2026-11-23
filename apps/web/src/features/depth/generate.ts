@@ -29,6 +29,19 @@ export function generatedState(map: MediaFormat | undefined, format: MediaFormat
   }
 }
 
+/** Every picture and video format of an item, of every version (the main version's first). */
+export function depthFormats(media: Pick<Media, 'formats' | 'versions'>): MediaFormat[] {
+  const all = [...media.formats, ...media.versions.flatMap((v) => v.formats)]
+  const seen = new Set<string>()
+  return all.filter((f) => (f.kind === 'image' || f.kind === 'video') && !seen.has(f.id) && seen.add(f.id))
+}
+
+/** The model Greenlit makes this kind's depth maps with. */
+export function modelFor(format: Pick<MediaFormat, 'kind'>) {
+  const kind = format.kind === 'video' ? 'videos' : 'images'
+  return Object.values(DEPTH_GENERATORS).find((g) => g.for === kind)?.name ?? ''
+}
+
 /**
  * Asks Greenlit to make the depth map of `format`. An uploaded map is replaced only after asking (it stays in the
  * file history); Greenlit's own is simply made again.
@@ -40,7 +53,7 @@ export async function generateDepth(media: Media, format: MediaFormat, t: TFunct
     uploaded &&
     !(await confirm({
       title: t('gen.replaceTitle', { format: name }),
-      body: t('gen.replaceBody'),
+      body: t('gen.replaceBody', { model: modelFor(format) }),
       confirm: t('gen.replaceConfirm'),
     }))
   )
@@ -57,10 +70,13 @@ export async function generateDepth(media: Media, format: MediaFormat, t: TFunct
   }
 }
 
-/** Makes depth maps for many items (each one's main version formats that have none, or Greenlit's out of date). */
-export async function generateDepthMany(ids: string[], t: TFunction) {
+/**
+ * Makes depth maps for many items: every format of every version that has none, or Greenlit's that are out of date
+ * (`again`: all of Greenlit's own). Uploaded ones are kept.
+ */
+export async function generateDepthMany(ids: string[], t: TFunction, opts: { again?: boolean } = {}) {
   try {
-    const r = await api.post<{ queued: number }>('/depth/generate', { ids })
+    const r = await api.post<{ queued: number }>('/depth/generate', { ids, again: opts.again || undefined })
     if (r.queued) toast.info(t('gen.startedMany', { count: r.queued }))
     else toast.info(t('gen.nothing'))
     for (const id of ids) void queryClient.invalidateQueries({ queryKey: qk.mediaItem(id) })

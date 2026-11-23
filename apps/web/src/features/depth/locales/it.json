@@ -77,7 +77,11 @@
     "add": "Aggiungi mappa di profondità…",
     "replace": "Sostituisci mappa di profondità…",
     "makeMany_one": "Crea mappa di profondità",
-    "makeMany_other": "Crea {{count}} mappe di profondità"
+    "makeMany_other": "Crea {{count}} mappe di profondità",
+    "makeFormats_one": "Crea mappa di profondità",
+    "makeFormats_other": "Crea le sue {{count}} mappe di profondità",
+    "makeAgain_one": "Creala di nuovo",
+    "makeAgain_other": "Ricrea le sue {{count}} mappe di profondità"
   },
   "palette": {
     "match": "Aggiungi mappe di profondità dal nome dei file",
@@ -99,11 +103,12 @@
     "startedMany_other": "Creazione di {{count}} mappe di profondità. Seguile in Attività.",
     "nothing": "Hanno già le mappe di profondità",
     "replaceTitle": "Sostituire la mappa di profondità caricata di {{format}}?",
-    "replaceBody": "Greenlit ne crea una nuova con Depth Anything V2 Small. Il file caricato resta nella cronologia dei file dell'elemento.",
+    "replaceBody": "Greenlit ne crea una nuova con {{model}}. Il file caricato resta nella cronologia dei file dell'elemento.",
     "replaceConfirm": "Creane una nuova",
     "bulk": "Mappe di profondità",
     "metric": "Distanze {{near}} – {{far}} m",
-    "oldModel": "Creata con un modello precedente: ricreala per una mappa più nitida con distanze reali."
+    "oldModel": "Creata con un modello precedente: ricreala per una mappa più nitida con distanze reali.",
+    "forVersion": "Creane una per questa versione"
   },
   "settings": {
     "title": "Mappe di profondità",
@@ -118,7 +123,7 @@
     "kindsImages": "Solo immagini",
     "library": "Libreria",
     "noneMissing": "Tutto ha una mappa di profondità",
-    "missingHint": "Il formato principale della loro versione principale. I brand kit sono esclusi.",
+    "missingHint": "Ogni formato di ogni versione. I brand kit sono esclusi.",
     "queued_one": "{{count}} mappa di profondità in attesa o in creazione",
     "queued_other": "{{count}} mappe di profondità in attesa o in creazione",
     "allButton": "Creale tutte",
@@ -154,6 +159,14 @@
     "outdated_other": "{{count}} mappe di profondità create con un modello precedente",
     "outdatedHint": "Create prima che si usasse {{model}} per le immagini. Ricrearle le sostituisce; i file vecchi restano nella cronologia di ogni elemento.",
     "outdatedButton": "Ricreale",
-    "gpuWebgpu": "WebGPU (fuori da Docker): i video usano la scheda; MoGe-2 richiede più memoria di quella che WebGPU gli dà, quindi le immagini si creano sul processore (pochi secondi ciascuna). La versione CUDA di Greenlit li usa entrambi sulla scheda."
+    "gpuWebgpu": "WebGPU (fuori da Docker): i video usano la scheda; MoGe-2 richiede più memoria di quella che WebGPU gli dà, quindi le immagini si creano sul processore (pochi secondi ciascuna). La versione CUDA di Greenlit li usa entrambi sulla scheda.",
+    "againButton": "Ricreale tutte",
+    "againTitle_one": "Ricreare {{count}} mappa di profondità?",
+    "againTitle_other": "Ricreare {{count}} mappe di profondità?",
+    "againBody": "Greenlit ricrea le sue, una alla volta in background (circa un secondo ciascuna); seguile in Attività. I file precedenti restano nella cronologia di ogni elemento.",
+    "againBodyVideos": "Greenlit ricrea le sue: {{pictures}}, circa un secondo ciascuna; {{videos}}, circa mezzo secondo per fotogramma. Una alla volta in background; seguile in Attività. I file precedenti restano nella cronologia di ogni elemento.",
+    "againUploaded_one": "Quella che hai caricato resta com’è.",
+    "againUploaded_other": "Le {{count}} che hai caricato restano come sono.",
+    "againConfirm": "Ricreale"
   }
 }

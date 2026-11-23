@@ -1,7 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DEPTH_AUTO_DEFAULT, DepthAuto, type DepthJob, type DepthStatus } from '@greenlit/shared'
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { type Actor, systemActor } from '../../core/actor.ts'
 import { badRequest, notFound } from '../../core/errors.ts'
 import type { JobContext } from '../../core/jobs.ts'
@@ -31,6 +31,26 @@ const notInKit = sql`(${media.projectId} is null or ${media.projectId} in (selec
 
 /** The model Greenlit makes each kind's depth maps with now (DEPTH_GENERATORS in @greenlit/shared). */
 const MODEL_FOR = { image: MOGE.id, video: SMALL.id } as const
+
+/**
+ * Every picture and video format, of every version, of the items outside brand kits (`kinds`: their item's kind),
+ * with its own depth map if it has one: whether Greenlit made it, and with which model. A format whose file can't be
+ * read is left out (no model can read it either).
+ */
+const formatsAndMaps = (kinds: 'all' | 'images') => sql`
+  select m.id as media_id, m.kind as media_kind, m.created_at, f.kind,
+    d.id as depth_id, coalesce(d.meta ? 'generated', false) as generated,
+    d.meta->'generated'->>'model' as model
+  from ${media} m
+  join ${mediaFormats} f on f.media_id = m.id and f.role = 'format' and f.kind in ('image', 'video')
+    and f.processing_state <> 'failed'
+  left join ${mediaFormats} d on d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key
+  where m.deleted_at is null and m.kind in (${kinds === 'images' ? sql`'image'` : sql`'image', 'video'`})
+    and (m.project_id is null or m.project_id in (select id from ${projects} where kind = 'project'))`
+
+/** Greenlit's own map was made with a model it no longer uses for that kind (in rows of `formatsAndMaps`). */
+const OUTDATED = sql`generated and model is distinct from
+  case kind when 'image' then ${MODEL_FOR.image} else ${MODEL_FOR.video} end`
 
 /**
  * Makes depth maps as a background job per format, MoGe-2 for pictures and Depth Anything V2 Small for videos: the
@@ -66,17 +86,19 @@ export class DepthService {
   }
 
   async status(): Promise<DepthStatus> {
-    const rows = await this.ctx.db.execute<{ kind: string; n: number }>(sql`
-      select m.kind, count(*)::int as n
-      from ${media} m
-      join ${mediaFormats} f on f.media_id = m.id and f.role = 'format' and f.version = '' and f.is_primary
-      where m.deleted_at is null and m.kind in ('image', 'video')
-        and (m.project_id is null or m.project_id in (select id from ${projects} where kind = 'project'))
-        and not exists (select 1 from ${mediaFormats} d
-          where d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key)
-      group by m.kind`)
-    const n = (k: string) => rows.find((r) => r.kind === k)?.n ?? 0
-    const old = await this.outdatedIds()
+    type Count = 'missing' | 'outdated' | 'made' | 'uploaded'
+    const rows = await this.ctx.db.execute<{ kind: string } & Record<Count, number>>(sql`
+      with f as (${formatsAndMaps('all')})
+      select media_kind as kind,
+        count(distinct media_id) filter (where depth_id is null)::int as missing,
+        count(*) filter (where ${OUTDATED})::int as outdated,
+        count(*) filter (where generated)::int as made,
+        count(*) filter (where depth_id is not null and not generated)::int as uploaded
+      from f group by media_kind`)
+    const n = (c: Count) => ({
+      images: rows.find((r) => r.kind === 'image')?.[c] ?? 0,
+      videos: rows.find((r) => r.kind === 'video')?.[c] ?? 0,
+    })
     const model = (m: MoGe | DepthAnything, kind: 'images' | 'videos') => ({
       id: m.spec.id,
       name: m.spec.name,
@@ -89,8 +111,10 @@ export class DepthService {
     return {
       models: [model(this.moge, 'images'), model(this.small, 'videos')],
       auto: this.auto.get(),
-      missing: { images: n('image'), videos: n('video') },
-      outdated: { images: old.images.length, videos: old.videos.length },
+      missing: n('missing'),
+      outdated: n('outdated'),
+      made: n('made'),
+      uploaded: n('uploaded'),
       queued: this.jobs.size,
       device: {
         backend: this.moge.backend ?? this.small.backend,
@@ -125,10 +149,10 @@ export class DepthService {
   }
 
   /**
-   * Queues depth maps for many items: each one's main version formats (other versions of the same size borrow
-   * them), skipping formats that have an uploaded map unless `replace`, and Greenlit's own maps that are up to date.
+   * Queues depth maps for many items: every picture and video format of every version (pictures first), skipping
+   * formats that have an uploaded map unless `replace`, and Greenlit's own maps that are up to date unless `again`.
    */
-  async queueMany(mediaIds: string[], opts: { replace?: boolean } = {}, actor?: Actor) {
+  async queueMany(mediaIds: string[], opts: { replace?: boolean; again?: boolean } = {}, actor?: Actor) {
     if (!mediaIds.length) return 0
     const rows = await this.ctx.db
       .select({ format: mediaFormats })
@@ -138,50 +162,52 @@ export class DepthService {
         and(
           inArray(mediaFormats.mediaId, mediaIds),
           eq(mediaFormats.role, 'format'),
-          eq(mediaFormats.version, ''),
           inArray(mediaFormats.kind, ['image', 'video']),
+          ne(mediaFormats.processingState, 'failed'),
           isNull(media.deletedAt),
         ),
       )
+      .orderBy(sql`${mediaFormats.kind} = 'video'`, sql`${mediaFormats.version} <> ''`, desc(media.createdAt))
+    const maps = await this.ctx.db
+      .select()
+      .from(mediaFormats)
+      .where(and(inArray(mediaFormats.mediaId, mediaIds), eq(mediaFormats.role, 'depth')))
+    const mapOf = new Map(maps.map((d) => [`${d.mediaId}/${d.version}/${d.key}`, d]))
     let n = 0
     for (const { format } of rows) {
-      const existing = await this.depthOf(format)
+      const existing = mapOf.get(`${format.mediaId}/${format.version}/${format.key}`)
       if (existing && !this.isGenerated(existing) && !opts.replace) continue
-      if (existing && this.isGenerated(existing) && !this.isStale(existing, format)) continue
-      if (await this.queue(format.id, { replaceUploaded: opts.replace }, actor)) n++
+      if (existing && this.isGenerated(existing) && !opts.again && !this.isStale(existing, format)) continue
+      if (await this.queue(format.id, { replaceUploaded: opts.replace, force: opts.again }, actor)) n++
     }
     return n
   }
 
-  /** Everything (outside brand kits) whose main format has no depth map yet. */
+  /** Every item (outside brand kits) of those kinds that has a picture or video, newest first. */
+  async allIds(kinds: 'all' | 'images') {
+    const rows = await this.ctx.db.execute<{ id: string }>(sql`
+      with f as (${formatsAndMaps(kinds)})
+      select media_id as id from f group by media_id order by max(created_at) desc`)
+    return rows.map((r) => r.id)
+  }
+
+  /** Everything (outside brand kits) with a format, of any version, that has no depth map yet. */
   async missingIds(kinds: 'all' | 'images') {
     const rows = await this.ctx.db.execute<{ id: string }>(sql`
-      select m.id from ${media} m
-      join ${mediaFormats} f on f.media_id = m.id and f.role = 'format' and f.version = '' and f.is_primary
-      where m.deleted_at is null and m.kind in (${sql.join(
-        (kinds === 'images' ? ['image'] : ['image', 'video']).map((k) => sql`${k}`),
-        sql`, `,
-      )})
-        and (m.project_id is null or m.project_id in (select id from ${projects} where kind = 'project'))
-        and not exists (select 1 from ${mediaFormats} d
-          where d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key)
-      order by m.created_at desc`)
+      with f as (${formatsAndMaps(kinds)})
+      select media_id as id from f where depth_id is null group by media_id order by max(created_at) desc`)
     return rows.map((r) => r.id)
   }
 
   /**
-   * Items whose main format has a map Greenlit made with a model it no longer uses for that kind (pictures made with
-   * Depth Anything V2 Small before MoGe-2).
+   * Items with a map (of any version and format) Greenlit made with a model it no longer uses for that kind
+   * (pictures made with Depth Anything V2 Small before MoGe-2).
    */
   async outdatedIds() {
     const rows = await this.ctx.db.execute<{ id: string; kind: string }>(sql`
-      select m.id, m.kind from ${media} m
-      join ${mediaFormats} f on f.media_id = m.id and f.role = 'format' and f.version = '' and f.is_primary
-      join ${mediaFormats} d on d.media_id = m.id and d.role = 'depth' and d.version = f.version and d.key = f.key
-      where m.deleted_at is null and m.kind in ('image', 'video')
-        and d.meta ? 'generated'
-        and d.meta->'generated'->>'model' <> case m.kind when 'image' then ${MODEL_FOR.image} else ${MODEL_FOR.video} end
-      order by m.created_at desc`)
+      with f as (${formatsAndMaps('all')})
+      select media_id as id, media_kind as kind from f where ${OUTDATED}
+      group by media_id, media_kind order by max(created_at) desc`)
     return {
       images: rows.filter((r) => r.kind === 'image').map((r) => r.id),
       videos: rows.filter((r) => r.kind === 'video').map((r) => r.id),

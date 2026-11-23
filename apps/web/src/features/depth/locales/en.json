@@ -77,7 +77,11 @@
     "add": "Add depth map…",
     "replace": "Replace depth map…",
     "makeMany_one": "Make depth map",
-    "makeMany_other": "Make {{count}} depth maps"
+    "makeMany_other": "Make {{count}} depth maps",
+    "makeFormats_one": "Make depth map",
+    "makeFormats_other": "Make its {{count}} depth maps",
+    "makeAgain_one": "Make it again",
+    "makeAgain_other": "Make its {{count}} depth maps again"
   },
   "palette": {
     "match": "Add depth maps by file name",
@@ -99,11 +103,12 @@
     "startedMany_other": "Making {{count}} depth maps. Follow them in Activity.",
     "nothing": "They already have depth maps",
     "replaceTitle": "Replace the uploaded depth map of {{format}}?",
-    "replaceBody": "Greenlit makes a new one with Depth Anything V2 Small. The uploaded file stays in the item’s file history.",
+    "replaceBody": "Greenlit makes a new one with {{model}}. The uploaded file stays in the item’s file history.",
     "replaceConfirm": "Make a new one",
     "bulk": "Depth maps",
     "metric": "Distances {{near}} – {{far}} m",
-    "oldModel": "Made with an older model: make it again for a sharper map with real distances."
+    "oldModel": "Made with an older model: make it again for a sharper map with real distances.",
+    "forVersion": "Make one for this version"
   },
   "settings": {
     "title": "Depth maps",
@@ -118,7 +123,7 @@
     "kindsImages": "Pictures only",
     "library": "Library",
     "noneMissing": "Everything has a depth map",
-    "missingHint": "Their main version’s main format. Brand kits are left out.",
+    "missingHint": "Every format of every version. Brand kits are left out.",
     "queued_one": "{{count}} depth map waiting or being made",
     "queued_other": "{{count}} depth maps waiting or being made",
     "allButton": "Make them all",
@@ -154,6 +159,14 @@
     "outdated_other": "{{count}} depth maps made with an older model",
     "outdatedHint": "Made before {{model}} was used for pictures. Making them again replaces them; the old files stay in each item’s history.",
     "outdatedButton": "Make them again",
-    "gpuWebgpu": "WebGPU (outside Docker): videos run on the card; MoGe-2 needs more memory than WebGPU gives it, so pictures are made on the processor (a few seconds each). The CUDA build of Greenlit runs both on the card."
+    "gpuWebgpu": "WebGPU (outside Docker): videos run on the card; MoGe-2 needs more memory than WebGPU gives it, so pictures are made on the processor (a few seconds each). The CUDA build of Greenlit runs both on the card.",
+    "againButton": "Make them all again",
+    "againTitle_one": "Make {{count}} depth map again?",
+    "againTitle_other": "Make {{count}} depth maps again?",
+    "againBody": "Greenlit makes its own again, one at a time in the background (about a second each); follow them in Activity. The old files stay in each item’s history.",
+    "againBodyVideos": "Greenlit makes its own again: {{pictures}} at about a second each, {{videos}} at about half a second per frame. One at a time in the background; follow them in Activity. The old files stay in each item’s history.",
+    "againUploaded_one": "The one you uploaded stays as it is.",
+    "againUploaded_other": "The {{count}} you uploaded stay as they are.",
+    "againConfirm": "Make them again"
   }
 }
