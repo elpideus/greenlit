@@ -88,19 +88,23 @@ export function Viewer({
   const audioTrack = media?.audioTracks.some((a) => a.key === audioParam) ? audioParam : null
   const [newVersion, setNewVersion] = useState(false)
 
-  // reset the shared state per item / format, keep playback preferences
+  // Reset the shared state per item, keeping playback preferences. Another version or shape of the same item keeps
+  // the moment, playback and the open note: the stage carries playback over when the lengths match.
+  const shownItem = useRef<string | null>(null)
   useEffect(() => {
     const s = useViewer.getState()
-    const keep = { rate: s.rate, loop: s.loop, volume: s.volume, muted: s.muted, tab: s.tab }
-    s.reset()
-    s.set({
-      ...keep,
+    const patch = {
       mediaId,
       formatId: format?.id ?? null,
       kind: format?.kind ?? null,
       duration: format?.duration ?? 0,
       audioTrack,
-    })
+    }
+    if (shownItem.current === mediaId) return s.set(patch)
+    shownItem.current = mediaId
+    const keep = { rate: s.rate, loop: s.loop, volume: s.volume, muted: s.muted, tab: s.tab }
+    s.reset()
+    s.set({ ...keep, ...patch })
   }, [mediaId, format?.id])
   useEffect(() => {
     useViewer.getState().set({ audioTrack })

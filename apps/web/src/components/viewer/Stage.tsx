@@ -24,13 +24,29 @@ function fitRect(
   return { x: Math.round((box.width - width) / 2), y: Math.round((box.height - height) / 2), width, height }
 }
 
+/** Two videos as long as each other (within a few frames): another version or shape of the same cut. */
+export function sameLength(a: MediaFormat, b: MediaFormat) {
+  return (
+    a.kind === 'video' &&
+    b.kind === 'video' &&
+    !!a.duration &&
+    !!b.duration &&
+    Math.abs(a.duration - b.duration) <= LENGTH_TOLERANCE
+  )
+}
+const LENGTH_TOLERANCE = 0.15
+
 /**
  * The stage: the current format fitted on black, nothing cropped, with every `media.viewer.overlay` entry drawn exactly
  * over the picture. Clicks that no overlay handles toggle playback.
+ *
+ * Switching to another version or shape of the same length is seamless: the new video loads hidden at the moment on
+ * screen and takes over when it has that frame (playing on if the old one was playing), so nothing restarts or
+ * goes blank. Until then the old one stays on screen (`shown`).
  */
 export function Stage({
   media,
-  format,
+  format: wanted,
   padding = 28,
 }: {
   media: Media
@@ -41,6 +57,12 @@ export function Stage({
   const box = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [el, setEl] = useState<HTMLMediaElement | null>(null)
+  const [nextEl, setNextEl] = useState<HTMLVideoElement | null>(null)
+  const [shown, setShown] = useState(wanted)
+  // A different length (or not a video): switch at once, from the start. The same file with new data: take it.
+  if (wanted.id !== shown.id ? !(sameLength(shown, wanted) && el) : wanted !== shown) setShown(wanted)
+  const pending = wanted.id !== shown.id ? wanted : null
+  const format = shown
   const [naturalOverride, setNatural] = useState<{ width: number; height: number } | null>(null)
   const natural = naturalOverride ?? { width: format.width ?? 1920, height: format.height ?? 1080 }
   const frame = fitRect(
@@ -67,10 +89,23 @@ export function Stage({
     useViewer.getState().set({ frame, natural })
   }, [frame.x, frame.y, frame.width, frame.height, natural.width, natural.height])
 
-  useEffect(() => setNatural(null), [format.id])
+  // A file whose size isn't known yet (still being prepared) takes the video's own.
+  useEffect(() => {
+    const v = el instanceof HTMLVideoElement ? el : null
+    setNatural(
+      v?.videoWidth && (!format.width || !format.height)
+        ? { width: v.videoWidth, height: v.videoHeight }
+        : null,
+    )
+  }, [format.id, el])
+
+  // The seamless hand-over to `pending` (see handOver).
+  useEffect(() => {
+    if (!pending || !nextEl || !(el instanceof HTMLVideoElement)) return
+    return handOver(el, nextEl, () => setShown(pending))
+  }, [pending?.id, nextEl, el])
 
   const ready = format.processing.state === 'ready'
-  const src = format.urls.preview ?? format.urls.original
   const imageSrc = BROWSER_IMAGES.includes(format.mime)
     ? format.urls.original
     : (format.urls.poster ?? format.urls.thumbnail)
@@ -97,22 +132,31 @@ export function Stage({
         onKeyDown={undefined}
         role="presentation"
       >
-        {format.kind === 'video' && (
-          <video
-            key={format.id}
-            ref={setEl}
-            src={ready || format.urls.preview ? src : format.urls.original}
-            poster={format.urls.poster ?? undefined}
-            playsInline
-            preload="auto"
-            className="size-full bg-black object-contain"
-            onLoadedMetadata={(e) => {
-              const v = e.currentTarget
-              if (v.videoWidth && v.videoHeight && (!format.width || !format.height))
-                setNatural({ width: v.videoWidth, height: v.videoHeight })
-            }}
-          />
-        )}
+        {format.kind === 'video' &&
+          // The one on screen, and the one taking over (hidden, silent) while it lines up. Keys keep each element
+          // when it changes role, so the hand-over never reloads it.
+          [format, ...(pending ? [pending] : [])].map((f) => {
+            const current = f.id === format.id
+            const fReady = f.processing.state === 'ready'
+            const fSrc = f.urls.preview ?? f.urls.original
+            return (
+              <video
+                key={f.id}
+                ref={current ? setEl : setNextEl}
+                src={fReady || f.urls.preview ? fSrc : f.urls.original}
+                poster={f.urls.poster ?? undefined}
+                playsInline
+                preload="auto"
+                className="absolute inset-0 size-full bg-black object-contain"
+                style={{ opacity: current ? 1 : 0 }}
+                onLoadedMetadata={(e) => {
+                  const v = e.currentTarget
+                  if (current && v.videoWidth && v.videoHeight && (!f.width || !f.height))
+                    setNatural({ width: v.videoWidth, height: v.videoHeight })
+                }}
+              />
+            )
+          })}
         {format.kind === 'image' && imageSrc && (
           <img
             key={format.id}
@@ -151,6 +195,96 @@ export function Stage({
       )}
     </div>
   )
+}
+
+/**
+ * Lines `next` up with `current` and hands over to it: paused, it seeks to the same moment and swaps once that frame
+ * is drawn; playing, it waits a little ahead of the playhead and swaps (and plays on) when the old video gets
+ * there. Seeks, pauses or speed changes on the old one meanwhile just make it line up again. A video that won't
+ * get ready in a few seconds takes over anyway. Returns a cancel function.
+ */
+function handOver(current: HTMLVideoElement, next: HTMLVideoElement, done: () => void) {
+  /** How far past the lined-up frame the old video may be at the swap (two frames): more would show as a jump back. */
+  const MAX_LATE = 0.08
+  let cancelled = false
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const once = (v: HTMLVideoElement, events: string[], timeout: number) =>
+    new Promise<void>((resolve) => {
+      const finish = () => {
+        for (const e of events) v.removeEventListener(e, finish)
+        clearTimeout(timer)
+        resolve()
+      }
+      const timer = setTimeout(finish, timeout)
+      for (const e of events) v.addEventListener(e, finish)
+    })
+  const seek = async (t: number) => {
+    if (next.readyState < 1) await once(next, ['loadedmetadata', 'error'], 4000)
+    const target = Math.max(0, Math.min(t, Number.isFinite(next.duration) ? next.duration : t))
+    if (Math.abs(next.currentTime - target) > 0.001) {
+      const seeked = once(next, ['seeked', 'error'], 4000)
+      next.currentTime = target
+      await seeked
+    }
+    return target
+  }
+  /** Ready to show (paused) or to play on (playing) from where it is. */
+  const ready = (enough: number) =>
+    next.readyState >= enough
+      ? Promise.resolve()
+      : once(next, ['canplay', 'canplaythrough', 'loadeddata', 'error'], 4000)
+  const swap = () => {
+    if (cancelled) return
+    next.playbackRate = current.playbackRate
+    next.loop = current.loop
+    next.volume = current.volume
+    next.muted = current.muted
+    next.style.opacity = '1'
+    // The old one goes silent now and stops when it leaves the page (its pause is then ignored, see usePlayer).
+    current.muted = true
+    if (!current.paused) void next.play().catch(() => {})
+    done()
+  }
+
+  void (async () => {
+    next.muted = true
+    for (let attempt = 1; attempt <= 4 && !cancelled; attempt++) {
+      if (current.paused) {
+        const t = current.currentTime
+        await seek(t)
+        await ready(2)
+        if (cancelled) return
+        if (current.paused && Math.abs(current.currentTime - t) < 0.001) return swap()
+        continue
+      }
+      // Playing: get ahead of the playhead, by more after each miss (a slow connection).
+      const lead = 0.35 * attempt * Math.max(1, current.playbackRate)
+      const target = await seek(current.currentTime + lead)
+      await ready(3)
+      if (cancelled) return
+      if (current.paused || current.currentTime > target) continue
+      // Wait for the playhead (a timer, not animation frames: those stop in a background tab), then take over
+      // if it got there in time; too late (the tab slept), line up again.
+      const deadline = performance.now() + (lead / Math.max(0.25, current.playbackRate)) * 1000 + 500
+      while (!cancelled && !current.paused && performance.now() < deadline) {
+        const left = (target - current.currentTime) / Math.max(0.25, current.playbackRate)
+        if (left <= 0) break
+        await wait(left > 0.03 ? (left - 0.02) * 1000 : 2)
+      }
+      if (cancelled) return
+      const late = current.currentTime - target
+      if (!current.paused && late >= 0 && late < MAX_LATE) return swap()
+    }
+    // Never lined up (a slow or broken file): take over at the moment on screen anyway.
+    if (!cancelled) {
+      next.currentTime = current.currentTime
+      await wait(0)
+      swap()
+    }
+  })()
+  return () => {
+    cancelled = true
+  }
 }
 
 function AudioFace({

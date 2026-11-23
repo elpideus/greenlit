@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { followVideo } from '@/lib/audioTrack'
+import { followVideo, releaseAudio } from '@/lib/audioTrack'
 import { useViewer } from './store'
 
 /**
@@ -28,6 +28,8 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
       raf.current = requestAnimationFrame(tick)
     }
     const onPause = () => {
+      // Taken off the page after another version took over (see Stage): that one plays on.
+      if (!el.isConnected) return
       cancelAnimationFrame(raf.current)
       set({ playing: false, time: el.currentTime })
     }
@@ -52,6 +54,9 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
       },
     })
     if (el.readyState >= 1) onMeta()
+    // Bound to another version's video mid-play: carry on from where it is.
+    set({ time: el.currentTime, playing: !el.paused })
+    if (!el.paused) raf.current = requestAnimationFrame(tick)
     return () => {
       cancelAnimationFrame(raf.current)
       el.removeEventListener('play', onPlay)
@@ -80,7 +85,8 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
 
 /**
  * Plays an audio track in place of the video's sound, locked to the video: play, pause, seek, speed and loop follow
- * it, and a drift over 0.15 s is corrected. A shorter track falls silent at its end, like the published file.
+ * it, and a drift over 0.15 s is corrected. A shorter track falls silent at its end, like the published file. The
+ * track stays loaded when the video changes (another version at the same moment) and follows the new one.
  */
 export function useAudioTrack(video: HTMLMediaElement | null, url: string | null) {
   const volume = useViewer((s) => s.volume)
@@ -88,17 +94,21 @@ export function useAudioTrack(video: HTMLMediaElement | null, url: string | null
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    if (!video || !url) return
+    if (!url) return
     const a = new Audio()
     a.preload = 'auto'
     a.src = url
     setAudio(a)
-    const stop = followVideo(video, a)
     return () => {
-      stop()
+      releaseAudio(a)
       setAudio(null)
     }
-  }, [video, url])
+  }, [url])
+
+  useEffect(() => {
+    if (!video || !audio) return
+    return followVideo(video, audio)
+  }, [video, audio])
 
   useEffect(() => {
     if (!audio) return

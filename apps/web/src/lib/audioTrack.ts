@@ -1,7 +1,9 @@
 /**
  * Keeps an audio element locked to a video, for an audio track that replaces the video's own sound: play, pause,
  * seek, speed and loop follow the video, a drift over 0.15 s is corrected, and a shorter track falls silent at its
- * end (like the published file). Returns a function that stops following and unloads the audio.
+ * end (like the published file). Returns a function that stops following (and pauses the audio); the audio stays
+ * loaded, so it can follow another video (the same moment in another version) without a gap. Unload it with
+ * releaseAudio.
  */
 export function followVideo(video: HTMLMediaElement, audio: HTMLAudioElement): () => void {
   const ended = () => Number.isFinite(audio.duration) && video.currentTime >= audio.duration
@@ -17,6 +19,8 @@ export function followVideo(video: HTMLMediaElement, audio: HTMLAudioElement): (
     resume()
   }
   const pause = () => {
+    // A video taken off the page (another version took over) stops without pausing the sound.
+    if (!video.isConnected) return
     audio.pause()
     align(true)
   }
@@ -42,12 +46,17 @@ export function followVideo(video: HTMLMediaElement, audio: HTMLAudioElement): (
   ]
   for (const [e, f] of on) video.addEventListener(e, f)
   rate()
-  if (video.paused) align(true)
-  else play()
+  align(false)
+  resume()
   return () => {
     for (const [e, f] of on) video.removeEventListener(e, f)
     audio.pause()
-    audio.removeAttribute('src')
-    audio.load()
   }
+}
+
+/** Stops an audio element and frees what it loaded. */
+export function releaseAudio(audio: HTMLAudioElement) {
+  audio.pause()
+  audio.removeAttribute('src')
+  audio.load()
 }

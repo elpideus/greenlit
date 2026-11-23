@@ -2,7 +2,7 @@ import { truncateForDisplay } from '@greenlit/platforms'
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type CSSProperties, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
-import { followVideo } from '@/lib/audioTrack'
+import { followVideo, releaseAudio } from '@/lib/audioTrack'
 import { cn } from '@/lib/cn'
 import type { PreviewAccount, PreviewMedia } from './types'
 
@@ -76,6 +76,7 @@ export function usePlayback(opts: {
     const stop = followVideo(v, a)
     return () => {
       stop()
+      releaseAudio(a)
       trackRef.current = null
     }
   }, [opts.trackSrc])
