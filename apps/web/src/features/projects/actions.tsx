@@ -64,31 +64,33 @@ export function useProjectActions(opts: { onRename?: (id: string) => void; after
       },
       {
         order: 30,
-        items: manage
-          ? [
-              { label: t('menu.cover'), icon: ImageIcon, onSelect: () => setCoverFor(p) },
-              {
-                label: t('menu.color'),
-                icon: Palette,
-                items: PROJECT_COLORS.map((c) => ({
-                  label: (
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{
-                          background: c.value ?? 'transparent',
-                          boxShadow: c.value ? undefined : 'inset 0 0 0 1.5px var(--ink-3)',
-                        }}
-                      />
-                      {t(c.label)}
-                    </span>
-                  ),
-                  checked: (p.color ?? null) === c.value,
-                  onSelect: () => void patch(p, { color: c.value }),
-                })),
-              },
-            ]
-          : [],
+        // A brand kit's card shows its own logo and palette: no cover or colour to pick.
+        items:
+          manage && p.kind !== 'brand'
+            ? [
+                { label: t('menu.cover'), icon: ImageIcon, onSelect: () => setCoverFor(p) },
+                {
+                  label: t('menu.color'),
+                  icon: Palette,
+                  items: PROJECT_COLORS.map((c) => ({
+                    label: (
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 rounded-full"
+                          style={{
+                            background: c.value ?? 'transparent',
+                            boxShadow: c.value ? undefined : 'inset 0 0 0 1.5px var(--ink-3)',
+                          }}
+                        />
+                        {t(c.label)}
+                      </span>
+                    ),
+                    checked: (p.color ?? null) === c.value,
+                    onSelect: () => void patch(p, { color: c.value }),
+                  })),
+                },
+              ]
+            : [],
       },
       {
         order: 90,

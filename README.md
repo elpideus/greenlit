@@ -47,7 +47,8 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
   as a brand book: the main logo on its colour, swatches with HEX/RGB/CMYK and usage, specimens drawn in the kit's own
   font files, logos on the background they're made for. Its fonts appear in Settings → Design fonts by themselves,
   and Claude reads the whole kit through MCP. The files stay ordinary items (viewer, history, share links) and keep
-  out of the library's main grid.
+  out of the library's main grid. Download the kit back as a .zip with its folders as they were added, whole or one
+  section at a time (send a share link and the printer can download it too).
 - **Your brand** — theme packs (palettes, fonts, radius; a Studio Associato GEM theme included), branding (name,
   logos, favicon, sign-in picture), platform time zone, English and Italian.
 - **API & MCP** — a documented REST API (OpenAPI at `/api/openapi.json`, reference at `/api/docs`) and an MCP server

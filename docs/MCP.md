@@ -21,7 +21,7 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 ## brands
 
-- **`brand_kit`** _(read-only)_ — A brand kit in full: its guide (the kit's README, Markdown: rules, voice, do's and don'ts), its colours (name, hex, CMYK, what each is for, group), font families (role display/text, weights, uppercase, tracking, file URLs) and every file by section (logos, graphics, templates, looks, guidelines, files) with download URLs and, for transparent artwork, the background it reads on (dark/light). Files are media items: use their mediaId with the media tools.
+- **`brand_kit`** _(read-only)_ — A brand kit in full: its guide (the kit's README, Markdown: rules, voice, do's and don'ts), its colours (name, hex, CMYK, what each is for, group), font families (role display/text, weights, uppercase, tracking, file URLs) and every file by section (logos, graphics, templates, looks, guidelines, files) with download URLs and, for transparent artwork, the background it reads on (dark/light). Files are media items: use their mediaId with the media tools. `download` (and each section's) is a zip of the kit with its folders as they were added (send the API token with it).
 - **`brand_kit_update`** — Change a brand kit's guide (Markdown), its colours (the whole list: id, name, hex #RRGGBB, cmyk, usage, group), its font roles (the whole list: family, role display/text/other, usage, uppercase, letterSpacing em, weights) or its main logo (a mediaId of the kit, null = automatic).
 - **`brand_kits`** _(read-only)_ — List brand kits (projects of kind "brand"): id, name, main logo URL, colours (hex) and font families. Use brand_kit for the full rules before making anything for a brand.
 

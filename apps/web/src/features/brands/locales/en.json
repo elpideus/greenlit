@@ -92,5 +92,9 @@
     "moveTo": "Move to",
     "mainLogo": "Main logo",
     "download": "Download"
+  },
+  "download": {
+    "kit": "Download the kit",
+    "section": "Download"
   }
 }

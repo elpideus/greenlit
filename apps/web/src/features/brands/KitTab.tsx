@@ -1,5 +1,5 @@
 import { type BrandKit, type BrandSection, formatBytes, type Project } from '@greenlit/shared'
-import { BookOpen, ChevronDown, FolderUp, Pencil, Upload } from 'lucide-react'
+import { BookOpen, ChevronDown, Download, FolderUp, Pencil, Upload } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { uploadMedia } from '@/data/media'
@@ -10,7 +10,7 @@ import { rise } from '@/lib/motion'
 import { can, useSession } from '@/lib/session'
 import { Button, EmptyState, ErrorState, ProgressBar, Skeleton, Textarea, toast } from '@/ui'
 import { ArtworkGrid, DocumentRows, FileList, FrameGrid, useAssetActions } from './Assets'
-import { useKit, useKitActions } from './api'
+import { kitZipUrl, startDownload, useKit, useKitActions } from './api'
 import { ColorsSection } from './Colors'
 import { inkOn, primary, SECTION_ICON, sectionAnchor, surfaces } from './kit'
 import { Markdown } from './Markdown'
@@ -155,6 +155,19 @@ function KitBook({ kit, project, editable }: { kit: BrandKit; project: Project; 
               <Icon size={17} className="text-ink-3" />
               <h2 className="t-title-2 text-ink">{p.label}</h2>
               {p.count !== undefined && p.count > 0 && <span className="t-meta text-ink-3">{p.count}</span>}
+              <span className="flex-1" />
+              {section(p.id as BrandSection['type']) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={Download}
+                  onClick={() =>
+                    startDownload(kitZipUrl(kit.projectId, p.id as BrandSection['type'], p.label))
+                  }
+                >
+                  {t('download.section')}
+                </Button>
+              )}
             </header>
             {p.node}
           </section>
@@ -221,6 +234,10 @@ function Hero({ kit, onGuidelines }: { kit: BrandKit; onGuidelines?: () => void 
         {kit.families.length > 0 && <span>{kit.families.map((f) => f.family).join(' · ')}</span>}
         <span className="tabular">{t('glance.files', { count: files })}</span>
         {size > 0 && <span className="tabular">{formatBytes(size)}</span>}
+        <span className="flex-1" />
+        <Button size="sm" icon={Download} onClick={() => startDownload(kitZipUrl(kit.projectId))}>
+          {t('download.kit')}
+        </Button>
       </div>
     </div>
   )

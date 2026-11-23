@@ -1,8 +1,19 @@
-import { BrandKit, BrandSummary, Id, MoveBrandAssetInput, UpdateBrandKitInput } from '@greenlit/shared'
+import { Readable } from 'node:stream'
+import {
+  BrandKit,
+  BrandSectionType,
+  BrandSummary,
+  Id,
+  MoveBrandAssetInput,
+  UpdateBrandKitInput,
+} from '@greenlit/shared'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { IdParams, Ok, route } from '../../core/http.ts'
+import { can } from '../../core/actor.ts'
+import { badRequest, HttpError, notFound } from '../../core/errors.ts'
+import { type Ctx, IdParams, Ok, route } from '../../core/http.ts'
 import { defineModule } from '../../core/module.ts'
+import { zipStream } from '../../lib/zip-writer.ts'
 import { brandKits } from './schema.ts'
 import { BrandsService } from './service.ts'
 
@@ -151,6 +162,32 @@ export default defineModule({
       handler: ({ params, actor }) => svc.readColors(params.id, params.mediaId, actor),
     })
 
+    // ── downloading the kit ─────────────────────────────────────────────
+    // A zip of the whole kit (or of one section with ?section=logos&label=Loghi), its folders as they were added. Streamed: a
+    // kit of any size starts downloading at once and costs no disk. A plain link, so share-link visitors can use it.
+    ctx.api.get('/brands/:id/download', async (c: Ctx) => {
+      const actor = c.get('actor')
+      if (!actor) throw new HttpError('unauthenticated')
+      if (!can(actor, 'projects.read')) throw new HttpError('forbidden', 'You cannot open brand kits')
+      const id = c.req.param('id')!
+      if (!Id.safeParse(id).success) throw notFound('Brand kit not found')
+      const asked = c.req.query('section')
+      const section = asked ? BrandSectionType.safeParse(asked) : null
+      if (section && !section.success) throw badRequest(`No section called ${asked}`)
+      const label = c.req.query('label')?.slice(0, 60)
+      const { filename, entries } = await svc.download(id, actor, section?.data, label)
+      const body = zipStream(entries)
+      body.on('error', (err) => ctx.log.warn({ err: err.message, kit: id }, 'a brand kit download broke off'))
+      const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/"/g, "'")
+      return new Response(Readable.toWeb(body) as ReadableStream, {
+        headers: {
+          'content-type': 'application/zip',
+          'content-disposition': `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+          'cache-control': 'private, no-store',
+        },
+      })
+    })
+
     // ── MCP ─────────────────────────────────────────────────────────────
     ctx.mcp.tool({
       name: 'brand_kits',
@@ -177,15 +214,19 @@ export default defineModule({
         '(name, hex, CMYK, what each is for, group), font families (role display/text, weights, uppercase, ' +
         'tracking, file URLs) and every file by section (logos, graphics, templates, looks, guidelines, files) with ' +
         'download URLs and, for transparent artwork, the background it reads on (dark/light). Files are media ' +
-        'items: use their mediaId with the media tools.',
+        "items: use their mediaId with the media tools. `download` (and each section's) is a zip of the kit with " +
+        'its folders as they were added (send the API token with it).',
       input: { projectId: z.uuid() },
       access: 'projects.read',
       readOnly: true,
       handler: async ({ projectId }, { actor }) => {
         const k = await svc.get(projectId, actor)
+        const zip = (section?: string) =>
+          abs(`/api/brands/${k.projectId}/download${section ? `?section=${section}` : ''}`)
         return {
           projectId: k.projectId,
           name: k.name,
+          download: zip(),
           guide: k.guide,
           colors: k.colors,
           fonts: k.families.map((f) => ({
@@ -208,6 +249,7 @@ export default defineModule({
             : null,
           sections: k.sections.map((s) => ({
             section: s.type,
+            download: zip(s.type),
             groups: s.groups.map((g) => ({
               group: g.name,
               files: g.assets.map((a) => {

@@ -1,7 +1,9 @@
 import type { Project } from '@greenlit/shared'
-import { SwatchBook } from 'lucide-react'
+import { Download, SwatchBook } from 'lucide-react'
 import { lazy } from 'react'
 import { defineFeature } from '@/app/feature'
+import { i18next } from '@/lib/i18n'
+import { kitZipUrl, startDownload } from './api'
 import en from './locales/en.json'
 import it from './locales/it.json'
 
@@ -20,6 +22,25 @@ export default defineFeature({
         order: -10,
         when: ({ project }: { project: Project }) => project.kind === 'brand',
         component: KitTab,
+      },
+    ],
+  },
+  menus: {
+    // Right-click a kit's card (or its ⋯): the whole kit as a zip.
+    project: [
+      {
+        id: 'brands.download',
+        order: 80,
+        items: ({ project }: { project: Project }) =>
+          project.kind === 'brand' && project.mediaCount > 0
+            ? [
+                {
+                  label: i18next.t('brands:download.kit'),
+                  icon: Download,
+                  onSelect: () => startDownload(kitZipUrl(project.id)),
+                },
+              ]
+            : [],
       },
     ],
   },

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import {
@@ -22,6 +23,7 @@ import {
   type MoveBrandAssetInput,
   PALETTE_FILE,
   placeBrandFile,
+  sectionForFolder,
   type UpdateBrandKitInput,
 } from '@greenlit/shared'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
@@ -31,6 +33,7 @@ import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import { readFontInfo } from '../../lib/fonts.ts'
 import { ZipError, ZipReader } from '../../lib/zip.ts'
+import type { ZipInput } from '../../lib/zip-writer.ts'
 import { media, mediaFormats } from '../media/schema.ts'
 import { projects } from '../projects/schema.ts'
 import { isPaletteFile, mergeColors, mergeFonts, parsePalette } from './palettes.ts'
@@ -503,6 +506,73 @@ export class BrandsService {
     return { logo: pick ? logoView(pick, colors) : null, chosen: !!chosen }
   }
 
+  // ── downloading a kit ───────────────────────────────────────────────────
+
+  /**
+   * The kit as a zip, the way it was added: every file at its path inside the folder or archive it came with, under
+   * a folder named after the kit. Files that came on their own, or that someone moved to another section, go to a
+   * folder for their section (the kit's own name for it when other files show it: "01 Loghi"), then their group.
+   * `section` = only that part of the kit (`label`: its name in the reader's language, for the zip's name).
+   */
+  async download(projectId: string, actor: Actor, section?: BrandSectionType, label?: string) {
+    const kit = await this.get(projectId, actor)
+    const assets = kit.sections
+      .filter((s) => !section || s.type === section)
+      .flatMap((s) => s.groups.flatMap((g) => g.assets))
+    if (!assets.length)
+      throw notFound(section ? 'This part of the kit has no files' : 'This brand kit has no files')
+    const rows = new Map(
+      (
+        await this.db
+          .select({ mediaId: brandAssets.mediaId, path: brandAssets.path, placedBy: brandAssets.placedBy })
+          .from(brandAssets)
+          .where(
+            inArray(
+              brandAssets.mediaId,
+              assets.map((a) => a.media.id),
+            ),
+          )
+      ).map((r) => [r.mediaId, r]),
+    )
+    const kept = (a: BrandAsset) => {
+      const r = rows.get(a.media.id)
+      return r?.path && r.placedBy === 'auto' ? r.path : null
+    }
+    // The kit's own folder for each section, from the files that still sit where they came.
+    const folderOf = new Map<BrandSectionType, string>()
+    for (const a of kit.sections.flatMap((s) => s.groups.flatMap((g) => g.assets))) {
+      const p = kept(a)
+      const top = p?.includes('/') ? p.split('/')[0]! : null
+      if (top && !folderOf.has(a.section) && sectionForFolder(top) === a.section) folderOf.set(a.section, top)
+    }
+    const name =
+      clean(section ? `${kit.name} - ${label?.trim() || SECTION_FOLDER[section]}` : kit.name) || 'Brand kit'
+    const taken = new Set<string>()
+    const entries: ZipInput[] = []
+    const files = this.ctx.services.files
+    for (const a of assets) {
+      const f = primaryOf(a.media)
+      if (!f) continue
+      const p = kept(a)
+      const dir = p
+        ? p.split('/').slice(0, -1)
+        : [folderOf.get(a.section) ?? SECTION_FOLDER[a.section], ...(a.group ? a.group.split(' › ') : [])]
+      const base = [name, ...dir.map(clean).filter(Boolean), clean(f.filename) || 'file'].join('/')
+      let path = base
+      for (let n = 2; taken.has(path.toLowerCase()); n++)
+        path = base.replace(/(\.[^./]*)?$/, (ext) => ` (${n})${ext}`)
+      taken.add(path.toLowerCase())
+      const blob = await files.get(blobOf(f))
+      const src = await files.source(blob)
+      if ('path' in src && !existsSync(src.path)) {
+        this.ctx.log.warn({ file: f.filename, blob: blob.id }, 'a file of a brand kit is missing on disk')
+        continue
+      }
+      entries.push({ name: path, ...src, date: new Date(f.createdAt) })
+    }
+    return { filename: `${name}.zip`, entries }
+  }
+
   // ── summaries for project cards ─────────────────────────────────────────
 
   async summaries(ids: string[]): Promise<Record<string, BrandSummary>> {
@@ -712,6 +782,29 @@ export class BrandsService {
     this.announce(projectId)
     return this.get(projectId, actor)
   }
+}
+
+/** Folders for files whose own folder isn't known. */
+const SECTION_FOLDER: Record<BrandSectionType, string> = {
+  logos: 'Logos',
+  colors: 'Colours',
+  fonts: 'Fonts',
+  graphics: 'Graphics',
+  templates: 'Templates',
+  looks: 'Looks',
+  guidelines: 'Guidelines',
+  files: 'Files',
+}
+
+/** A name safe as one folder or file name on every system. */
+function clean(s: string) {
+  let out = ''
+  for (const ch of s) {
+    const bad = ch.charCodeAt(0) < 32 || '\\/:*?"<>|'.includes(ch)
+    if (!bad) out += ch
+    else if (!out.endsWith('-')) out += '-'
+  }
+  return out.replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 180)
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────

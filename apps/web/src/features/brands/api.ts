@@ -7,6 +7,25 @@ import { toast } from '@/ui'
 
 export const kitKey = (projectId: string) => ['brands', projectId] as const
 
+/** The kit as a zip, its folders as they were added; `section` alone, named `label` in the reader's language. */
+export function kitZipUrl(projectId: string, section?: BrandSectionType, label?: string) {
+  const q = new URLSearchParams()
+  if (section) q.set('section', section)
+  if (label) q.set('label', label)
+  const s = q.toString()
+  return `/api/brands/${projectId}/download${s ? `?${s}` : ''}`
+}
+
+/** Starts a download without leaving the page (the server says the file's name). */
+export function startDownload(url: string) {
+  const a = document.createElement('a')
+  a.href = url
+  a.download = ''
+  document.body.append(a)
+  a.click()
+  a.remove()
+}
+
 export function useKit(projectId: string) {
   useLiveQuery(
     `project:${projectId}`,

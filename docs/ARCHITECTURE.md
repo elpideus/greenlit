@@ -144,6 +144,10 @@ make a kit more than a folder of files, without the files stopping being media i
 - `GET /media?projectKind=project` (the library) leaves kits' files out; `projects.decorate` gives kit cards their
   logo, colours and families (`Project.brand`). Deleting a kit trashes its files. MCP: `brand_kits`, `brand_kit`,
   `brand_kit_update`.
+- `GET /api/brands/{id}/download[?section=logos&label=Loghi]` streams the kit as a zip (`lib/zip-writer.ts`: stored
+  pictures/PDFs with real sizes in their headers, everything else deflated, ZIP64 when needed): each file at the path
+  it was added with, under a folder named after the kit; files added on their own or moved go to their section's
+  folder. Archived files are read through `files.source()` (the storage module's stream).
 
 ## Data flow
 

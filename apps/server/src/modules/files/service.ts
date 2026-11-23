@@ -241,6 +241,25 @@ export class FilesService {
     })
   }
 
+  /**
+   * Where a blob's bytes can be read: its file on disk, or (archived) a stream as the storage module gives it back.
+   * For callers that read many blobs at once (a zip of a brand kit).
+   */
+  async source(
+    blob: BlobRow,
+  ): Promise<{ path: string } | { open: () => Promise<Readable>; size: number | null }> {
+    if (blob.state === 'hot' || blob.state === 'archiving') return { path: this.absPath(blob) }
+    return {
+      size: null,
+      open: async () => {
+        const [archived] = (await this.ctx.hooks.run('files.openArchived', { blob })).filter(Boolean)
+        if (!archived)
+          throw new HttpError('unavailable', `${blob.filename} is archived and could not be read`)
+        return archived.stream
+      },
+    }
+  }
+
   async serveBlob(c: Context, blob: BlobRow, download: boolean, name?: string) {
     const filename = name || blob.filename
     if (blob.state === 'hot' || blob.state === 'archiving') {
