@@ -1,4 +1,4 @@
-import { Ban, CornerDownRight, FileType, Folder, Hash, Search, X } from 'lucide-react'
+import { Ban, CornerDownRight, FileType, Folder, Hash, Mountain, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -135,8 +135,23 @@ export function SearchField({
               token: { key: 'project' as const, value: p.name },
             }))
 
+    // has:depth / no:depth (with or without a depth map)
+    const depthItems = (which: ('has' | 'no')[]) =>
+      which
+        .filter((k) => !has({ key: k, value: 'depth' }))
+        .map((k) => ({
+          id: `${k}:depth`,
+          group: t('suggest.filters'),
+          icon: <Mountain size={14} className="text-ink-3" />,
+          label: t(`depth.${k}`),
+          hint: <span className="t-meta">{k}:depth</span>,
+          token: { key: k, value: 'depth' },
+        }))
+
     if (kv) {
       const [, key, rest = ''] = kv
+      if ((key === 'has' || key === 'con') && 'depth'.startsWith(rest)) return depthItems(['has'])
+      if ((key === 'no' || key === 'senza') && 'depth'.startsWith(rest)) return depthItems(['no'])
       if (key === 'status' || key === 'stato') out.push(...statusItems(rest))
       else if (key === 'kind' || key === 'tipo' || key === 'type') out.push(...kindItems(rest))
       else if (key === 'tag') out.push(...tagItems(rest))
@@ -198,6 +213,8 @@ export function SearchField({
       }
     }
     out.push(...tagItems(w), ...projectItems(w), ...statusItems(w), ...kindItems(w))
+    if (w.length >= 3 && ['depth', 'profondita', 'profondità', 'mappa'].some((x) => x.startsWith(w)))
+      out.push(...depthItems(['has', 'no']))
     return out
   }, [word, text, tags, projects, tokens, showProjects, t, tc])
 
@@ -250,6 +267,7 @@ export function SearchField({
     if (tk.key === 'status') return statusLabel(tk.value)
     if (tk.key === 'kind') return kindLabel(tk.value)
     if (tk.key === 'exclude') return `${keyLabel('exclude')} ${tk.value}`
+    if (tk.key === 'has' || tk.key === 'no') return t(`depth.${tk.key}`)
     return tk.value
   }
   const groups = suggestions.reduce<{ group: string; items: (Suggestion & { index: number })[] }[]>(
@@ -299,9 +317,12 @@ export function SearchField({
                 )}
               >
                 {tk.key === 'status' && <Tally tone={toneFor(tk.value)} size={7} />}
-                {tk.key !== 'tag' && tk.key !== 'status' && tk.key !== 'exclude' && (
-                  <span className="text-ink-3">{keyLabel(tk.key)}</span>
-                )}
+                {(tk.key === 'has' || tk.key === 'no') && <Mountain size={12} className="text-ink-3" />}
+                {tk.key !== 'tag' &&
+                  tk.key !== 'status' &&
+                  tk.key !== 'exclude' &&
+                  tk.key !== 'has' &&
+                  tk.key !== 'no' && <span className="text-ink-3">{keyLabel(tk.key)}</span>}
                 <span className="max-w-[160px] truncate">{chipLabel(tk)}</span>
                 <button
                   type="button"

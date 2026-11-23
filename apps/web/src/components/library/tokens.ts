@@ -10,7 +10,7 @@ registerLocales('browser', { en, it })
  * The search grammar (packages/shared/search.ts) as chips: finished filters sit in the field as tokens, free words stay
  * text. The whole thing serialises back to one query string, which is what the URL and the API carry.
  */
-export type TokenKey = 'status' | 'kind' | 'tag' | 'project' | 'exclude'
+export type TokenKey = 'status' | 'kind' | 'tag' | 'project' | 'exclude' | 'has' | 'no'
 export interface Token {
   key: TokenKey
   value: string
@@ -18,6 +18,8 @@ export interface Token {
 
 export const STATUSES = MediaStatus.options
 export const KINDS = MediaKind.options
+/** What `has:` / `no:` can ask for (has:depth = with a depth map). */
+export const HAS = ['depth'] as const
 
 /** Italian keys typed by hand map to the English grammar. */
 const KEY_ALIASES: Record<string, TokenKey> = {
@@ -29,6 +31,10 @@ const KEY_ALIASES: Record<string, TokenKey> = {
   tag: 'tag',
   project: 'project',
   progetto: 'project',
+  has: 'has',
+  con: 'has',
+  no: 'no',
+  senza: 'no',
 }
 
 const quote = (s: string) => (/\s/.test(s) ? `"${s}"` : s)
@@ -55,7 +61,10 @@ export function parseTokens(q: string): { tokens: Token[]; text: string } {
   for (const [key, values] of Object.entries(p.filters)) {
     const k = KEY_ALIASES[key]
     for (const v of values) {
-      if (k && k !== 'tag') tokens.push({ key: k, value: v })
+      if ((k === 'has' || k === 'no') && !HAS.includes(v.toLowerCase() as never))
+        extra.push(`${key}:${quote(v)}`)
+      else if (k && k !== 'tag')
+        tokens.push({ key: k, value: k === 'has' || k === 'no' ? v.toLowerCase() : v })
       else if (k === 'tag') tokens.push({ key: 'tag', value: v })
       else extra.push(`${key}:${quote(v)}`)
     }
@@ -76,7 +85,8 @@ export function wordToToken(word: string): Token | null {
       const value = kv[2].replace(/^"|"$/g, '')
       if (key === 'status' && !STATUSES.includes(value as never)) return null
       if (key === 'kind' && !KINDS.includes(value as never)) return null
-      return { key, value }
+      if ((key === 'has' || key === 'no') && !HAS.includes(value.toLowerCase() as never)) return null
+      return { key, value: key === 'has' || key === 'no' ? value.toLowerCase() : value }
     }
   }
   const ex = word.match(/^-(.+)$/)

@@ -196,7 +196,7 @@ export function InfoPanel({ media, format }: { media: Media; format: MediaFormat
           </div>
         )}
 
-        <Slot name="media.info.sections" props={{ media }} />
+        <Slot name="media.info.sections" props={{ media, format }} />
 
         <section>
           <div className="mb-2 t-headline text-ink">

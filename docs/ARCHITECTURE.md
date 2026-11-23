@@ -101,7 +101,7 @@ tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 | `library.toolbar`        | `{ projectId }`               | extra buttons in the library toolbar                                                   |
 | `media.bulk`             | `{ ids, items, clear }`       | buttons in the floating bulk bar                                                       |
 | `media.panels`           | `{ media, format }`           | tabs of the viewer's side panel (`label`, `icon` required)                             |
-| `media.info.sections`    | `{ media }`                   | sections in the viewer's Info tab                                                      |
+| `media.info.sections`    | `{ media, format }`           | sections in the viewer's Info tab (`format` = the one on screen)                       |
 | `media.viewer.tools`     | `{ media, format }`           | buttons in the viewer's top bar                                                        |
 | `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect)     |
 | `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (designs, text files); first wins    |
@@ -148,6 +148,30 @@ make a kit more than a folder of files, without the files stopping being media i
   pictures/PDFs with real sizes in their headers, everything else deflated, ZIP64 when needed): each file at the path
   it was added with, under a folder named after the kit; files added on their own or moved go to their section's
   folder. Archived files are read through `files.source()` (the storage module's stream).
+
+## Depth maps
+
+Depth maps are made elsewhere (Depth Anything, Marigold, DepthCrafter, a render's Z pass…); Greenlit keeps and shows
+them, it never makes them. Each is a `media_formats` row with `role` `depth` and the `version` and `key` of the format
+it describes (one per format of each version), so file history, processing, storage and downloads work as for any
+file. `Media.depthMaps` lists them; `depthMapFor(media, format)` (`packages/shared/src/areas/depth.ts`) finds a
+format's own, or lends another version the main version's map when the pictures have the same size (and length).
+
+- Upload target `{ mediaId, formatKey, version?, depth: true }`: a picture's map must be a picture (8/16-bit PNG,
+  TIFF, EXR, PFM…), a video's a video. Renaming a format's key moves its map; removing a format or a version removes
+  theirs; "make main" swaps them with the formats.
+- Processing (`processDepthImage`): the file stays as it is; the preview (thumb.webp, lossless poster.webp) is
+  stretched over the values the map uses (16-bit integers through sharp, floats through ffmpeg's own decoder without
+  its scaler, which would clip them to 0..1). Distances (near = dark) spanning a lot are spread on a log scale.
+  `MediaFormat.depth` says which end is near (`near`: the user's choice via `PATCH /media/{id}/formats/{depthId}`,
+  else a guess: EXR = dark, anything else = light), the bit depth and the range; flipping `near` re-reads a picture.
+- `POST /media/depth-maps/match {names, projectId?}` finds the formats depth map files belong to by name
+  (`depthNameCandidates`: `IMG_0412_depth_16bit.png`, `depth_IMG_0412.png`, `clip_vis.mp4`…). Search: `has:depth`,
+  `no:depth`. MCP: `media_view` with `depth: true`, `media_import` with `depth: true`.
+- Web (`features/depth`): the viewer tool (Picture / Depth map / Split / 3D, key `D`), overlays under the notes (the
+  map, or a WebGL 2 parallax view) and over them (the split line), the Info section, the library's "Add depth maps"
+  dialog and right-click item. A video map follows the stage's video frame by frame (`useViewer().element`,
+  `followFrames`).
 
 ## Data flow
 

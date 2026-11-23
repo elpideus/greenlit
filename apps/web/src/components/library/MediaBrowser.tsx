@@ -297,7 +297,7 @@ export function MediaBrowser({
   )
 
   const filters = countFilters(q)
-  const toggle = (key: 'status' | 'kind' | 'tag' | 'project', value: string) =>
+  const toggle = (key: 'status' | 'kind' | 'tag' | 'project' | 'has' | 'no', value: string) =>
     setParam('q', toggleToken(q, { key, value }))
   const filterItems = [
     {
@@ -347,6 +347,22 @@ export function MediaBrowser({
           onSelect: () => toggle('project', p.name),
         })),
       },
+    {
+      label: t('depth.group'),
+      items: (['has', 'no'] as const).map((k) => ({
+        label: t(`depth.${k}`),
+        checked: hasToken(q, { key: k, value: 'depth' }),
+        keepOpen: true,
+        onSelect: () => {
+          // With and without exclude each other.
+          const other = k === 'has' ? 'no' : 'has'
+          const base = hasToken(q, { key: other, value: 'depth' })
+            ? toggleToken(q, { key: other, value: 'depth' })
+            : q
+          setParam('q', toggleToken(base, { key: k, value: 'depth' }))
+        },
+      })),
+    },
     filters > 0 && 'separator',
     filters > 0 && { label: t('empty.clear'), onSelect: () => setParam('q', null) },
   ] as const

@@ -43,6 +43,7 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
     el.addEventListener('seeked', onSeeked)
     el.addEventListener('timeupdate', onSeeked)
     set({
+      element: el,
       controls: {
         play: () => void el.play().catch(() => {}),
         pause: () => el.pause(),
@@ -66,7 +67,7 @@ export function usePlayer(el: HTMLMediaElement | null, fps: number) {
       el.removeEventListener('durationchange', onMeta)
       el.removeEventListener('seeked', onSeeked)
       el.removeEventListener('timeupdate', onSeeked)
-      useViewer.getState().set({ controls: null, playing: false })
+      useViewer.getState().set({ controls: null, element: null, playing: false })
     }
   }, [el])
 

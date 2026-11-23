@@ -72,7 +72,25 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
     let takenAt: Date | null = null
     let location: { lat: number; lng: number } | null = null
 
-    if (kind === 'image') {
+    if (kind === 'image' && format.role === 'depth') {
+      // EXR depth mostly comes from renders' Z passes: distance, so the near end is dark.
+      const nearGuess = format.mime === 'image/x-exr' ? 'dark' : 'light'
+      const kept = depthMetaOf(format.meta)
+      const r = await processDepthImage(src, out, { near: kept.near ?? nearGuess })
+      info = {
+        width: r.width,
+        height: r.height,
+        meta: {
+          ...kept,
+          nearGuess,
+          bitDepth: r.bitDepth,
+          float: r.float,
+          range: r.range,
+          curve: r.curve,
+        },
+      }
+      derived.push(...r.derived)
+    } else if (kind === 'image') {
       const r = await processImage(src, out)
       info = { width: r.width, height: r.height }
       derived.push(...r.derived)
@@ -106,6 +124,13 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
           pixFmt: p.pixFmt,
           hdr: isHdr(p),
           container: p.format,
+          ...(format.role === 'depth'
+            ? {
+                ...depthMetaOf(format.meta),
+                bitDepth: bitDepthOf(p.pixFmt),
+                float: /f(16|32)/.test(p.pixFmt ?? ''),
+              }
+            : {}),
         }
       }
     } else if (format.mime === 'application/pdf') {
@@ -134,10 +159,12 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
       // The item's kind follows its main file (not another version's, nor an audio track).
       if (format.isPrimary && format.role === 'format' && !format.version && m.kind !== kind)
         patch.kind = kind
-      if (!m.takenAt && takenAt && !Number.isNaN(takenAt.getTime()) && takenAt.getFullYear() > 1980)
+      // A depth map or a sound file says nothing about when and where the picture was taken.
+      const own = format.role === 'format'
+      if (own && !m.takenAt && takenAt && !Number.isNaN(takenAt.getTime()) && takenAt.getFullYear() > 1980)
         patch.takenAt = takenAt
       if (Object.keys(patch).length) await ctx.db.update(media).set(patch).where(eq(media.id, m.id))
-      if (location)
+      if (location && own)
         ctx.events.emit('media.located', { id: m.id, lat: location.lat, lng: location.lng, source: 'exif' })
       ctx.events.emit('media.processed', { id: m.id, formatId })
       ctx.services.media.publish(m.id, m.projectId, 'media.updated')
@@ -147,6 +174,201 @@ export async function processFormat(ctx: ModuleContext, formatId: string, job: J
     await setState({ processingState: 'failed', processingError: (err as Error).message.slice(0, 1000) })
     throw err
   }
+}
+
+/** Longest side of a depth map picture's preview. */
+const DEPTH_MAX = 2400
+
+/** What a depth map's row keeps across new files: the near end the user chose. */
+function depthMetaOf(meta: unknown): { near?: 'light' | 'dark' } {
+  const near = (meta as { near?: unknown } | null)?.near
+  return near === 'light' || near === 'dark' ? { near } : {}
+}
+
+/** Bits per value of a pixel format: gray16le → 16, yuv420p10le → 10, grayf32le → 32, yuv420p → 8. */
+function bitDepthOf(pixFmt: string | null) {
+  if (!pixFmt) return null
+  if (/^(rgb|bgr)a?(48|64)/.test(pixFmt)) return 16
+  const m = /(?:p|gray|f)(\d{2})(?:le|be)?$/.exec(pixFmt)
+  return m ? Number(m[1]) : 8
+}
+
+/**
+ * A depth map picture: its values (8 or 16 bit, or floating point from EXR, PFM or TIFF, in metres or anything else)
+ * are stretched over the range they use into a grey preview (thumb.webp, poster.webp), so a 16-bit map in
+ * millimetres or an EXR in metres reads like any other. Distances (`near` dark) that span a lot (a room and the
+ * sky) are spread on a log scale, as eyes see depth, so near things don't all crush into black. The file itself
+ * stays as it is, and the preview keeps its convention (near stays dark).
+ */
+export async function processDepthImage(src: string, out: string, opts: { near?: 'light' | 'dark' } = {}) {
+  const plane = await readDepthPlane(src)
+  const { width, height, values } = plane
+  const range = depthRange(values)
+  const [lo, hi] = range
+  const curve = opts.near === 'dark' && lo > 0 && hi / lo > 3 ? 'log' : 'linear'
+  const span = hi - lo || 1
+  const logLo = Math.log(lo)
+  const logSpan = Math.log(hi) - logLo || 1
+  const level =
+    curve === 'log'
+      ? (v: number) => (Math.log(Math.max(v, lo)) - logLo) / logSpan
+      : (v: number) => (v - lo) / span
+  const px = Buffer.alloc(width * height)
+  for (let i = 0; i < px.length; i++) {
+    const v = values[i]!
+    // Beyond the range: clamp. Infinity (the sky in a Z pass) is the far end of the scale.
+    px[i] = Number.isFinite(v) ? Math.round(Math.min(1, Math.max(0, level(v))) * 255) : v > 0 ? 255 : 0
+  }
+  const grey = sharp(px, { raw: { width, height, channels: 1 } })
+  await grey
+    .clone()
+    .resize(640, 640, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: 82 })
+    .toFile(join(out, 'thumb.webp'))
+  // Lossless: smooth gradients band in lossy WebP, and the 3D view reads these values.
+  await grey.clone().webp({ lossless: true, effort: 3 }).toFile(join(out, 'poster.webp'))
+  return {
+    width: plane.fullWidth,
+    height: plane.fullHeight,
+    bitDepth: plane.bitDepth,
+    float: plane.float,
+    range: [round(lo), round(hi)] as [number, number],
+    curve,
+    derived: ['thumb.webp', 'poster.webp'],
+  }
+}
+
+const round = (v: number) => Number(v.toPrecision(6))
+
+/**
+ * The values of a depth map picture, at most DEPTH_MAX on its longest side: integers through sharp (keeping 16 bits),
+ * floating point (EXR, PFM, float TIFF) through ffmpeg's own decoder (its scaler would clip floats to 0..1).
+ */
+async function readDepthPlane(src: string): Promise<{
+  values: ArrayLike<number>
+  width: number
+  height: number
+  fullWidth: number
+  fullHeight: number
+  bitDepth: number | null
+  float: boolean
+}> {
+  const meta = await sharp(src, { failOn: 'none' })
+    .metadata()
+    .catch(() => null)
+  if (meta?.width && meta.height && ['uchar', 'char', 'ushort', 'short'].includes(meta.depth ?? '')) {
+    const wide = meta.depth === 'ushort' || meta.depth === 'short'
+    const { data, info } = await sharp(src, { failOn: 'none' })
+      .rotate()
+      .removeAlpha()
+      .resize(DEPTH_MAX, DEPTH_MAX, { fit: 'inside', withoutEnlargement: true })
+      .toColourspace(wide ? 'grey16' : 'b-w')
+      .raw({ depth: wide ? 'ushort' : 'uchar' })
+      .toBuffer({ resolveWithObject: true })
+    const all = wide
+      ? new Uint16Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.length))
+      : new Uint8Array(data)
+    const values = info.channels === 1 ? all : all.filter((_, i) => i % info.channels === 0)
+    const rotated = (meta.orientation ?? 1) >= 5
+    return {
+      values,
+      width: info.width,
+      height: info.height,
+      fullWidth: rotated ? meta.height : meta.width,
+      fullHeight: rotated ? meta.width : meta.height,
+      bitDepth: wide ? 16 : 8,
+      float: false,
+    }
+  }
+  const p = await probe(src)
+  if (!p.width || !p.height) throw new Error('Not a picture Greenlit can read as a depth map')
+  const w = p.width
+  const h = p.height
+  const fmt = p.pixFmt ?? ''
+  if (/f(16|32)/.test(fmt)) {
+    if (w * h > 80_000_000) throw new Error('This depth map is too large to preview')
+    // Planar floats: the first plane is the grey one (or green, the same values in a grey picture saved as RGB).
+    const { stdout } = await ffmpeg(['-i', src, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1'])
+    const n = w * h
+    if (stdout.length < n * 4) throw new Error('The depth map could not be decoded')
+    const view = new DataView(stdout.buffer, stdout.byteOffset, n * 4)
+    const le = !fmt.endsWith('be')
+    const full = new Float32Array(n)
+    for (let i = 0; i < n; i++) full[i] = view.getFloat32(i * 4, le)
+    return { ...shrink(full, w, h), fullWidth: w, fullHeight: h, bitDepth: null, float: true }
+  }
+  // Another integer picture sharp can't read: 16-bit grey from ffmpeg.
+  const scale = Math.min(1, DEPTH_MAX / Math.max(w, h))
+  const ow = Math.max(1, Math.round(w * scale))
+  const oh = Math.max(1, Math.round(h * scale))
+  const { stdout } = await ffmpeg([
+    '-i',
+    src,
+    '-frames:v',
+    '1',
+    '-vf',
+    `scale=${ow}:${oh}:flags=area`,
+    '-pix_fmt',
+    'gray16le',
+    '-f',
+    'rawvideo',
+    'pipe:1',
+  ])
+  const values = new Uint16Array(stdout.buffer.slice(stdout.byteOffset, stdout.byteOffset + ow * oh * 2))
+  return {
+    values,
+    width: ow,
+    height: oh,
+    fullWidth: w,
+    fullHeight: h,
+    bitDepth: bitDepthOf(fmt),
+    float: false,
+  }
+}
+
+/** Box-averages a float plane down to DEPTH_MAX on its longest side (non-finite values only where nothing else is). */
+function shrink(src: Float32Array, w: number, h: number) {
+  const f = Math.ceil(Math.max(w, h) / DEPTH_MAX)
+  if (f <= 1) return { values: src, width: w, height: h }
+  const ow = Math.floor(w / f)
+  const oh = Math.floor(h / f)
+  const out = new Float32Array(ow * oh)
+  for (let y = 0; y < oh; y++)
+    for (let x = 0; x < ow; x++) {
+      let sum = 0
+      let n = 0
+      let other = 0
+      for (let dy = 0; dy < f; dy++)
+        for (let dx = 0; dx < f; dx++) {
+          const v = src[(y * f + dy) * w + x * f + dx]!
+          if (Number.isFinite(v)) {
+            sum += v
+            n++
+          } else other = v
+        }
+      out[y * ow + x] = n ? sum / n : other
+    }
+  return { values: out, width: ow, height: oh }
+}
+
+/**
+ * The range a depth map's values use, without stray pixels: the 0.1st to 99.9th percentile of its finite values
+ * (from a sample of at most 250 000).
+ */
+export function depthRange(values: ArrayLike<number>): [number, number] {
+  const step = Math.max(1, Math.floor(values.length / 250_000))
+  const sample: number[] = []
+  for (let i = 0; i < values.length; i += step) {
+    const v = values[i]!
+    if (Number.isFinite(v)) sample.push(v)
+  }
+  if (!sample.length) return [0, 1]
+  sample.sort((a, b) => a - b)
+  const at = (q: number) =>
+    sample[Math.min(sample.length - 1, Math.max(0, Math.round(q * (sample.length - 1))))]!
+  const lo = at(0.001)
+  const hi = at(0.999)
+  return hi > lo ? [lo, hi] : [sample[0]!, sample.at(-1)! > sample[0]! ? sample.at(-1)! : sample[0]! + 1]
 }
 
 async function processImage(src: string, out: string) {

@@ -153,6 +153,8 @@ export type UploadTarget = {
   /** As a new version of `mediaId` (another language, without the watermark...). */
   newVersion?: NewVersionInput
   audio?: boolean
+  /** The depth map of format `formatKey` (of `version`). */
+  depth?: boolean
 }
 
 /**

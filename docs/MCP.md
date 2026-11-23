@@ -74,11 +74,11 @@ sends usage instructions on connect and exposes the editor guide as the resource
 ## media
 
 - **`media_get`** _(read-only)_ — Everything about one media item: notes, tags, formats with sizes and URLs, places, counts.
-- **`media_import`** — Add a file to the library from a path on the Greenlit machine or from a URL. With mediaId it becomes a new format (formatKey e.g. "vertical", "square") or a new file version of that media item.
-- **`media_search`** _(read-only)_ — Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.
+- **`media_import`** — Add a file to the library from a path on the Greenlit machine or from a URL. With mediaId it becomes a new format (formatKey e.g. "vertical", "square") or a new file version of that media item; with `depth: true`, the depth map of that format (and `version`).
+- **`media_search`** _(read-only)_ — Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", has:depth / no:depth (with or without a depth map), -exclude.
 - **`media_trash`** _(careful)_ — Move media items to the trash (they can be restored).
 - **`media_update`** — Change a media item: title, description (notes), tags (replaces the list), status, projectId. Every change is versioned.
-- **`media_view`** _(read-only)_ — Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it.
+- **`media_view`** _(read-only)_ — Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it. With depth:true, its depth map instead (stretched over the values it uses).
 
 ## music
 

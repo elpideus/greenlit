@@ -15,7 +15,9 @@
     "kind": "tipo",
     "tag": "tag",
     "project": "progetto",
-    "exclude": "senza"
+    "exclude": "senza",
+    "has": "con",
+    "no": "senza"
   },
   "filter": "Filtra",
   "sort": {
@@ -135,5 +137,12 @@
     "updated": "Aggiunto"
   },
   "inTrash": "Nel cestino",
-  "back": "Torna alla libreria"
+  "back": "Torna alla libreria",
+  "depth": {
+    "group": "Mappa di profondità",
+    "has": "Con mappa di profondità",
+    "no": "Senza mappa di profondità"
+  },
+  "depthMaps_one": "Mappa di profondità",
+  "depthMaps_other": "{{count}} mappe di profondità"
 }

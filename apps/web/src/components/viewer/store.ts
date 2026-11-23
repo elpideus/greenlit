@@ -58,6 +58,8 @@ export interface ViewerState {
   loop: boolean
   volume: number
   controls: ViewerControls | null
+  /** The <video>/<audio> playing now, for layers that follow it frame by frame (a depth map's video). */
+  element: HTMLMediaElement | null
   set: (patch: Partial<Omit<ViewerState, 'set' | 'reset'>>) => void
   reset: () => void
 }
@@ -84,6 +86,7 @@ const initial = {
   loop: false,
   volume: 1,
   controls: null,
+  element: null,
 }
 
 export const useViewer = create<ViewerState>((set) => ({

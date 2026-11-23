@@ -2,6 +2,9 @@ import { existsSync, readdirSync } from 'node:fs'
 import { copyFile, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import {
+  DepthMatch,
+  DepthMatchInput,
+  depthMapFor,
   FormatKey,
   Media,
   MediaKind,
@@ -64,6 +67,8 @@ const UploadTarget = z.object({
   newVersion: NewVersionInput.optional(),
   /** Add the file to `mediaId` as an audio track (`formatKey` = the track's key). */
   audio: z.boolean().optional(),
+  /** Add the file to `mediaId` as the depth map of format `formatKey` (of `version`). */
+  depth: z.boolean().optional(),
   /** New items: the file's path inside a folder dropped as a whole ("01 Logos/white.svg"). */
   path: z.string().max(1000).optional(),
 })
@@ -325,6 +330,7 @@ export default defineModule({
               version: target.version,
               newVersion: target.newVersion,
               audio: target.audio,
+              depth: target.depth,
             },
             actor,
           )
@@ -451,9 +457,21 @@ export default defineModule({
       },
     })
     route(ctx.api, {
+      method: 'post',
+      path: '/media/depth-maps/match',
+      summary: 'Find the pictures and videos depth map files belong to, by file name',
+      description:
+        '"IMG_0412_depth.png", "depth_IMG_0412.png" or "IMG_0412.png" belong to the format whose file is IMG_0412.jpg. Upload each one with `media.upload` and target `{mediaId, formatKey, version, depth: true}`.',
+      tags,
+      access: 'media.upload',
+      body: DepthMatchInput,
+      response: z.array(DepthMatch),
+      handler: ({ actor, body }) => svc.matchDepthMaps(body, actor),
+    })
+    route(ctx.api, {
       method: 'patch',
       path: '/media/{id}/formats/{formatId}',
-      summary: 'Rename a format or make it the main one',
+      summary: 'Rename a format or make it the main one; a depth map: which end is near',
       tags,
       access: 'media.edit',
       params: IdParams.extend({ formatId: z.uuid() }),
@@ -583,6 +601,16 @@ export default defineModule({
       projectId: z.uuid().nullable().optional(),
       mediaId: z.uuid().optional().describe('Add as a format / new file version of this media item'),
       formatKey: FormatKey.optional(),
+      version: z
+        .string()
+        .optional()
+        .describe('With mediaId: a version key from media_get (default: the main one)'),
+      depth: z
+        .boolean()
+        .optional()
+        .describe(
+          'With mediaId: the file is the depth map of format formatKey (default main) of that version — a picture for a picture, a video for a video',
+        ),
       title: z.string().optional(),
       tags: z.array(z.string()).optional(),
       note: z.string().optional(),
@@ -612,10 +640,11 @@ export default defineModule({
         createdBy: actor.kind === 'user' ? actor.user.id : null,
       })
       if (input.mediaId) {
+        const version = input.version === 'main' ? '' : (input.version ?? '')
         const formatId = await svc.attachFile(
           input.mediaId,
           blob,
-          { formatKey: input.formatKey ?? 'main', note: input.note },
+          { formatKey: input.formatKey ?? 'main', note: input.note, version, depth: input.depth },
           actor,
         )
         return { mediaId: input.mediaId, formatId }
@@ -673,16 +702,27 @@ export default defineModule({
       ...(m.audioTracks.length
         ? { audioTracks: m.audioTracks.map((a) => ({ key: a.key, label: a.label, duration: a.duration })) }
         : {}),
+      ...(m.depthMaps.length
+        ? {
+            depthMaps: m.depthMaps.map((d) => ({
+              format: d.key,
+              version: d.version || 'main',
+              width: d.width,
+              height: d.height,
+              near: d.depth?.near,
+            })),
+          }
+        : {}),
       openComments: m.openCommentCount,
       createdAt: m.createdAt,
     })
     ctx.mcp.instruct(
-      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions that combine (the same video with Italian or English text, with or without the watermark: each version is one combination and has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video. Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
+      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions that combine (the same video with Italian or English text, with or without the watermark: each version is one combination and has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video, and depth maps (one per format, made elsewhere: media_view with depth:true shows one, media_import with depth:true adds one). Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
     )
     ctx.mcp.tool({
       name: 'media_search',
       description:
-        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", -exclude.',
+        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", has:depth / no:depth (with or without a depth map), -exclude.',
       input: {
         q: z.string().optional(),
         projectId: z.uuid().optional(),
@@ -709,21 +749,23 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'media_view',
       description:
-        'Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it.',
+        'Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it. With depth:true, its depth map instead (stretched over the values it uses).',
       input: {
         id: z.uuid(),
         time: z.number().min(0).optional(),
         format: FormatKey.optional(),
         version: z.string().optional().describe('A version key from media_get (default: the main version)'),
+        depth: z.boolean().optional().describe("The format's depth map instead of its picture"),
         width: z.number().int().min(160).max(1920).optional(),
       },
       access: 'media.read',
       readOnly: true,
-      handler: async ({ id, time, format, version, width }, { actor }) => {
+      handler: async ({ id, time, format, version, depth, width }, { actor }) => {
         const m = await svc.get(id, actor)
         const fs = versionFormats(m, version === 'main' ? '' : version)
-        const f = fs.find((x) => x.key === format) ?? fs.find((x) => x.isPrimary) ?? fs[0]
-        if (!f) throw notFound('No file')
+        const picture = fs.find((x) => x.key === format) ?? fs.find((x) => x.isPrimary) ?? fs[0]
+        const f = depth && picture ? depthMapFor(m, picture)?.map : picture
+        if (!f) throw notFound(depth ? `${m.title} has no depth map for this format` : 'No file')
         const blob = await files.get((await svc.formatRow(f.id)).blobId)
         let image: Buffer
         if (f.kind === 'video' && time !== undefined) {
@@ -751,7 +793,7 @@ export default defineModule({
         return new McpContent([
           {
             type: 'text',
-            text: `${m.title} — ${f.key} ${f.width}×${f.height}${f.duration ? `, ${f.duration.toFixed(2)} s` : ''}${time !== undefined ? ` @ ${time}s` : ''}`,
+            text: `${m.title} — ${f.key}${depth ? ` depth map (near is ${f.depth?.near ?? 'light'})` : ''} ${f.width}×${f.height}${f.duration ? `, ${f.duration.toFixed(2)} s` : ''}${time !== undefined ? ` @ ${time}s` : ''}`,
           },
           { type: 'image', data: jpg.toString('base64'), mimeType: 'image/jpeg' },
         ])

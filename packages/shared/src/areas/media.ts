@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { Id, IsoDate, MediaKind, UserRef } from '../common.ts'
+import { DepthInfo, DepthNear } from './depth.ts'
 import { PlaceRef } from './places.ts'
 
 export const MediaStatus = z.enum(['draft', 'in_review', 'changes_requested', 'approved'])
@@ -54,6 +55,8 @@ export const MediaFormat = z.object({
     waveform: z.string().nullable(),
   }),
   storage: z.enum(['hot', 'archiving', 'archived', 'restoring']),
+  /** Depth maps only: which end is near, the file's bit depth and the range its preview shows. */
+  depth: DepthInfo.optional(),
   createdAt: IsoDate,
 })
 export type MediaFormat = z.infer<typeof MediaFormat>
@@ -106,6 +109,11 @@ export const Media = z.object({
   versionGroups: z.array(MediaVersionGroup),
   /** Extra audio tracks that can replace a video's own sound (voice-over in another language, no music...). */
   audioTracks: z.array(MediaFormat),
+  /**
+   * Depth maps made elsewhere, one per format of a version: each has the `key` and `version` of the format it
+   * describes (see depthMapFor).
+   */
+  depthMaps: z.array(MediaFormat),
   thumbnailUrl: z.string().nullable(),
   places: z.array(PlaceRef),
   commentCount: z.number().int(),
@@ -156,6 +164,8 @@ export const UpdateFormatInput = z.object({
   key: FormatKey.optional(),
   label: z.string().min(1).max(60).optional(),
   isPrimary: z.literal(true).optional(),
+  /** Depth maps: which end of the scale is near the camera. */
+  near: DepthNear.optional(),
 })
 
 export const UpdateVersionInput = z.object({

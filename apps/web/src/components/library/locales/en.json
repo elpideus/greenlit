@@ -15,7 +15,9 @@
     "kind": "kind",
     "tag": "tag",
     "project": "project",
-    "exclude": "not"
+    "exclude": "not",
+    "has": "has",
+    "no": "no"
   },
   "filter": "Filter",
   "sort": {
@@ -135,5 +137,12 @@
     "updated": "Added"
   },
   "inTrash": "In the trash",
-  "back": "Back to library"
+  "back": "Back to library",
+  "depth": {
+    "group": "Depth map",
+    "has": "With depth map",
+    "no": "Without depth map"
+  },
+  "depthMaps_one": "Depth map",
+  "depthMaps_other": "{{count}} depth maps"
 }

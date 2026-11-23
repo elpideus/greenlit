@@ -23,6 +23,12 @@ export const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.wasm': 'application/wasm',
   '.mp4': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.mkv': 'video/x-matroska',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
+  '.exr': 'image/x-exr',
+  '.pfm': 'image/x-portable-floatmap',
   '.figcraft': 'application/x-figcraft',
 }
 

@@ -623,7 +623,7 @@ async function matchMedia(ctx: ModuleContext, thumbnailUrl: string): Promise<str
     if (!res.ok) return null
     const target = await dhash(Buffer.from(await res.arrayBuffer()))
     const rows = await ctx.db.execute<{ media_id: string; blob_id: string }>(
-      `select f.media_id, f.blob_id from media_formats f join media m on m.id = f.media_id where m.deleted_at is null and 'poster.webp' = any(f.derived) order by m.created_at desc limit 2000` as never,
+      `select f.media_id, f.blob_id from media_formats f join media m on m.id = f.media_id where m.deleted_at is null and f.role = 'format' and 'poster.webp' = any(f.derived) order by m.created_at desc limit 2000` as never,
     )
     let best: { id: string; d: number } | null = null
     for (const row of rows) {

@@ -1,4 +1,10 @@
 import {
+  type DepthMatch,
+  type DepthMatchInput,
+  type DepthNear,
+  type DepthTarget,
+  depthNameCandidates,
+  depthNameKey,
   FORMAT_PRESETS,
   findVersion,
   keyFor,
@@ -115,7 +121,9 @@ export class MediaService {
 
   formatView(f: FormatRow, storage: BlobRow['state'] = 'hot'): MediaFormat {
     const base = `/api/files/${f.blobId}`
-    const d = (name: string) => (f.derived.includes(name) ? `${base}/d/${name}?v=${f.fileRevision}` : null)
+    // A depth map's preview changes with its curve (see processDepthImage): new address, no stale cache.
+    const rev = f.role === 'depth' && depthInfo(f).curve === 'log' ? `${f.fileRevision}l` : f.fileRevision
+    const d = (name: string) => (f.derived.includes(name) ? `${base}/d/${name}?v=${rev}` : null)
     return {
       id: f.id,
       mediaId: f.mediaId,
@@ -148,6 +156,7 @@ export class MediaService {
         waveform: d('waveform.json'),
       },
       storage: storage as MediaFormat['storage'],
+      ...(f.role === 'depth' ? { depth: depthInfo(f) } : {}),
       createdAt: f.createdAt.toISOString(),
     }
   }
@@ -161,13 +170,15 @@ export class MediaService {
       .where(inArray(mediaFormats.mediaId, ids))
       .orderBy(desc(mediaFormats.isPrimary), asc(mediaFormats.position), asc(mediaFormats.createdAt))
     const blobs = await this.files.many(formats.map((f) => f.blobId))
-    // media id → version key → formats; media id → audio tracks
+    // media id → version key → formats; media id → audio tracks; media id → depth maps
     const byMedia = new Map<string, Map<string, MediaFormat[]>>()
     const tracks = new Map<string, MediaFormat[]>()
+    const depths = new Map<string, MediaFormat[]>()
     for (const f of formats) {
       const view = this.formatView(f, blobs.get(f.blobId)?.state ?? 'hot')
-      if (f.role === 'audio') {
-        tracks.set(f.mediaId, [...(tracks.get(f.mediaId) ?? []), view])
+      if (f.role === 'audio' || f.role === 'depth') {
+        const into = f.role === 'audio' ? tracks : depths
+        into.set(f.mediaId, [...(into.get(f.mediaId) ?? []), view])
         continue
       }
       const versions = byMedia.get(f.mediaId) ?? new Map<string, MediaFormat[]>()
@@ -200,6 +211,7 @@ export class MediaService {
         versions,
         versionGroups: set.groups,
         audioTracks: tracks.get(r.id) ?? [],
+        depthMaps: depths.get(r.id) ?? [],
         thumbnailUrl: primary?.urls.thumbnail ?? null,
         places: [],
         commentCount: 0,
@@ -265,7 +277,12 @@ export class MediaService {
       for (const [key, values] of Object.entries(parsed.filters)) {
         if (key === 'kind' || key === 'type') where.push(inArray(media.kind, values))
         else if (key === 'status') where.push(inArray(media.status, values))
-        else if (key === 'project') {
+        else if ((key === 'has' || key === 'no') && values.every((v) => HAS_FILTERS[v.toLowerCase()])) {
+          for (const v of values) {
+            const exists = HAS_FILTERS[v.toLowerCase()]!
+            where.push(key === 'has' ? exists : sql`not ${exists}`)
+          }
+        } else if (key === 'project') {
           where.push(
             sql`${media.projectId} in (select id from ${projects} where ${sql.join(
               values.map((v) => sql`lower(${projects.name}) like ${`%${escapeLike(v.toLowerCase())}%`}`),
@@ -389,7 +406,8 @@ export class MediaService {
   /**
    * Adds a new format (vertical, square...) or, if the key exists, a new file version of it. With `version`, the
    * format belongs to that version of the item; with `newVersion`, to a version made for it (see NewVersionInput);
-   * with `audio`, the file is one of the item's audio tracks instead.
+   * with `audio`, the file is one of the item's audio tracks instead; with `depth`, the depth map of format
+   * `formatKey` of `version` (a picture for a picture, a video for a video).
    */
   async attachFile(
     mediaId: string,
@@ -401,15 +419,38 @@ export class MediaService {
       version?: string
       newVersion?: NewVersionInput
       audio?: boolean
+      depth?: boolean
     },
     actor: Actor,
   ) {
     const m = await this.row(mediaId)
     const kind = mediaKindFromMime(blob.mime)
-    const role = opts.audio ? 'audio' : 'format'
+    const role = opts.audio ? 'audio' : opts.depth ? 'depth' : 'format'
     let version = opts.audio ? '' : (opts.version ?? '')
     if (role === 'audio' && kind !== 'audio' && kind !== 'video')
       throw badRequest('An audio track must be a sound file (or a video whose sound is used)')
+    if (role === 'depth') {
+      const [target] = await this.db
+        .select({ kind: mediaFormats.kind })
+        .from(mediaFormats)
+        .where(
+          and(
+            eq(mediaFormats.mediaId, mediaId),
+            eq(mediaFormats.role, 'format'),
+            eq(mediaFormats.version, version),
+            eq(mediaFormats.key, opts.formatKey),
+          ),
+        )
+      if (!target) throw notFound('There is no such format to add a depth map to')
+      if (target.kind !== 'image' && target.kind !== 'video')
+        throw badRequest('Only pictures and videos have depth maps')
+      if (kind !== target.kind)
+        throw badRequest(
+          target.kind === 'image'
+            ? 'The depth map of a picture must be a picture (PNG, TIFF, EXR...)'
+            : 'The depth map of a video must be a video of the same length',
+        )
+    }
     let newSet: VersionSet | null = null
     if (role === 'format' && opts.newVersion) {
       const planned = this.planVersion(m, opts.newVersion)
@@ -473,8 +514,12 @@ export class MediaService {
           role,
           version,
           key: opts.formatKey,
-          label: opts.label ?? FORMAT_PRESETS.find((p) => p.key === opts.formatKey)?.label ?? opts.formatKey,
-          isPrimary: n === 0,
+          label:
+            role === 'depth'
+              ? 'Depth map'
+              : (opts.label ?? FORMAT_PRESETS.find((p) => p.key === opts.formatKey)?.label ?? opts.formatKey),
+          // A depth map is never the item's picture (covers, map pins and thumbnails take primary rows).
+          isPrimary: role !== 'depth' && n === 0,
           position: n,
           blobId: blob.id,
           kind,
@@ -639,11 +684,14 @@ export class MediaService {
 
   async updateFormat(
     formatId: string,
-    patch: { key?: string; label?: string; isPrimary?: true },
+    patch: { key?: string; label?: string; isPrimary?: true; near?: DepthNear },
     actor: Actor,
   ) {
     const [f] = await this.db.select().from(mediaFormats).where(eq(mediaFormats.id, formatId))
     if (!f) throw notFound('Format not found')
+    if (f.role === 'depth' && (patch.key || patch.label || patch.isPrimary))
+      throw badRequest('A depth map follows its format: rename or move the format instead')
+    if (patch.near && f.role !== 'depth') throw badRequest('Only depth maps have a near end')
     if (patch.key && patch.key !== f.key) {
       const [clash] = await this.db
         .select({ id: mediaFormats.id })
@@ -676,10 +724,27 @@ export class MediaService {
         ...(patch.key ? { key: patch.key } : {}),
         ...(patch.label ? { label: patch.label } : {}),
         ...(patch.isPrimary ? { isPrimary: true } : {}),
+        ...(patch.near ? { meta: { ...(f.meta as Record<string, unknown>), near: patch.near } } : {}),
         updatedAt: new Date(),
       })
       .where(eq(mediaFormats.id, formatId))
+    // The format's depth map keeps describing it under its new key.
+    if (patch.key && patch.key !== f.key && f.role === 'format')
+      await this.db
+        .update(mediaFormats)
+        .set({ key: patch.key, updatedAt: new Date() })
+        .where(
+          and(
+            eq(mediaFormats.mediaId, f.mediaId),
+            eq(mediaFormats.role, 'depth'),
+            eq(mediaFormats.version, f.version),
+            eq(mediaFormats.key, f.key),
+          ),
+        )
     await this.ctx.versions.record('media', f.mediaId, actor)
+    // A picture's preview spreads distances on a log scale, disparity evenly: read it again the other way.
+    if (patch.near && f.kind === 'image' && depthInfo(f).near !== patch.near)
+      await this.enqueueProcessing(f.mediaId, f.id)
     const m = await this.row(f.mediaId)
     this.publish(f.mediaId, m.projectId, 'media.updated')
   }
@@ -702,6 +767,18 @@ export class MediaService {
     if (all.length === 1 && f.role === 'format' && !f.version)
       throw badRequest('A media item needs at least one format. Delete the media instead.')
     await this.db.delete(mediaFormats).where(eq(mediaFormats.id, formatId))
+    // Its depth map goes with it (the files stay in the item's file history).
+    if (f.role === 'format')
+      await this.db
+        .delete(mediaFormats)
+        .where(
+          and(
+            eq(mediaFormats.mediaId, f.mediaId),
+            eq(mediaFormats.role, 'depth'),
+            eq(mediaFormats.version, f.version),
+            eq(mediaFormats.key, f.key),
+          ),
+        )
     const next = all.find((x) => x.id !== formatId)
     if (f.isPrimary && next)
       await this.db.update(mediaFormats).set({ isPrimary: true }).where(eq(mediaFormats.id, next.id))
@@ -819,7 +896,7 @@ export class MediaService {
       await this.db.execute(sql`
         update ${mediaFormats}
         set version = case when version = '' then ${demoted} else '' end, updated_at = now()
-        where media_id = ${mediaId} and role = 'format' and version in ('', ${key})`)
+        where media_id = ${mediaId} and role in ('format', 'depth') and version in ('', ${key})`)
       main.key = demoted
       version.key = ''
       for (const g of set.groups) {
@@ -899,7 +976,7 @@ export class MediaService {
       .where(
         and(
           eq(mediaFormats.mediaId, mediaId),
-          eq(mediaFormats.role, 'format'),
+          inArray(mediaFormats.role, ['format', 'depth']),
           inArray(mediaFormats.version, keys),
         ),
       )
@@ -986,6 +1063,7 @@ export class MediaService {
         formatKey: format.key,
         version: format.version,
         audio: format.role === 'audio',
+        depth: format.role === 'depth',
         note: `Restored file version ${file.fileRevision}`,
       },
       actor,
@@ -1032,10 +1110,117 @@ export class MediaService {
       .orderBy(asc(mediaFormats.position), asc(mediaFormats.createdAt))
   }
 
+  /** The item's depth maps (each with the `version` and `key` of the format it describes). */
+  async depthMapsOf(mediaId: string) {
+    return this.db
+      .select()
+      .from(mediaFormats)
+      .where(and(eq(mediaFormats.mediaId, mediaId), eq(mediaFormats.role, 'depth')))
+  }
+
+  /**
+   * Which pictures and videos depth map files belong to, by file name: "IMG_0412_depth.png" → the format whose file
+   * is IMG_0412.jpg (see depthNameCandidates). Only items the actor can see; in `projectId` when given.
+   */
+  async matchDepthMaps(input: DepthMatchInput, actor: Actor): Promise<DepthMatch[]> {
+    const wanted = input.names.map((name) => ({ name, candidates: depthNameCandidates(name) }))
+    const keys = [...new Set(wanted.flatMap((w) => w.candidates))]
+    if (!keys.length) return wanted.map((w) => ({ name: w.name, targets: [] }))
+    const stem = sql`lower(regexp_replace(${mediaFormats.filename}, '[.][^.]*$', ''))`
+    const rows = await this.db
+      .select({ format: mediaFormats, media })
+      .from(mediaFormats)
+      .innerJoin(media, eq(media.id, mediaFormats.mediaId))
+      .where(
+        and(
+          await this.visibleWhere(actor),
+          eq(mediaFormats.role, 'format'),
+          inArray(mediaFormats.kind, ['image', 'video']),
+          inArray(stem, keys),
+          input.projectId === null
+            ? isNull(media.projectId)
+            : input.projectId
+              ? eq(media.projectId, input.projectId)
+              : undefined,
+        ),
+      )
+      .orderBy(desc(media.createdAt), asc(mediaFormats.version), desc(mediaFormats.isPrimary))
+      .limit(5000)
+    const withDepth = rows.length
+      ? await this.db
+          .select({ mediaId: mediaFormats.mediaId, version: mediaFormats.version, key: mediaFormats.key })
+          .from(mediaFormats)
+          .where(
+            and(
+              eq(mediaFormats.role, 'depth'),
+              inArray(mediaFormats.mediaId, [...new Set(rows.map((r) => r.media.id))]),
+            ),
+          )
+      : []
+    const has = new Set(withDepth.map((d) => `${d.mediaId}/${d.version}/${d.key}`))
+    const items = [...new Map(rows.map((r) => [r.media.id, r.media])).values()]
+    const views = new Map((await this.views(items, actor)).map((v) => [v.id, v]))
+    const byKey = new Map<string, DepthTarget[]>()
+    for (const { format: f, media: m } of rows) {
+      const view = views.get(m.id)
+      const target: DepthTarget = {
+        mediaId: m.id,
+        title: m.title,
+        thumbnailUrl: view?.thumbnailUrl ?? null,
+        formatKey: f.key,
+        formatLabel: f.label,
+        version: f.version,
+        versionLabel: view?.versions.find((v) => v.key === f.version)?.label ?? '',
+        kind: f.kind as 'image' | 'video',
+        filename: f.filename,
+        width: f.width,
+        height: f.height,
+        hasDepth: has.has(`${m.id}/${f.version}/${f.key}`),
+      }
+      const k = depthNameKey(f.filename)
+      byKey.set(k, [...(byKey.get(k) ?? []), target])
+    }
+    return wanted.map((w) => {
+      // The closest name wins: "IMG_0412_depth" before "IMG_0412" (a picture may be called that itself).
+      for (const c of w.candidates) {
+        const targets = byKey.get(c)
+        if (targets?.length) return { name: w.name, targets }
+      }
+      return { name: w.name, targets: [] }
+    })
+  }
+
   publish(id: string, projectId: string | null, event: string) {
     this.ctx.realtime.publish(`media:${id}`, event, { id })
     this.ctx.realtime.publish('library', event, { id, projectId })
     if (projectId) this.ctx.realtime.publish(`project:${projectId}`, event, { id })
+  }
+}
+
+/** `has:depth` / `no:depth` in a search. */
+const HAS_FILTERS: Record<string, SQL> = {
+  depth: sql`exists (select 1 from ${mediaFormats} where ${mediaFormats.mediaId} = ${media.id} and ${mediaFormats.role} = 'depth')`,
+}
+
+/**
+ * What a depth map's row says about it (see DepthInfo). `near` is what the user chose, else processing's guess, else
+ * light (disparity: most AI tools).
+ */
+function depthInfo(f: FormatRow): NonNullable<MediaFormat['depth']> {
+  const meta = (f.meta ?? {}) as {
+    near?: DepthNear
+    nearGuess?: DepthNear
+    bitDepth?: number
+    float?: boolean
+    range?: [number, number]
+    curve?: 'linear' | 'log'
+  }
+  return {
+    near: (meta.near ?? meta.nearGuess) === 'dark' ? 'dark' : 'light',
+    bitDepth: typeof meta.bitDepth === 'number' ? meta.bitDepth : null,
+    float: !!meta.float,
+    range: Array.isArray(meta.range) && meta.range.length === 2 ? meta.range : null,
+    curve: meta.curve === 'log' ? 'log' : 'linear',
   }
 }
 
