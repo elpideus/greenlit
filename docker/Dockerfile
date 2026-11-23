@@ -1,5 +1,6 @@
 # Greenlit: API, background workers and the web app in one image.
 #   docker build -f docker/Dockerfile -t greenlit .
+#   docker build -f docker/Dockerfile --build-arg GPU=cuda -t greenlit .   # + CUDA for an NVIDIA card (docs/DOCKER.md)
 # The `dev` target is the development container (docker/compose.dev.yaml, profile `app`): the same tools, the source
 # bind-mounted, `pnpm dev` with hot reload. Production never uses it.
 
@@ -31,6 +32,15 @@ COPY packages/platforms/package.json packages/platforms/
 # The API Anything fork builds itself on install (its `prepare`), so its source comes in with it.
 COPY packages/api-anything packages/api-anything
 RUN pnpm install --frozen-lockfile
+
+# ── CUDA (only with --build-arg GPU=cuda): ONNX Runtime's CUDA provider next to its CPU runtime in node_modules,
+#    the CUDA 13 libraries it loads in /opt/greenlit-cuda. Pinned, checked by SHA-256 (docker/gpu/install-cuda.ts); cached apart from
+#    the source, so a new build doesn't download it again. ───────────────────────────────────────────────────────────
+FROM deps AS cuda
+ARG GPU=none
+COPY apps/server/src/lib/zip.ts apps/server/src/lib/zip.ts
+COPY docker/gpu docker/gpu
+RUN mkdir -p /opt/greenlit-cuda/lib && if [ "$GPU" = "cuda" ]; then node docker/gpu/install-cuda.ts; fi
 
 # ── web build ───────────────────────────────────────────────────────────────
 FROM deps AS web
@@ -73,13 +83,16 @@ ENV NODE_ENV=production \
     GREENLIT_PORT=8080 \
     GREENLIT_CHROMIUM=/usr/bin/chromium \
     GREENLIT_WEB_DIST=/app/apps/web/dist
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=cuda /app/node_modules ./node_modules
 COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
+COPY --from=cuda /opt/greenlit-cuda /opt/greenlit-cuda
 COPY . .
 COPY --from=web /app/apps/web/dist ./apps/web/dist
-RUN mkdir -p /data && chown -R node:node /data
+# The CUDA libraries (empty without GPU=cuda) for the dynamic linker; the NVIDIA driver is mounted in at run time.
+RUN echo /opt/greenlit-cuda/lib > /etc/ld.so.conf.d/greenlit-cuda.conf && ldconfig \
+    && mkdir -p /data && chown -R node:node /data
 USER node
 VOLUME /data
 EXPOSE 8080

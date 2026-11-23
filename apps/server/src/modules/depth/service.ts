@@ -8,6 +8,7 @@ import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import type { SettingHandle } from '../../core/settings.ts'
 import { probe } from '../../lib/ffmpeg.ts'
+import { backendOrder, gpuPreference, nvidiaGpus } from '../../lib/gpu.ts'
 import { media, mediaFormats } from '../media/schema.ts'
 import { projects } from '../projects/schema.ts'
 import { depthOfPicture, depthOfVideo } from './estimate.ts'
@@ -80,6 +81,12 @@ export class DepthService {
       auto: this.auto.get(),
       missing: { images: n('image'), videos: n('video') },
       queued: this.jobs.size,
+      device: {
+        backend: this.model.backend,
+        order: backendOrder(),
+        gpus: (await nvidiaGpus()).map(({ name, memoryMB }) => ({ name, memoryMB })),
+        off: gpuPreference() === 'off',
+      },
     }
   }
 

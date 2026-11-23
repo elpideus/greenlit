@@ -174,14 +174,16 @@ format's own, or lends another version the main version's map when the pictures 
   video map follows the stage's video frame by frame (`useViewer().element`, `followFrames`).
 
 **Made by Greenlit** (`apps/server/src/modules/depth/`): Depth Anything V2 Small (Apache-2.0; Base and Large are
-non-commercial), ONNX on the processor with `onnxruntime-node` (its install script, which only fetches CUDA
-providers, stays off). The model (99 MB, a pinned revision checked by SHA-256) is downloaded into
+non-commercial), ONNX with `onnxruntime-node` on the graphics card when there is one (`lib/gpu.ts`: CUDA in the
+image's CUDA build, WebGPU through Vulkan outside Docker, else the processor; docs/DOCKER.md "Graphics card"). Its
+npm install script, which would fetch CUDA providers, stays off: the CUDA build adds them (`docker/gpu`). The model (99 MB, a pinned revision checked by SHA-256) is downloaded into
 `DATA_DIR/models/` the first time; `GREENLIT_DEPTH_MODEL` may point at a local copy.
 
 - Job `depth.generate` (one at a time, a task in Activity): a picture becomes a 16-bit grey PNG of its size (518 px
-  inference, upscaled); a video a grey MP4 of the same length (≤ 30 fps, ≤ 1920 px), every other frame through the
-  model above 24 fps and the ones between blended, each frame fitted to the previous one (scale and offset by least
-  squares) so it doesn't flicker. About 0.5 s per picture and 0.4 s per video frame on 20 threads.
+  inference, upscaled); a video a grey MP4 of the same length (≤ 30 fps, ≤ 1920 px), each frame fitted to the
+  previous one (scale and offset by least squares) so it doesn't flicker; on the processor, above 24 fps, every other
+  frame goes through the model and the ones between are blended. About
+  0.5 s per picture and 0.4 s per video frame on 20 threads; about 0.1 s and 0.3 s (all frames) on an RTX 3060.
 - The map is attached like an upload, with `meta.generated = { model, fromRevision }` (near = light). Greenlit's own
   maps are remade when the picture gets a new file; uploaded ones are kept unless `replace`.
 - Setting `depth.auto` (`{ enabled, kinds: all | images }`, permission `depth.manage`): on `media.processed` of a

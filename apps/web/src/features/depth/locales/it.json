@@ -90,7 +90,7 @@
     "instead": "Creane una con Greenlit…",
     "queued": "In attesa di creare la mappa di profondità…",
     "making": "Creazione della mappa di profondità… {{n}}%",
-    "videoHint": "I video richiedono circa mezzo secondo per fotogramma.",
+    "videoHint": "I video richiedono un po’: circa mezzo secondo per fotogramma sul processore, molto meno sulla scheda grafica.",
     "staleShort": "Immagine cambiata",
     "stale": "Creata da un file precedente dell'immagine: ricreala perché combaci.",
     "madeBy": "Creata da Greenlit · Depth Anything V2 Small",
@@ -111,7 +111,7 @@
     "autoOn": "Crea una mappa di profondità per ogni nuovo caricamento",
     "autoOnHint": "Appena un'immagine o un video è pronto. Le mappe caricate restano; quelle di Greenlit vengono ricreate quando il file cambia. I brand kit sono esclusi.",
     "kinds": "Per",
-    "kindsHint": "I video richiedono circa mezzo secondo per fotogramma: un minuto di video sono circa 12 minuti di lavoro.",
+    "kindsHint": "I video richiedono più tempo: sul processore circa mezzo secondo per fotogramma, sulla scheda grafica una frazione.",
     "kindsAll": "Immagini e video",
     "kindsImages": "Solo immagini",
     "library": "Libreria",
@@ -126,7 +126,7 @@
     "allBodyVideos": "{{pictures}}: circa un secondo ciascuna; {{videos}}: circa mezzo secondo per fotogramma. Vengono create una alla volta in background; seguile in Attività.",
     "allConfirm": "Creale",
     "model": "Modello",
-    "modelHint": "Funziona sul processore, nulla lascia questo computer. Scaricato da Hugging Face al primo utilizzo; il modello Small è quello che si può usare per scopi commerciali.",
+    "modelHint": "Funziona su questo computer, sulla scheda grafica quando può: nulla esce da qui. Scaricato da Hugging Face al primo utilizzo; il modello Small è quello che si può usare per scopi commerciali.",
     "installed": "Scaricato",
     "notInstalled": "Si scarica al primo utilizzo ({{size}})",
     "missing_one": "{{count}} elemento senza mappa di profondità ({{pictures}}, {{videos}})",
@@ -136,6 +136,14 @@
     "pictures_one": "{{count}} immagine",
     "pictures_other": "{{count}} immagini",
     "videos_one": "{{count}} video",
-    "videos_other": "{{count}} video"
+    "videos_other": "{{count}} video",
+    "runsOn": "Funziona su",
+    "processor": "Processore",
+    "gpuGeneric": "Scheda grafica",
+    "gpuOn": "Le mappe di profondità si creano sulla scheda grafica: un’immagine in un attimo, un video molte volte più velocemente che sul processore.",
+    "gpuFirst": "La scheda grafica si usa dalla prima mappa di profondità (se non parte, si torna al processore).",
+    "gpuUnused": "{{card}} c’è ma non si può usare: avvia la versione CUDA di Greenlit con la scheda collegata (docs/DOCKER.md, “Scheda grafica”).",
+    "noGpu": "Nessuna scheda grafica utilizzabile. Sul processore un’immagine richiede circa un secondo e un video circa mezzo secondo per fotogramma.",
+    "gpuOff": "La scheda grafica è disattivata (GREENLIT_GPU=off)."
   }
 }

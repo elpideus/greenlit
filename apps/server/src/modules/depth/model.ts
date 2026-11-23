@@ -7,6 +7,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import * as ort from 'onnxruntime-node'
 import type { Logger } from '../../core/logger.ts'
+import { type Backend, openSession } from '../../lib/gpu.ts'
 
 /**
  * Depth Anything V2 Small (Apache-2.0, unlike Base and Large, which are non-commercial), as ONNX from the
@@ -33,6 +34,8 @@ export class DepthModel {
   private readonly dataDir: string
   private readonly log: Logger
   private session: Promise<ort.InferenceSession> | null = null
+  /** Where the model runs, once it has been opened (a graphics card or the processor). */
+  backend: Backend | null = null
   private download: Promise<void> | null = null
   private idle: ReturnType<typeof setTimeout> | null = null
 
@@ -110,15 +113,25 @@ export class DepthModel {
   private open() {
     if (this.idle) clearTimeout(this.idle)
     this.idle = setTimeout(() => void this.close(), IDLE_MS)
-    this.session ??= ort.InferenceSession.create(this.path, {
-      // Most of the processor, not all of it: the rest of Greenlit (and the computer) keeps going.
-      intraOpNumThreads: Math.max(2, Math.round(cpus().length * 0.6)),
-      graphOptimizationLevel: 'all',
-    }).catch((err) => {
-      this.session = null
-      throw err
-    })
+    // On a graphics card when there is one (lib/gpu.ts); on the processor, most of it but not all: the rest of
+    // Greenlit (and the computer) keeps going.
+    this.session ??= openSession(this.path, { threads: Math.max(2, Math.round(cpus().length * 0.6)) })
+      .then(({ session, backend, skipped }) => {
+        this.backend = backend
+        this.log.info({ backend, skipped }, 'depth model opened')
+        return session
+      })
+      .catch((err) => {
+        this.session = null
+        throw err
+      })
     return this.session
+  }
+
+  /** Whether the model runs on the processor (opening it if needed). */
+  async onProcessor() {
+    await this.open()
+    return this.backend === 'cpu'
   }
 
   async close() {

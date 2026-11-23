@@ -122,7 +122,37 @@ export default function SettingsDepth() {
             )}
           </div>
         </SettingsRow>
+        <RunsOn device={data.device} />
       </SettingsGroup>
     </SettingsSection>
+  )
+}
+
+/** Where the model runs: the graphics card (and through what) or the processor, and why not the card. */
+function RunsOn({ device }: { device: DepthStatus['device'] }) {
+  const t = useT('depth')
+  const card = device.gpus[0]?.name ?? null
+  const gpu = device.backend === 'cuda' || device.backend === 'webgpu'
+  const next = device.order[0]
+  const label = gpu
+    ? `${card ?? t('settings.gpuGeneric')} · ${device.backend === 'cuda' ? 'CUDA' : 'WebGPU'}`
+    : device.backend === 'cpu'
+      ? t('settings.processor')
+      : next === 'cpu'
+        ? t('settings.processor')
+        : `${card ?? t('settings.gpuGeneric')} · ${next === 'cuda' ? 'CUDA' : 'WebGPU'}`
+  const hint = device.off
+    ? t('settings.gpuOff')
+    : gpu
+      ? t('settings.gpuOn')
+      : device.backend === null && next !== 'cpu'
+        ? t('settings.gpuFirst')
+        : card
+          ? t('settings.gpuUnused', { card })
+          : t('settings.noGpu')
+  return (
+    <SettingsRow label={t('settings.runsOn')} description={hint}>
+      <Badge tone={gpu ? 'signal' : 'neutral'}>{label}</Badge>
+    </SettingsRow>
   )
 }

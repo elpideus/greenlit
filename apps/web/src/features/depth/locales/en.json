@@ -90,7 +90,7 @@
     "instead": "Make one with Greenlit instead…",
     "queued": "Waiting to make the depth map…",
     "making": "Making the depth map… {{n}}%",
-    "videoHint": "Videos take about half a second per frame.",
+    "videoHint": "Videos take a while: about half a second per frame on the processor, much less on a graphics card.",
     "staleShort": "Picture changed",
     "stale": "Made from an older file of the picture: make it again to match.",
     "madeBy": "Made by Greenlit · Depth Anything V2 Small",
@@ -111,7 +111,7 @@
     "autoOn": "Make a depth map for every new upload",
     "autoOnHint": "As soon as a picture or video is ready. Uploaded depth maps are kept; Greenlit’s own are made again when the file changes. Brand kits are left out.",
     "kinds": "For",
-    "kindsHint": "Videos take about half a second per frame: a one-minute clip is about 12 minutes of work.",
+    "kindsHint": "Videos take longest: on the processor about half a second per frame, on a graphics card a fraction of that.",
     "kindsAll": "Pictures and videos",
     "kindsImages": "Pictures only",
     "library": "Library",
@@ -126,7 +126,7 @@
     "allBodyVideos": "{{pictures}} take about a second each; {{videos}} take about half a second per frame. They are made one at a time in the background; follow them in Activity.",
     "allConfirm": "Make them",
     "model": "Model",
-    "modelHint": "Runs on the processor, nothing leaves this computer. Downloaded from Hugging Face the first time it’s used; the Small model is the one that may be used commercially.",
+    "modelHint": "Runs on this computer, on its graphics card when it can: nothing leaves it. Downloaded from Hugging Face the first time it’s used; the Small model is the one that may be used commercially.",
     "installed": "Downloaded",
     "notInstalled": "Downloads on first use ({{size}})",
     "missing_one": "{{count}} item without a depth map ({{pictures}}, {{videos}})",
@@ -136,6 +136,14 @@
     "pictures_one": "{{count}} picture",
     "pictures_other": "{{count}} pictures",
     "videos_one": "{{count}} video",
-    "videos_other": "{{count}} videos"
+    "videos_other": "{{count}} videos",
+    "runsOn": "Runs on",
+    "processor": "Processor",
+    "gpuGeneric": "Graphics card",
+    "gpuOn": "Depth maps are made on the graphics card: a picture in a moment, a video several times faster than on the processor.",
+    "gpuFirst": "The graphics card is used from the first depth map on (it falls back to the processor if it can’t start).",
+    "gpuUnused": "{{card}} is here but can’t be used: run the CUDA build of Greenlit with the card passed in (docs/DOCKER.md, “Graphics card”).",
+    "noGpu": "No graphics card Greenlit can use. On the processor a picture takes about a second and a video about half a second per frame.",
+    "gpuOff": "The graphics card is turned off (GREENLIT_GPU=off)."
   }
 }

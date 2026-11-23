@@ -60,6 +60,17 @@ export const DepthStatus = z.object({
   missing: z.object({ images: z.number().int(), videos: z.number().int() }),
   /** Depth maps waiting or being made. */
   queued: z.number().int(),
+  /** Where the model runs: a graphics card (CUDA, WebGPU) or the processor. */
+  device: z.object({
+    /** What it runs on now; null until the first depth map opens the model. */
+    backend: z.enum(['cuda', 'webgpu', 'cpu']).nullable(),
+    /** What it will try, best first. */
+    order: z.array(z.enum(['cuda', 'webgpu', 'cpu'])),
+    /** NVIDIA cards this machine (or container) can see. */
+    gpus: z.array(z.object({ name: z.string(), memoryMB: z.number() })),
+    /** The graphics card was turned off (GREENLIT_GPU=off). */
+    off: z.boolean(),
+  }),
 })
 export type DepthStatus = z.infer<typeof DepthStatus>
 

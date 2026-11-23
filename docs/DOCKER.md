@@ -75,6 +75,33 @@ one (without it, thumbnails come from the small preview inside each file). Fonts
 with the data (`DATA_DIR/figcraft/fonts`); the renderer sees only those and FigCraft's built-in ones, never the
 computer's.
 
+## Graphics card
+
+Greenlit's own models (depth maps today) run on an NVIDIA graphics card when it has one, and on the processor
+otherwise: a picture's depth map drops from about a second to a fraction of one, a video's from about half a second
+per frame to about a tenth. ONNX Runtime tries CUDA, then WebGPU (Vulkan), then the processor
+(`apps/server/src/lib/gpu.ts`); Settings → Depth maps says which one it uses. `GREENLIT_GPU=off` keeps it on the
+processor (`cuda` or `webgpu` forces one).
+
+In Docker it takes two things:
+
+1. **The CUDA build of the image**, which adds ONNX Runtime's CUDA provider and the CUDA 13 libraries it loads
+   (about 2.3 GB more; pinned downloads checked by SHA-256, `docker/gpu/install-cuda.ts`):
+   ```bash
+   docker build -f docker/Dockerfile --build-arg GPU=cuda -t greenlit:latest .
+   ```
+   (`docker compose up -d --build` does this by itself with the file below.) The CUDA build still runs on the
+   processor wherever no card is passed in.
+2. **The card passed in**, through NVIDIA's container toolkit (installed as for the Android device, below) and
+   `docker/compose.gpu.yaml`: `-f compose.yaml -f docker/compose.gpu.yaml`, or in `.env`
+   ```bash
+   COMPOSE_FILE=compose.yaml:docker/compose.gpu.yaml
+   ```
+   (with the Android device on the card too: `compose.yaml:docker/compose.gpu.yaml:docker/android/compose.nvidia.yaml`).
+
+CUDA 13 needs an NVIDIA driver from 580 on. Outside Docker (`pnpm dev`), WebGPU uses the card through its Vulkan
+driver with nothing to install.
+
 ## Cloudflare Tunnel
 
 1. In Cloudflare (Zero Trust → Networks → Tunnels) create a tunnel of the _Cloudflared_ kind and copy its token

@@ -96,9 +96,9 @@ export async function depthOfVideo(
       done++
       opts.onProgress?.(Math.min(0.999, done / total))
     }
-    // From 24 frames a second up, the model sees every other frame and the ones between are blended: half the time,
-    // and property footage (slow, smooth moves) looks the same.
-    const every = fps >= 24 ? 2 : 1
+    // On the processor, from 24 frames a second up, the model sees every other frame and the ones between are
+    // blended: half the time, and property footage (slow, smooth moves) looks the same. A graphics card sees them all.
+    const every = fps >= 24 && (await model.onProcessor()) ? 2 : 1
     let last: Float32Array | null = null
     let waiting = 0
     let index = 0
