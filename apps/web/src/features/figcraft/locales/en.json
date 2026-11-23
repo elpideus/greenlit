@@ -88,6 +88,7 @@
     "emptyBody": "Add .ttf or .otf files. Designs that use them show with them the next time they open.",
     "remove": "Remove",
     "removeTitle": "Remove {{name}}?",
-    "removeBody": "Designs that use it will show its text in a stand-in font."
+    "removeBody": "Designs that use it will show its text in a stand-in font.",
+    "fromKit": "From {{name}}"
   }
 }

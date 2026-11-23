@@ -1,4 +1,6 @@
 import {
+  isJunkPath,
+  kitRoot,
   type Media,
   type MediaFormat,
   type MediaListQuery,
@@ -14,6 +16,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { filePath } from '@/lib/dom'
 import { qk } from '@/lib/query'
 import { useLiveQuery } from '@/lib/realtime'
 import { upload } from '@/lib/uploads'
@@ -158,10 +161,40 @@ export type UploadTarget = {
  * ids.
  */
 export async function uploadMedia(files: File[], target: UploadTarget = {}) {
-  const results = await Promise.allSettled(
-    files.map((file) => upload(file, { purpose: 'media.upload', target, label: file.name })),
-  )
+  // Files of a dropped folder keep their path (a brand kit sorts them by it), without the folder they all sit in.
+  const list = files.filter((f) => !isJunkPath(filePath(f) || f.name))
+  const root = kitRoot(list.map(filePath).filter(Boolean))
+  const pathOf = (f: File) => {
+    const p = filePath(f)
+    return p && root && p.startsWith(`${root}/`) ? p.slice(root.length + 1) : p
+  }
+  const results = await mapLimit(list, 4, (file) => {
+    const path = pathOf(file)
+    return upload(file, {
+      purpose: 'media.upload',
+      target: path ? { ...target, path } : target,
+      label: file.name,
+    })
+  })
   return results.flatMap((r) => (r.status === 'fulfilled' ? [(r.value as { mediaId: string }).mediaId] : []))
+}
+
+/** Runs `fn` over `items`, `limit` at a time (a folder of 150 files doesn't open 150 uploads at once). */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>) {
+  const out: PromiseSettledResult<R>[] = new Array(items.length)
+  let next = 0
+  const lane = async () => {
+    while (next < items.length) {
+      const i = next++
+      try {
+        out[i] = { status: 'fulfilled', value: await fn(items[i]!) }
+      } catch (reason) {
+        out[i] = { status: 'rejected', reason }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane))
+  return out
 }
 
 /** Uploads one file as a new version of an item; resolves to the version's key (null when the upload failed). */

@@ -87,7 +87,11 @@ export default defineModule({
       summary: 'Projects you can see',
       tags,
       access: 'projects.read',
-      query: z.object({ q: z.string().optional(), archived: z.coerce.boolean().optional() }),
+      query: z.object({
+        q: z.string().optional(),
+        archived: z.coerce.boolean().optional(),
+        kind: z.enum(['project', 'brand']).optional(),
+      }),
       response: z.array(Project),
       handler: ({ actor, query }) => svc.list(actor, query),
     })
@@ -139,13 +143,15 @@ export default defineModule({
 
     ctx.mcp.tool({
       name: 'projects_list',
-      description: 'List projects (id, name, counts). Optional text filter.',
-      input: { q: z.string().optional() },
+      description:
+        'List projects (id, kind, name, counts). Optional text filter. Kind "brand" = a brand kit (see brand_kit).',
+      input: { q: z.string().optional(), kind: z.enum(['project', 'brand']).optional() },
       access: 'projects.read',
       readOnly: true,
-      handler: async ({ q }, { actor }) =>
-        (await svc.list(actor, { q })).map((p) => ({
+      handler: async ({ q, kind }, { actor }) =>
+        (await svc.list(actor, { q, kind })).map((p) => ({
           id: p.id,
+          kind: p.kind,
           name: p.name,
           description: p.description,
           media: p.mediaCount,
@@ -155,11 +161,17 @@ export default defineModule({
     })
     ctx.mcp.tool({
       name: 'projects_create',
-      description: 'Create a project.',
-      input: { name: z.string(), description: z.string().optional() },
+      description:
+        'Create a project. kind "brand" makes a brand kit: upload its files (or one .zip of the kit) into it and ' +
+        'Greenlit sorts them into logos, colours, fonts, graphics, templates, looks and guidelines.',
+      input: {
+        name: z.string(),
+        description: z.string().optional(),
+        kind: z.enum(['project', 'brand']).optional(),
+      },
       access: 'projects.manage',
-      handler: ({ name, description }, { actor }) =>
-        svc.create({ name, description: description ?? '', color: null }, actor),
+      handler: ({ name, description, kind }, { actor }) =>
+        svc.create({ kind: kind ?? 'project', name, description: description ?? '', color: null }, actor),
     })
     ctx.mcp.tool({
       name: 'projects_update',

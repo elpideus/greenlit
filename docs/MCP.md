@@ -19,6 +19,12 @@ sends usage instructions on connect and exposes the editor guide as the resource
 - **`accounts_check`** — Checks now that an account (or every account, without accountId) is still signed in on its platform. An account that needs a new sign-in becomes needs_login; only a person can sign in again (Settings → Connected accounts → Reconnect).
 - **`accounts_list`** _(read-only)_ — The Instagram, Facebook, TikTok and YouTube accounts Greenlit can publish to: id, platform, name, handle, state (connected / needs_login / error), what each can do (placements, native scheduling, music, edit/delete after publishing) and when they were last checked and synced.
 
+## brands
+
+- **`brand_kit`** _(read-only)_ — A brand kit in full: its guide (the kit's README, Markdown: rules, voice, do's and don'ts), its colours (name, hex, CMYK, what each is for, group), font families (role display/text, weights, uppercase, tracking, file URLs) and every file by section (logos, graphics, templates, looks, guidelines, files) with download URLs and, for transparent artwork, the background it reads on (dark/light). Files are media items: use their mediaId with the media tools.
+- **`brand_kit_update`** — Change a brand kit's guide (Markdown), its colours (the whole list: id, name, hex #RRGGBB, cmyk, usage, group), its font roles (the whole list: family, role display/text/other, usage, uppercase, letterSpacing em, weights) or its main logo (a mediaId of the kit, null = automatic).
+- **`brand_kits`** _(read-only)_ — List brand kits (projects of kind "brand"): id, name, main logo URL, colours (hex) and font families. Use brand_kit for the full rules before making anything for a brand.
+
 ## calendar
 
 - **`calendar`** _(read-only)_ — Scheduled and published posts between two ISO dates, in time order.
@@ -98,8 +104,8 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 ## projects
 
-- **`projects_create`** — Create a project.
-- **`projects_list`** _(read-only)_ — List projects (id, name, counts). Optional text filter.
+- **`projects_create`** — Create a project. kind "brand" makes a brand kit: upload its files (or one .zip of the kit) into it and Greenlit sorts them into logos, colours, fonts, graphics, templates, looks and guidelines.
+- **`projects_list`** _(read-only)_ — List projects (id, kind, name, counts). Optional text filter. Kind "brand" = a brand kit (see brand_kit).
 - **`projects_update`** — Rename a project, change its description, archive it.
 
 ## reviews

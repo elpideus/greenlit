@@ -64,6 +64,7 @@ export class ProjectsService {
     return rows.map((r) => {
       const base: Project = {
         id: r.id,
+        kind: r.kind === 'brand' ? 'brand' : 'project',
         name: r.name,
         description: r.description,
         color: r.color,
@@ -83,8 +84,12 @@ export class ProjectsService {
     })
   }
 
-  async list(actor: Actor, opts: { q?: string; archived?: boolean } = {}): Promise<Project[]> {
+  async list(
+    actor: Actor,
+    opts: { q?: string; archived?: boolean; kind?: Project['kind'] } = {},
+  ): Promise<Project[]> {
     const where = [this.visibleWhere(actor)]
+    if (opts.kind) where.push(eq(projects.kind, opts.kind))
     if (opts.q) where.push(ilike(projects.name, `%${opts.q.replace(/[%_]/g, '\\$&')}%`))
     if (!opts.archived) where.push(isNull(projects.archivedAt))
     let rows = await this.ctx.db
@@ -124,6 +129,7 @@ export class ProjectsService {
     const [row] = await this.ctx.db
       .insert(projects)
       .values({
+        kind: input.kind ?? 'project',
         name: input.name.trim(),
         description: input.description,
         color: input.color,

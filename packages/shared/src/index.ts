@@ -2,6 +2,7 @@
 // Every area lives in its own file under ./areas; import them directly
 // (`@greenlit/shared/areas/media`) or through this barrel.
 
+export * from './areas/brands.ts'
 export * from './areas/comments.ts'
 export * from './areas/connectors.ts'
 export * from './areas/designs.ts'

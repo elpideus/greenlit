@@ -47,7 +47,8 @@ declare module '../../core/hooks.ts' {
 }
 declare module '../../core/events.ts' {
   interface Events {
-    'media.created': { id: string; projectId: string | null }
+    /** `path`: where the file sat inside a folder or archive it was added with ("01 Logos/white.svg"). */
+    'media.created': { id: string; projectId: string | null; path?: string }
     'media.updated': { id: string; projectId: string | null }
     'media.deleted': { id: string; projectId: string | null }
     'media.processed': { id: string; formatId: string }
@@ -246,6 +247,10 @@ export class MediaService {
     const where: (SQL | undefined)[] = [await this.visibleWhere(actor, { trash: q.trash })]
     if (q.projectId === 'none') where.push(isNull(media.projectId))
     else if (q.projectId) where.push(eq(media.projectId, q.projectId))
+    else if (q.projectKind && !/(^|\s)-?project:/i.test(q.q ?? '')) {
+      const ofKind = sql`${media.projectId} in (select id from ${projects} where ${projects.kind} = ${q.projectKind})`
+      where.push(q.projectKind === 'project' ? sql`(${media.projectId} is null or ${ofKind})` : ofKind)
+    }
     if (q.kind) where.push(eq(media.kind, q.kind))
     if (q.status) where.push(eq(media.status, q.status))
     if (q.tag)
@@ -320,6 +325,8 @@ export class MediaService {
       status?: MediaStatus
       origin?: Media['origin']
       tags?: string[]
+      /** Its path inside the folder or archive it came with (passed on in `media.created`). */
+      path?: string
     },
     actor: Actor,
   ): Promise<string> {
@@ -374,7 +381,7 @@ export class MediaService {
     await this.ctx.services.projects.touch(opts.projectId)
     await this.ctx.versions.record('media', id, actor, { force: true })
     await this.enqueueProcessing(id)
-    this.ctx.events.emit('media.created', { id, projectId: opts.projectId })
+    this.ctx.events.emit('media.created', { id, projectId: opts.projectId, path: opts.path })
     this.publish(id, opts.projectId, 'media.created')
     return id
   }

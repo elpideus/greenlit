@@ -28,6 +28,22 @@ import {
 import { extOf, FONT_EXTENSIONS, readFontNames, type StoredFont, syncFontDir } from './fonts.ts'
 import { FIGCRAFT_WEB, FigcraftWebApp } from './webapp.ts'
 
+declare module '../../core/hooks.ts' {
+  interface Hooks {
+    /**
+     * Fonts other modules keep that design documents should have too (a brand kit's fonts). Their files belong to
+     * those modules (Greenlit never removes them from here); `source` names where they come from.
+     */
+    'designs.extraFonts': { args: Record<string, never>; result: (StoredFont & { source: string })[] }
+  }
+}
+declare module '../../core/events.ts' {
+  interface Events {
+    /** Fonts answered through `designs.extraFonts` changed (`families` touched, [] = don't know). */
+    'designs.fontsChanged': { families: string[] }
+  }
+}
+
 const StoredFontSchema = z.object({
   id: z.string(),
   blobId: z.string(),
@@ -80,7 +96,7 @@ export default defineModule({
       default: () => [],
     })
 
-    const fontView = (f: StoredFont): DesignFont => ({
+    const fontView = (f: StoredFont & { source?: string }): DesignFont => ({
       id: f.id,
       family: f.family,
       style: f.style,
@@ -88,11 +104,40 @@ export default defineModule({
       size: f.size,
       url: `/api/files/${f.blobId}`,
       createdAt: f.createdAt,
+      source: f.source ?? null,
     })
-    const syncFonts = () =>
-      syncFontDir(fontDir, fonts.get(), (blobId) => join(ctx.config.dataDir, blobPath(blobId))).catch((err) =>
-        ctx.log.warn({ err: (err as Error).message }, 'could not update the design fonts folder'),
-      )
+    /** The fonts kept here, then other modules' (a brand kit's), the same family and style only once. */
+    const allFonts = async () => {
+      const own = fonts.get()
+      const extra = (await ctx.hooks.run('designs.extraFonts', {})).flat()
+      const key = (f: StoredFont) => `${f.family}\u0000${f.style}`.toLowerCase()
+      const seen = new Set(own.map(key))
+      return [...own, ...extra.filter((f) => !seen.has(key(f)) && seen.add(key(f)))] as (StoredFont & {
+        source?: string
+      })[]
+    }
+    const syncFonts = async () => {
+      try {
+        await syncFontDir(fontDir, await allFonts(), (blobId) => join(ctx.config.dataDir, blobPath(blobId)))
+      } catch (err) {
+        ctx.log.warn({ err: (err as Error).message }, 'could not update the design fonts folder')
+      }
+    }
+    let extraTimer: ReturnType<typeof setTimeout> | null = null
+    let extraFamilies = new Set<string>()
+    ctx.events.on('designs.fontsChanged', ({ families }) => {
+      for (const f of families) extraFamilies.add(f)
+      if (extraTimer) return
+      // A kit of 17 font files arrives as 17 changes: one sync for all of them.
+      extraTimer = setTimeout(async () => {
+        extraTimer = null
+        const touched = [...extraFamilies]
+        extraFamilies = new Set()
+        await syncFonts()
+        ctx.realtime.publish('library', 'figcraft.fonts', {})
+        await rerenderUsing(touched)
+      }, 2000)
+    })
     // Blob paths are blobs/<first two>/<id> (files service); the font folder links to them.
     const blobPath = (id: string) => join('blobs', id.slice(0, 2), id)
 
@@ -217,9 +262,8 @@ export default defineModule({
       tags,
       access: 'media.read',
       response: z.array(DesignFont),
-      handler: () =>
-        fonts
-          .get()
+      handler: async () =>
+        (await allFonts())
           .map(fontView)
           .sort((a, b) => a.family.localeCompare(b.family) || a.style.localeCompare(b.style)),
     })

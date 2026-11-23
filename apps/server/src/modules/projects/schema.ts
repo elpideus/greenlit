@@ -6,6 +6,8 @@ export const projects = pgTable(
   'projects',
   {
     id: pk(),
+    /** 'project' or 'brand' (a brand kit). */
+    kind: text('kind').notNull().default('project'),
     name: text('name').notNull(),
     description: text('description').notNull().default(''),
     color: text('color'),

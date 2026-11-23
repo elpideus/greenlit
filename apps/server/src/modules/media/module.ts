@@ -64,6 +64,8 @@ const UploadTarget = z.object({
   newVersion: NewVersionInput.optional(),
   /** Add the file to `mediaId` as an audio track (`formatKey` = the track's key). */
   audio: z.boolean().optional(),
+  /** New items: the file's path inside a folder dropped as a whole ("01 Logos/white.svg"). */
+  path: z.string().max(1000).optional(),
 })
 
 const BulkInput = z.object({
@@ -336,6 +338,7 @@ export default defineModule({
             title: target.title,
             formatKey: target.formatKey,
             tags: target.tags,
+            path: target.path,
           },
           actor,
         )

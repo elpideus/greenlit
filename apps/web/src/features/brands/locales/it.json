@@ -1,0 +1,96 @@
+{
+  "tab": "Kit",
+  "new": "Nuovo brand kit",
+  "title": "Brand kit",
+  "more": "Altro",
+  "undo": "Annulla",
+  "dropMore": "Trascina altri file o cartelle in qualunque punto della pagina per aggiungerli al kit.",
+  "adding_one": "Aggiungo {{count}} file al kit",
+  "adding_other": "Aggiungo {{count}} file al kit",
+  "openGuidelines": "Apri le linee guida",
+  "unpacking": "Estraggo il kit: {{done}} di {{total}} file",
+  "unpackingStart": "Estraggo il kit…",
+  "empty": {
+    "title": "Trascina qui la cartella del kit o il suo .zip",
+    "body": "Greenlit smista loghi, colori, caratteri, elementi grafici, template, look e linee guida, legge la palette e i caratteri, e rende i caratteri disponibili nei design.",
+    "folder": "Scegli una cartella",
+    "files": "Scegli dei file",
+    "readonly": "Questo brand kit non ha ancora file."
+  },
+  "drop": {
+    "title": "Aggiungi al kit",
+    "body": "Le cartelle restano al loro posto: i loghi con i loghi, i caratteri con i caratteri."
+  },
+  "sections": {
+    "guide": "Guida",
+    "logos": "Loghi",
+    "colors": "Colori",
+    "fonts": "Caratteri",
+    "graphics": "Elementi grafici",
+    "templates": "Template",
+    "looks": "Look",
+    "guidelines": "Linee guida",
+    "files": "Altri file"
+  },
+  "glance": {
+    "colors_one": "{{count}} colore",
+    "colors_other": "{{count}} colori",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} file"
+  },
+  "guide": {
+    "more": "Mostra tutta la guida",
+    "less": "Mostra meno",
+    "edit": "Modifica la guida"
+  },
+  "colors": {
+    "groups": {
+      "core": "Principali",
+      "neutral": "Neutri",
+      "accent": "Accenti"
+    },
+    "other": "Altri",
+    "none": "Nessun colore trovato. Aggiungi un file di palette (.ase, .gpl, token .json, .css) o aggiungili a mano.",
+    "deleted": "{{name}} eliminato",
+    "copyHex": "Copia HEX",
+    "copyRgb": "Copia RGB",
+    "copyCmyk": "Copia CMYK",
+    "copied": "Copiato {{value}}",
+    "edit": "Modifica colore",
+    "delete": "Elimina colore",
+    "add": "Aggiungi un colore",
+    "editTitle": "Modifica colore",
+    "addTitle": "Aggiungi un colore",
+    "pick": "Scegli un colore",
+    "name": "Nome",
+    "usage": "A cosa serve",
+    "usagePlaceholder": "Fondo, testo su chiaro…",
+    "group": "Gruppo",
+    "groupPlaceholder": "Principale, neutro, accento…",
+    "read_one": "Il kit ha {{count}} colore",
+    "read_other": "Il kit ha {{count}} colori"
+  },
+  "type": {
+    "useFor": "Usa per",
+    "roles": {
+      "display": "Titoli",
+      "text": "Testo",
+      "other": "Altro"
+    },
+    "uppercase": "Sempre in maiuscolo",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} file",
+    "variableToo": "statici e variabili",
+    "noFiles": "Il kit nomina questo carattere ma non ne contiene i file.",
+    "variable": "Variabile",
+    "italic": "corsivo"
+  },
+  "assets": {
+    "autoLogo": "Lascia scegliere a Greenlit il logo principale",
+    "makeLogo": "Usa come logo principale",
+    "readColors": "Leggi i colori da questo file",
+    "moveTo": "Sposta in",
+    "mainLogo": "Logo principale",
+    "download": "Scarica"
+  }
+}

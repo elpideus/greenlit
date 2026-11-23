@@ -37,7 +37,14 @@
     "color": "Colour",
     "noColor": "No colour",
     "create": "Create project",
-    "created": "Created {{name}}"
+    "created": "Created {{name}}",
+    "kindProject": "Project",
+    "kindBrand": "Brand kit",
+    "brandTitle": "New brand kit",
+    "createBrand": "Create brand kit",
+    "brandNamePlaceholder": "Studio Associato GEM",
+    "brandDescriptionPlaceholder": "Whose brand this is and what it covers.",
+    "brandHint": "Then drop the kit’s folder or its .zip into it. Greenlit sorts the logos, colours, fonts, graphics, templates and guidelines, and reads the palette and the fonts."
   },
   "menu": {
     "open": "Open",
@@ -59,7 +66,9 @@
   "confirmDelete": {
     "title": "Delete “{{name}}”?",
     "body": "Its media stay in the library, without a project. Edits and posts keep working.",
-    "confirm": "Delete project"
+    "confirm": "Delete project",
+    "kitBody": "Its files go to the trash, where they can be restored for 30 days. Its fonts leave Design fonts.",
+    "kitConfirm": "Delete brand kit"
   },
   "page": {
     "back": "Projects",
@@ -67,10 +76,13 @@
     "upload": "Upload",
     "tabs": {
       "media": "Media",
-      "about": "About"
+      "about": "About",
+      "files": "All files"
     },
     "notFound": "This project doesn’t exist",
-    "notFoundBody": "It may have been deleted, or it isn’t shared with you."
+    "notFoundBody": "It may have been deleted, or it isn’t shared with you.",
+    "uploadFiles": "Files…",
+    "uploadFolder": "A folder…"
   },
   "about": {
     "description": "Description",
@@ -95,5 +107,12 @@
     "violet": "Violet",
     "teal": "Teal",
     "pink": "Pink"
-  }
+  },
+  "kits": "Brand kits",
+  "newKit": "New brand kit",
+  "kit": "Brand kit",
+  "kitCount_one": "{{count}} brand kit",
+  "kitCount_other": "{{count}} brand kits",
+  "files_one": "{{count}} file",
+  "files_other": "{{count}} files"
 }

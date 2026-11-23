@@ -1,5 +1,5 @@
 import type { Project } from '@greenlit/shared'
-import { ChevronLeft, MapPin, MoreHorizontal, Upload } from 'lucide-react'
+import { ChevronLeft, FolderUp, MapPin, MoreHorizontal, Upload } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
@@ -22,6 +22,7 @@ import {
   ErrorState,
   IconButton,
   InlineEdit,
+  Menu,
   openContextMenu,
   Page,
   Row,
@@ -78,14 +79,19 @@ function ProjectView({ project: p }: { project: Project }) {
   const manage = can(me, 'projects.manage') && !me.viaShareLink
   const canUpload = can(me, 'media.upload') && !me.viaShareLink
   const extraTabs = useSlot('project.tabs', { project: p })
-  const tab = params.get('tab') ?? 'media'
+  // Tabs with a negative order come before Media; the first tab is the one a project opens on.
+  const before = extraTabs.filter((e) => (e.order ?? 0) < 0)
+  const after = extraTabs.filter((e) => (e.order ?? 0) >= 0)
+  const firstTab = before[0]?.id ?? 'media'
+  const tab = params.get('tab') ?? firstTab
   const fileInput = useRef<HTMLInputElement>(null)
+  const folderInput = useRef<HTMLInputElement>(null)
 
   const setTab = (v: string) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams()
-        if (v !== 'media') next.set('tab', v)
+        if (v !== firstTab) next.set('tab', v)
         // keep the media browser's view when coming back
         if (v === 'media') for (const k of ['q', 'sort', 'view']) if (prev.get(k)) next.set(k, prev.get(k)!)
         return next
@@ -106,12 +112,18 @@ function ProjectView({ project: p }: { project: Project }) {
     document.title = p.name
   }, [p.name])
 
+  const slotTab = (e: (typeof extraTabs)[number]) => ({
+    value: e.id,
+    label: i18next.t(`${e.feature}:${e.label ?? e.id}`, { defaultValue: e.label ?? e.id }),
+  })
   const tabs = [
-    { value: 'media', label: t('page.tabs.media'), count: p.mediaCount },
-    ...extraTabs.map((e) => ({
-      value: e.id,
-      label: i18next.t(`${e.feature}:${e.label ?? e.id}`, { defaultValue: e.label ?? e.id }),
-    })),
+    ...before.map(slotTab),
+    {
+      value: 'media',
+      label: p.kind === 'brand' ? t('page.tabs.files') : t('page.tabs.media'),
+      count: p.mediaCount,
+    },
+    ...after.map(slotTab),
     { value: 'about', label: t('page.tabs.about') },
   ]
   const ExtraTab = extraTabs.find((e) => e.id === tab)?.component
@@ -123,6 +135,18 @@ function ProjectView({ project: p }: { project: Project }) {
         type="file"
         multiple
         hidden
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])]
+          e.target.value = ''
+          void upload(files)
+        }}
+      />
+      <input
+        ref={folderInput}
+        type="file"
+        hidden
+        // @ts-expect-error: not in React's types, every browser has it
+        webkitdirectory=""
         onChange={(e) => {
           const files = [...(e.target.files ?? [])]
           e.target.value = ''
@@ -174,11 +198,30 @@ function ProjectView({ project: p }: { project: Project }) {
           </Meta>
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-1">
-          {canUpload && (
-            <Button variant="primary" icon={Upload} onClick={() => fileInput.current?.click()}>
-              {t('page.upload')}
-            </Button>
-          )}
+          {canUpload &&
+            (p.kind === 'brand' ? (
+              <Menu
+                align="end"
+                width={220}
+                trigger={
+                  <Button variant="primary" icon={Upload}>
+                    {t('page.upload')}
+                  </Button>
+                }
+                items={[
+                  { label: t('page.uploadFiles'), icon: Upload, onSelect: () => fileInput.current?.click() },
+                  {
+                    label: t('page.uploadFolder'),
+                    icon: FolderUp,
+                    onSelect: () => folderInput.current?.click(),
+                  },
+                ]}
+              />
+            ) : (
+              <Button variant="primary" icon={Upload} onClick={() => fileInput.current?.click()}>
+                {t('page.upload')}
+              </Button>
+            ))}
           <IconButton
             icon={MoreHorizontal}
             label="More"

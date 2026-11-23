@@ -107,7 +107,7 @@ tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 | `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (FigCraft designs); first match wins |
 | `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                            |
 | `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                    |
-| `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`)                                               |
+| `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`); `order < 0` = before Media, the first opens  |
 | `project.about.sections` | `{ project }`                 | sections in a project's About tab                                                      |
 | `composition.panels`     | `{ composition }`             | tabs in the editor's right panel                                                       |
 | `post.panels`            | `{ post }`                    | tabs in the post composer's side panel                                                 |
@@ -124,6 +124,26 @@ delete (100+).
 | `project`     | `{ project, me }`                                                          |
 | `post`        | `{ post, me }`                                                             |
 | `composition` | `{ composition, me }`                                                      |
+
+## Brand kits
+
+A project has a `kind`: `project` (work) or `brand` (a brand kit). The **brands** module (server) and feature (web)
+make a kit more than a folder of files, without the files stopping being media items:
+
+- Uploads may carry `path` (a file's place inside a dropped folder; `lib/dom` `droppedFiles` / `filePath` keep it,
+  `uploadMedia` sends it without the folder the whole drop sits in). `media.created` passes it on; the brands module
+  places each file of a kit into a section (logos, colours, fonts, graphics, templates, looks, guidelines, files) and
+  a group (its folders) with `placeBrandFile` (`packages/shared/src/areas/brands.ts`), and keeps that in
+  `brand_assets`. A `.zip` dropped at a kit's top level is unpacked by the `brands.unpack` job, then trashed.
+- Palette files (.ase, .gpl, design tokens, CSS custom properties) are read into the kit's colours and font roles
+  (`brand_kits`), merged by value across files; font files are read for family, style, weight and range
+  (`lib/fonts.ts`); transparent artwork gets the background it reads on (`surface.ts`); the root README becomes the
+  guide (and the project's description when it has none).
+- The figcraft module asks `designs.extraFonts` for fonts other modules keep: kits answer with their font files,
+  which then show in Design fonts and in FigCraft without being uploaded twice (`designs.fontsChanged` re-syncs).
+- `GET /media?projectKind=project` (the library) leaves kits' files out; `projects.decorate` gives kit cards their
+  logo, colours and families (`Project.brand`). Deleting a kit trashes its files. MCP: `brand_kits`, `brand_kit`,
+  `brand_kit_update`.
 
 ## Data flow
 

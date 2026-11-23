@@ -37,7 +37,14 @@
     "color": "Colore",
     "noColor": "Nessun colore",
     "create": "Crea progetto",
-    "created": "Creato {{name}}"
+    "created": "Creato {{name}}",
+    "kindProject": "Progetto",
+    "kindBrand": "Brand kit",
+    "brandTitle": "Nuovo brand kit",
+    "createBrand": "Crea brand kit",
+    "brandNamePlaceholder": "Studio Associato GEM",
+    "brandDescriptionPlaceholder": "Di chi è il marchio e cosa comprende.",
+    "brandHint": "Poi trascinaci dentro la cartella del kit o il suo .zip. Greenlit smista loghi, colori, caratteri, elementi grafici, template e linee guida, e legge la palette e i caratteri."
   },
   "menu": {
     "open": "Apri",
@@ -59,7 +66,9 @@
   "confirmDelete": {
     "title": "Eliminare “{{name}}”?",
     "body": "I suoi media restano in libreria, senza progetto. Montaggi e post continuano a funzionare.",
-    "confirm": "Elimina progetto"
+    "confirm": "Elimina progetto",
+    "kitBody": "I suoi file vanno nel cestino, da cui si possono ripristinare per 30 giorni. I suoi caratteri escono dai caratteri dei design.",
+    "kitConfirm": "Elimina brand kit"
   },
   "page": {
     "back": "Progetti",
@@ -67,10 +76,13 @@
     "upload": "Carica",
     "tabs": {
       "media": "Media",
-      "about": "Informazioni"
+      "about": "Informazioni",
+      "files": "Tutti i file"
     },
     "notFound": "Questo progetto non esiste",
-    "notFoundBody": "Potrebbe essere stato eliminato, oppure non è condiviso con te."
+    "notFoundBody": "Potrebbe essere stato eliminato, oppure non è condiviso con te.",
+    "uploadFiles": "File…",
+    "uploadFolder": "Una cartella…"
   },
   "about": {
     "description": "Descrizione",
@@ -95,5 +107,12 @@
     "violet": "Viola",
     "teal": "Verde acqua",
     "pink": "Rosa"
-  }
+  },
+  "kits": "Brand kit",
+  "newKit": "Nuovo brand kit",
+  "kit": "Brand kit",
+  "kitCount_one": "{{count}} brand kit",
+  "kitCount_other": "{{count}} brand kit",
+  "files_one": "{{count}} file",
+  "files_other": "{{count}} file"
 }

@@ -117,7 +117,8 @@ export function MediaBrowser({
     q: debounced || undefined,
     sort,
     projectId,
-    ...(inTrash ? { trash: true } : {}),
+    // The library is the work: brand kits' files stay in their kit (a `project:` token still finds them).
+    ...(inTrash ? { trash: true } : projectId ? {} : { projectKind: 'project' as const }),
   })
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data])
   const total = list.data?.pages[0]?.total ?? null

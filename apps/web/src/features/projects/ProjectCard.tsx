@@ -1,6 +1,6 @@
 import type { Media, Project } from '@greenlit/shared'
 import { useQuery } from '@tanstack/react-query'
-import { Folder, MapPin } from 'lucide-react'
+import { Folder, MapPin, SwatchBook } from 'lucide-react'
 import { memo } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/lib/api'
@@ -17,7 +17,7 @@ function useProjectThumbs(p: Project) {
     queryKey: ['media', 'project-thumbs', p.id, p.mediaCount],
     queryFn: ({ signal }) =>
       api.get<{ items: Media[] }>('/media', { projectId: p.id, limit: 5, sort: 'recent' }, signal),
-    enabled: p.mediaCount > 1,
+    enabled: p.mediaCount > 1 && p.kind !== 'brand',
     staleTime: 60_000,
     select: (r) => r.items.map((m) => m.thumbnailUrl).filter((u): u is string => !!u),
   })
@@ -63,7 +63,9 @@ export const ProjectCard = memo(function ProjectCard({
           sheet ? 'grid-cols-[2fr_1fr] grid-rows-2' : 'grid-cols-1',
         )}
       >
-        {p.coverUrl ? (
+        {p.kind === 'brand' ? (
+          <BrandCover project={p} />
+        ) : p.coverUrl ? (
           <Frame src={p.coverUrl} className={sheet ? 'row-span-2' : ''} />
         ) : (
           <div
@@ -100,7 +102,12 @@ export const ProjectCard = memo(function ProjectCard({
       </div>
       <div className="mt-1 flex items-center gap-3 px-0.5 t-caption text-ink-3">
         <Meta className="flex-1">
-          <span className="tabular">{t('media', { count: p.mediaCount })}</span>
+          {p.kind === 'brand' && (
+            <span>{p.brand?.families.length ? p.brand.families.join(' · ') : t('kit')}</span>
+          )}
+          <span className="tabular">
+            {t(p.kind === 'brand' ? 'files' : 'media', { count: p.mediaCount })}
+          </span>
           {p.compositionCount > 0 && (
             <span className="tabular">{t('edits', { count: p.compositionCount })}</span>
           )}
@@ -117,6 +124,35 @@ export const ProjectCard = memo(function ProjectCard({
     </Link>
   )
 })
+
+/** A brand kit's card: its main logo on the colour it is made for, its palette along the bottom edge. */
+function BrandCover({ project: p }: { project: Project }) {
+  const logo = p.brand?.logo
+  const colors = p.brand?.colors ?? []
+  const bg = logo?.background ?? (logo?.surface === 'light' ? '#EEEEEE' : (colors[0] ?? 'var(--stage)'))
+  return (
+    <div className="relative grid place-items-center overflow-hidden" style={{ background: bg }}>
+      {logo ? (
+        <img
+          src={logo.url}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          className="max-h-[42%] max-w-[64%] object-contain transition-transform duration-700 ease-out group-hover:scale-[1.035]"
+        />
+      ) : (
+        <SwatchBook size={28} strokeWidth={1.4} className="text-white/40" />
+      )}
+      {colors.length > 0 && (
+        <div className="absolute inset-x-0 bottom-0 flex h-2.5">
+          {colors.map((c) => (
+            <span key={c} className="flex-1" style={{ background: c }} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Frame({ src, className }: { src: string; className?: string }) {
   return (

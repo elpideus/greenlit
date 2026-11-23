@@ -123,6 +123,11 @@ export type Media = z.infer<typeof Media>
 
 export const MediaListQuery = z.object({
   projectId: z.string().optional(),
+  /**
+   * Only media of projects of this kind (`project` includes media outside any project): the library shows `project`
+   * so brand kits' files don't fill it. Ignored with `projectId` or a `project:` search token.
+   */
+  projectKind: z.enum(['project', 'brand']).optional(),
   q: z.string().optional(),
   kind: MediaKind.optional(),
   status: MediaStatus.optional(),

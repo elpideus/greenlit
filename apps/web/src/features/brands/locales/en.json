@@ -1,0 +1,96 @@
+{
+  "tab": "Kit",
+  "new": "New brand kit",
+  "title": "Brand kit",
+  "more": "More",
+  "undo": "Undo",
+  "dropMore": "Drop more files or folders anywhere on this page to add them to the kit.",
+  "adding_one": "Adding {{count}} file to the kit",
+  "adding_other": "Adding {{count}} files to the kit",
+  "openGuidelines": "Open the guidelines",
+  "unpacking": "Unpacking the kit: {{done}} of {{total}} files",
+  "unpackingStart": "Unpacking the kit…",
+  "empty": {
+    "title": "Drop the kit’s folder or its .zip here",
+    "body": "Greenlit sorts its logos, colours, fonts, graphics, templates, looks and guidelines, reads the palette and the fonts, and makes the fonts available to designs.",
+    "folder": "Choose a folder",
+    "files": "Choose files",
+    "readonly": "This brand kit has no files yet."
+  },
+  "drop": {
+    "title": "Add to the kit",
+    "body": "Folders keep their place: logos go with logos, fonts with fonts."
+  },
+  "sections": {
+    "guide": "Guide",
+    "logos": "Logos",
+    "colors": "Colours",
+    "fonts": "Type",
+    "graphics": "Graphics",
+    "templates": "Templates",
+    "looks": "Looks",
+    "guidelines": "Guidelines",
+    "files": "Other files"
+  },
+  "glance": {
+    "colors_one": "{{count}} colour",
+    "colors_other": "{{count}} colours",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files"
+  },
+  "guide": {
+    "more": "Show the whole guide",
+    "less": "Show less",
+    "edit": "Edit the guide"
+  },
+  "colors": {
+    "groups": {
+      "core": "Core",
+      "neutral": "Neutrals",
+      "accent": "Accents"
+    },
+    "other": "Other",
+    "none": "No colours found yet. Add a palette file (.ase, .gpl, tokens .json, .css) or add them by hand.",
+    "deleted": "Deleted {{name}}",
+    "copyHex": "Copy HEX",
+    "copyRgb": "Copy RGB",
+    "copyCmyk": "Copy CMYK",
+    "copied": "Copied {{value}}",
+    "edit": "Edit colour",
+    "delete": "Delete colour",
+    "add": "Add a colour",
+    "editTitle": "Edit colour",
+    "addTitle": "Add a colour",
+    "pick": "Pick a colour",
+    "name": "Name",
+    "usage": "What it is for",
+    "usagePlaceholder": "Background, text on light…",
+    "group": "Group",
+    "groupPlaceholder": "Core, neutral, accent…",
+    "read_one": "The kit has {{count}} colour",
+    "read_other": "The kit has {{count}} colours"
+  },
+  "type": {
+    "useFor": "Use for",
+    "roles": {
+      "display": "Titles",
+      "text": "Text",
+      "other": "Other"
+    },
+    "uppercase": "Always in capitals",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "variableToo": "static and variable",
+    "noFiles": "The kit names this font but doesn’t carry its files.",
+    "variable": "Variable",
+    "italic": "italic"
+  },
+  "assets": {
+    "autoLogo": "Let Greenlit pick the main logo",
+    "makeLogo": "Make the main logo",
+    "readColors": "Read colours from this file",
+    "moveTo": "Move to",
+    "mainLogo": "Main logo",
+    "download": "Download"
+  }
+}

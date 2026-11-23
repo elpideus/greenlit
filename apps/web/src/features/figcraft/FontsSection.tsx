@@ -50,12 +50,19 @@ export default function FontsSection() {
                 <span className="w-40 shrink-0 t-callout text-ink">{f.style}</span>
                 <span className="min-w-0 flex-1 truncate t-caption text-ink-3">{f.filename}</span>
                 <span className="t-meta text-ink-3">{formatBytes(f.size)}</span>
-                <IconButton
-                  icon={Trash2}
-                  size="sm"
-                  label={t('fonts.remove')}
-                  onClick={() => void remove(f)}
-                />
+                {f.source ? (
+                  // A brand kit's font: it comes and goes with the kit's files.
+                  <span className="w-28 shrink-0 truncate text-right t-caption text-ink-3" title={f.source}>
+                    {t('fonts.fromKit', { name: f.source })}
+                  </span>
+                ) : (
+                  <IconButton
+                    icon={Trash2}
+                    size="sm"
+                    label={t('fonts.remove')}
+                    onClick={() => void remove(f)}
+                  />
+                )}
               </div>
             ))}
           </SettingsGroup>

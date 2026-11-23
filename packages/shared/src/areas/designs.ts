@@ -69,6 +69,8 @@ export const DesignFont = z.object({
   size: z.number(),
   url: z.string(),
   createdAt: z.string(),
+  /** Where a font comes from when it isn't kept here (a brand kit's name); such fonts are removed there. */
+  source: z.string().nullable().default(null),
 })
 export type DesignFont = z.infer<typeof DesignFont>
 

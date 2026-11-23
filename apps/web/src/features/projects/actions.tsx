@@ -35,8 +35,8 @@ export function useProjectActions(opts: { onRename?: (id: string) => void; after
   const remove = async (p: Project) => {
     const ok = await confirm({
       title: t('confirmDelete.title', { name: p.name }),
-      body: t('confirmDelete.body'),
-      confirm: t('confirmDelete.confirm'),
+      body: t(p.kind === 'brand' ? 'confirmDelete.kitBody' : 'confirmDelete.body'),
+      confirm: t(p.kind === 'brand' ? 'confirmDelete.kitConfirm' : 'confirmDelete.confirm'),
       danger: true,
     })
     if (!ok) return

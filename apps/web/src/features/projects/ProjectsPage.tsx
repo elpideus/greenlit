@@ -1,6 +1,6 @@
-import type { Project } from '@greenlit/shared'
+import type { Project, ProjectKind } from '@greenlit/shared'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownUp, FolderPlus, FolderSearch } from 'lucide-react'
+import { ArrowDownUp, FolderPlus, FolderSearch, SwatchBook } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
@@ -25,7 +25,7 @@ export default function ProjectsPage() {
   const scope = params.get('show') === 'archived' ? 'archived' : 'active'
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<Sort>('updated')
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState<ProjectKind | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const active = useProjects()
   const all = useQuery({
@@ -35,11 +35,12 @@ export default function ProjectsPage() {
   })
   const actions = useProjectActions({ onRename: setRenaming })
   const manage = can(me, 'projects.manage') && !me.viaShareLink
-  useHotkey('n', () => manage && setCreating(true))
-  // ⌘K "New project" lands here with ?new=1
+  useHotkey('n', () => manage && setCreating('project'))
+  // ⌘K "New project" lands here with ?new=1 (?new=brand for a brand kit)
   useEffect(() => {
-    if (params.get('new') === '1' && manage) {
-      setCreating(true)
+    const asked = params.get('new')
+    if (asked && manage) {
+      setCreating(asked === 'brand' ? 'brand' : 'project')
       setParams(
         (p) => {
           const next = new URLSearchParams(p)
@@ -66,17 +67,47 @@ export default function ProjectsPage() {
     }
     return out.sort(by[sort])
   }, [source, q, sort])
+  // Brand kits sit above the work, in their own group.
+  const kits = list.filter((p) => p.kind === 'brand')
+  const work = list.filter((p) => p.kind !== 'brand')
+  const card = (p: Project, i: number) => (
+    <motion.div key={p.id} {...stagger(i)}>
+      <ProjectCard
+        project={p}
+        menu={() => actions.menu(p)}
+        renaming={renaming === p.id}
+        onStopRename={() => setRenaming(null)}
+        onRename={(name) => {
+          setRenaming(null)
+          if (name !== p.name) void actions.patch(p, { name })
+        }}
+      />
+    </motion.div>
+  )
 
   return (
     <Page>
       <PageHeader
         title={t('title')}
-        meta={!loading && <span className="tabular">{t('count', { count: source.length })}</span>}
+        meta={
+          !loading && (
+            <span className="tabular">
+              {t('count', { count: source.filter((p) => p.kind !== 'brand').length })}
+              {source.some((p) => p.kind === 'brand') &&
+                ` · ${t('kitCount', { count: source.filter((p) => p.kind === 'brand').length })}`}
+            </span>
+          )
+        }
         actions={
           manage && (
-            <Button variant="primary" icon={FolderPlus} onClick={() => setCreating(true)} kbd="n">
-              {t('new')}
-            </Button>
+            <>
+              <Button variant="secondary" icon={SwatchBook} onClick={() => setCreating('brand')}>
+                {t('newKit')}
+              </Button>
+              <Button variant="primary" icon={FolderPlus} onClick={() => setCreating('project')} kbd="n">
+                {t('new')}
+              </Button>
+            </>
           )
         }
         toolbar={
@@ -137,35 +168,39 @@ export default function ProjectsPage() {
             body={manage ? t('empty.body') : t('empty.readonly')}
             action={
               manage && (
-                <Button variant="primary" icon={FolderPlus} onClick={() => setCreating(true)}>
+                <Button variant="primary" icon={FolderPlus} onClick={() => setCreating('project')}>
                   {t('new')}
                 </Button>
               )
             }
           />
         )
+      ) : kits.length ? (
+        <>
+          <GroupTitle>{t('kits')}</GroupTitle>
+          <Grid>{kits.map(card)}</Grid>
+          {work.length > 0 && (
+            <>
+              <GroupTitle className="mt-12">{t('title')}</GroupTitle>
+              <Grid>{work.map((p, i) => card(p, i + kits.length))}</Grid>
+            </>
+          )}
+        </>
       ) : (
-        <Grid>
-          {list.map((p, i) => (
-            <motion.div key={p.id} {...stagger(i)}>
-              <ProjectCard
-                project={p}
-                menu={() => actions.menu(p)}
-                renaming={renaming === p.id}
-                onStopRename={() => setRenaming(null)}
-                onRename={(name) => {
-                  setRenaming(null)
-                  if (name !== p.name) void actions.patch(p, { name })
-                }}
-              />
-            </motion.div>
-          ))}
-        </Grid>
+        <Grid>{work.map(card)}</Grid>
       )}
-      <NewProjectDialog open={creating} onOpenChange={setCreating} />
+      <NewProjectDialog
+        open={creating !== null}
+        kind={creating ?? 'project'}
+        onOpenChange={(o) => !o && setCreating(null)}
+      />
       {actions.dialogs}
     </Page>
   )
+}
+
+function GroupTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={`mb-4 t-headline text-ink-2 ${className ?? ''}`}>{children}</h2>
 }
 
 function Grid({ children }: { children: React.ReactNode }) {

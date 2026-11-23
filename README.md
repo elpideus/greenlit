@@ -41,6 +41,13 @@ built so people and AI agents (Claude Code first) can work in it side by side.</
 - **Map & globe** — projects and media on an interactive map with a 3D globe mode and animated search.
 - **Storage** — usage overview and automatic archival of old media (per file, so each stays downloadable, deletable
   and restorable), keeping thumbnails and previews browsable.
+- **Brand kits** — a project of kind _brand kit_ holds a brand's logos, colours, fonts, graphics, templates, looks
+  and guidelines. Drop the kit's folder (or a .zip of it) and Greenlit sorts every file by its folders, reads the
+  palette (.ase, .gpl, design-token .json, .css) and the fonts, takes the README as the kit's guide, and shows it all
+  as a brand book: the main logo on its colour, swatches with HEX/RGB/CMYK and usage, specimens drawn in the kit's own
+  font files, logos on the background they're made for. Its fonts appear in Settings → Design fonts by themselves,
+  and Claude reads the whole kit through MCP. The files stay ordinary items (viewer, history, share links) and keep
+  out of the library's main grid.
 - **Your brand** — theme packs (palettes, fonts, radius; a Studio Associato GEM theme included), branding (name,
   logos, favicon, sign-in picture), platform time zone, English and Italian.
 - **API & MCP** — a documented REST API (OpenAPI at `/api/openapi.json`, reference at `/api/docs`) and an MCP server

@@ -158,7 +158,7 @@ async function readDirectory(fh: FileHandle): Promise<ZipEntry[]> {
     const extraLen = dir.readUInt16LE(p + 30)
     const commentLen = dir.readUInt16LE(p + 32)
     let offset = dir.readUInt32LE(p + 42)
-    const name = dir.toString(flags & 0x800 ? 'utf8' : 'latin1', p + 46, p + 46 + nameLen)
+    const name = decodeName(dir.subarray(p + 46, p + 46 + nameLen), (flags & 0x800) !== 0)
     // ZIP64 extra field: the 0xffffffff values, in order, as 8-byte numbers.
     let x = p + 46 + nameLen
     const extraEnd = x + extraLen
@@ -191,6 +191,24 @@ async function readDirectory(fh: FileHandle): Promise<ZipEntry[]> {
     p += 46 + nameLen + extraLen + commentLen
   }
   return entries
+}
+
+const CP437 =
+  'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■ '
+
+/**
+ * An entry's name: UTF-8 when the archive says so. Many tools (macOS, older Windows) write UTF-8 without saying so;
+ * valid UTF-8 is far likelier than legacy CP437 that happens to decode as UTF-8, so that is tried before CP437.
+ */
+function decodeName(raw: Buffer, utf8: boolean) {
+  if (utf8) return raw.toString('utf8')
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(raw)
+  } catch {
+    let s = ''
+    for (const c of raw) s += c < 128 ? String.fromCharCode(c) : CP437[c - 128]
+    return s
+  }
 }
 
 /** Does the file start like a zip archive? */

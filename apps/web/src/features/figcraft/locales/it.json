@@ -88,6 +88,7 @@
     "emptyBody": "Aggiungi file .ttf o .otf. I design che li usano li mostreranno alla prossima apertura.",
     "remove": "Rimuovi",
     "removeTitle": "Rimuovere {{name}}?",
-    "removeBody": "I design che lo usano mostreranno il testo con un font sostitutivo."
+    "removeBody": "I design che lo usano mostreranno il testo con un font sostitutivo.",
+    "fromKit": "Da {{name}}"
   }
 }

@@ -8,10 +8,52 @@ export function withViewTransition(update: () => void) {
   doc.startViewTransition(() => flushSync(update))
 }
 
-/** Files dropped anywhere on an element (or the window when `ref` is omitted). */
+const paths = new WeakMap<File, string>()
+
+/**
+ * A file's path inside the folder it was dropped or picked with ("Branding/01 Logos/white.svg"), or '' for a file
+ * on its own.
+ */
+export function filePath(file: File) {
+  return paths.get(file) || (file as File & { webkitRelativePath?: string }).webkitRelativePath || ''
+}
+
+/**
+ * The files of a drop, folders opened (each file remembers its path, see `filePath`). Entries must be taken while
+ * the drop event runs; reading them can wait.
+ */
+export async function droppedFiles(dt: DataTransfer): Promise<File[]> {
+  const entries = [...dt.items].map((i) => (i.kind === 'file' ? i.webkitGetAsEntry?.() : null) ?? null)
+  if (!entries.some((e) => e?.isDirectory)) return [...dt.files]
+  const out: File[] = []
+  const walk = async (entry: FileSystemEntry, prefix: string): Promise<void> => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej))
+      paths.set(file, prefix + file.name)
+      out.push(file)
+      return
+    }
+    if (!entry.isDirectory) return
+    const reader = (entry as FileSystemDirectoryEntry).createReader()
+    for (;;) {
+      const batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej))
+      if (!batch.length) break
+      for (const e of batch) await walk(e, `${prefix}${entry.name}/`)
+    }
+  }
+  for (const e of entries) if (e) await walk(e, '').catch(() => {})
+  return out
+}
+
+/** Files dropped anywhere on an element (or the window when `ref` is omitted). Folders are opened. */
 export function useFileDrop(
   onFiles: (files: File[], e: DragEvent) => void,
-  opts: { enabled?: boolean; target?: React.RefObject<HTMLElement | null> } = {},
+  opts: {
+    enabled?: boolean
+    target?: React.RefObject<HTMLElement | null>
+    /** Only say when files are dragged over (someone else takes the drop). */
+    watchOnly?: boolean
+  } = {},
 ) {
   const [over, setOver] = useState(false)
   const depth = useRef(0)
@@ -46,8 +88,10 @@ export function useFileDrop(
       d.preventDefault()
       depth.current = 0
       setOver(false)
-      const files = [...(d.dataTransfer?.files ?? [])]
-      if (files.length) cb.current(files, d)
+      if (!d.dataTransfer || opts.watchOnly) return
+      void droppedFiles(d.dataTransfer).then((files) => {
+        if (files.length) cb.current(files, d)
+      })
     }
     el.addEventListener('dragenter', enter)
     el.addEventListener('dragover', overFn)
@@ -59,7 +103,7 @@ export function useFileDrop(
       el.removeEventListener('dragleave', leave)
       el.removeEventListener('drop', drop)
     }
-  }, [enabled, opts.target])
+  }, [enabled, opts.target, opts.watchOnly])
   return over
 }
 
