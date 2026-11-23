@@ -1,0 +1,29 @@
+{
+  "signIn": "Sign in",
+  "signInTo": "Sign in to {{name}}",
+  "welcome": "Footage, review and publishing for a studio that films its work.",
+  "email": "Email",
+  "password": "Password",
+  "remember": "Keep me signed in",
+  "signingIn": "Signing in…",
+  "wrong": "That email and password don’t match an account.",
+  "setup": {
+    "title": "Set up {{name}}",
+    "body": "You become the admin. You can invite your reviewers afterwards.",
+    "name": "Your name",
+    "workspace": "Workspace name",
+    "timeZone": "Time zone",
+    "timeZoneHint": "Schedules are sent to the social platforms in this time zone.",
+    "language": "Language",
+    "code": "Setup code",
+    "codeHint": "Printed in the server log: docker compose logs app | grep \"setup code\"",
+    "create": "Create admin account",
+    "passwordHint": "At least 8 characters."
+  },
+  "share": {
+    "opening": "Opening your link…",
+    "failed": "This link can’t be opened",
+    "askAgain": "Share links work once and expire. Ask whoever sent it for a new one.",
+    "signInInstead": "Sign in instead"
+  }
+}

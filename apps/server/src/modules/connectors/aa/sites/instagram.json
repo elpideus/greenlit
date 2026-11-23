@@ -1,0 +1,3069 @@
+{
+  "name": "instagram",
+  "displayName": "Instagram",
+  "baseUrl": "https://www.instagram.com",
+  "description": "instagram.com's own web requests, signed in with the cookies of an Instagram login (sessionid, ds_user_id). Reads go through its GraphQL endpoint with the form token its own page carries (DTSGInitialData), learned from its pages in November 2026. Its app's requests (Instagram 455 for Android, recorded on Greenlit's device in November 2026) go with the same session in the app's header form (Bearer IGT:2): sounds, reels, feed posts (a picture or a carousel), stories and deleting posts.",
+  "loginCookies": ["sessionid", "ds_user_id"],
+  "pace": {
+    "minIntervalMs": 1500
+  },
+  "operations": [
+    {
+      "name": "profile",
+      "description": "An Instagram account by its id (the signed-in one's is the ds_user_id cookie), as instagram.com's profile page reads it (PolarisProfilePageContentQuery): username, name, picture, kind of account, counts. The form token comes from instagram.com's own page (DTSGInitialData).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.instagram.com/api/graphql",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.instagram.com",
+          "referer": "https://www.instagram.com/",
+          "x-ig-app-id": "936619743392459",
+          "x-fb-friendly-name": "PolarisProfilePageContentQuery",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty"
+        },
+        "body": "av=0&__d=www&__user=0&__a=1&__comet_req=7&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=PolarisProfilePageContentQuery&variables=%7B%22enable_integrity_filters%22%3Atrue%2C%22id%22%3A%220%22%2C%22__relay_internal__pv__PolarisCannesGuardianExperienceEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__PolarisCASB976ProfileEnabledrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisProfileInformTreatmentBannerEnabledrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisWebSchoolsEnabledrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisProfileRingsGradientEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__PolarisRepostsConsumptionEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__PolarisShortDramaEnabledrelayprovider%22%3Atrue%7D&server_timestamps=true&doc_id=40158838120366999"
+      },
+      "slots": [
+        {
+          "ref": "cookie:csrftoken",
+          "at": ["header:x-csrftoken"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.instagram.com/",
+              "headers": {
+                "accept": "text/html",
+                "sec-fetch-site": "none",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-dest": "document"
+              }
+            },
+            "response": {
+              "format": "embedded",
+              "embedded": {
+                "regex": "\"DTSGInitialData\",\\[\\],(\\{)"
+              }
+            }
+          },
+          "path": "token"
+        },
+        {
+          "param": "userId",
+          "at": ["form:variables", "json:/id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "userId",
+          "pattern": "^\\d{3,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.instagram.com",
+        "path": "/api/graphql",
+        "operationName": "PolarisProfilePageContentQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.user",
+        "pick": [
+          "id",
+          "username",
+          "name=full_name",
+          "picture=profile_pic_url",
+          "business=is_business",
+          "professional=is_professional_account",
+          "kind=account_type",
+          "posts=media_count",
+          "followers=follower_count",
+          "fbId=fbid_v2"
+        ]
+      }
+    },
+    {
+      "name": "posts",
+      "description": "An account's latest posts as its profile grid reads them (PolarisProfilePostsQuery), newest first: code (the /p/ address), id, time, caption, kind (product_type clips = reel), picture, likes, comments.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.instagram.com/api/graphql",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.instagram.com",
+          "referer": "https://www.instagram.com/",
+          "x-ig-app-id": "936619743392459",
+          "x-fb-friendly-name": "PolarisProfilePostsQuery",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty"
+        },
+        "body": "av=0&__d=www&__user=0&__a=1&__comet_req=7&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=PolarisProfilePostsQuery&variables=%7B%22data%22%3A%7B%22count%22%3A12%2C%22include_reel_media_seen_timestamp%22%3Atrue%2C%22include_relationship_info%22%3Atrue%2C%22latest_besties_reel_media%22%3Atrue%2C%22latest_reel_media%22%3Atrue%7D%2C%22username%22%3A%22x%22%2C%22__relay_internal__pv__PolarisMultiCaptionCarouselEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__PolarisShortDramaEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__PolarisSEOIsCrawlerrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisProductTagIndicatorEnabledrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisThreadsStyleCommentsEnabledrelayprovider%22%3Afalse%2C%22__relay_internal__pv__PolarisReelsRecoDebugOverlayEnabledrelayprovider%22%3Afalse%7D&server_timestamps=true&doc_id=30543471925243353"
+      },
+      "slots": [
+        {
+          "ref": "cookie:csrftoken",
+          "at": ["header:x-csrftoken"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.instagram.com/",
+              "headers": {
+                "accept": "text/html",
+                "sec-fetch-site": "none",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-dest": "document"
+              }
+            },
+            "response": {
+              "format": "embedded",
+              "embedded": {
+                "regex": "\"DTSGInitialData\",\\[\\],(\\{)"
+              }
+            }
+          },
+          "path": "token"
+        },
+        {
+          "param": "username",
+          "at": ["form:variables", "json:/username"]
+        },
+        {
+          "param": "count",
+          "at": ["form:variables", "json:/data/count"]
+        }
+      ],
+      "params": [
+        {
+          "name": "username",
+          "pattern": "^[A-Za-z0-9._]{1,30}$"
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "required": false,
+          "default": 12,
+          "min": 1,
+          "max": 50
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.instagram.com",
+        "path": "/api/graphql",
+        "operationName": "PolarisProfilePostsQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.xdt_api__v1__feed__user_timeline_graphql_connection.edges[*].node",
+        "key": "id",
+        "pick": [
+          "id",
+          "code",
+          "created=taken_at",
+          "text=caption.text",
+          "kind=product_type",
+          "mediaType=media_type",
+          "image=image_versions2.candidates[0].url",
+          "likes=like_count",
+          "comments=comment_count"
+        ]
+      }
+    },
+    {
+      "name": "musicSearch",
+      "description": "Instagram's sounds for a reel, as the app's audio picker searches them (music/search_v2, the app's request with the instagram.com sign-in's session as its IGT header). Each sound: its asset and cluster ids (both go in a reel's music_params), title, artist, cover, the whole track (progressive_download_url) and its length, and the app's suggested starts.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/music/search_v2/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "from_typeahead=false&search_session_id=0&product=story_camera_clips_v2&q=x&_uuid=0&from_search=false&from_typing_page=false&browse_session_id=0"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "query",
+          "at": ["form:q"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:search_session_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:browse_session_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:_uuid"]
+        }
+      ],
+      "params": [
+        {
+          "name": "query"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/music/search_v2/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "items[*].track",
+        "pick": [
+          "assetId=audio_asset_id",
+          "clusterId=audio_cluster_id",
+          "title",
+          "artist=display_artist",
+          "cover=cover_artwork_thumbnail_uri",
+          "preview=progressive_download_url",
+          "durationMs=duration_in_ms",
+          "highlights=highlight_start_times_in_ms",
+          "dashManifest=dash_manifest",
+          "monetization=song_monetization_info"
+        ]
+      }
+    },
+    {
+      "name": "uploadReelVideo",
+      "description": "Sends a reel's video to Instagram's upload server in one piece, as the app does (rupload_igvideo/<entity name>, with its upload id). The server answers with the media id; the reel exists only once configureReelWithSound names the upload id.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/rupload_igvideo/x",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/octet-stream",
+          "offset": "0",
+          "segment-start-offset": "0",
+          "segment-type": "3",
+          "x-entity-type": "video/mp4",
+          "x-entity-name": "x",
+          "x-entity-length": "0",
+          "x-instagram-rupload-params": "{\"upload_media_height\":1920,\"share_type\":\"reels\",\"extract_cover_frame\":\"1\",\"upload_engine_config_enum\":\"0\",\"xsharing_user_ids\":\"[]\",\"upload_media_width\":1080,\"is_clips_video\":\"1\",\"is_optimistic_upload\":\"true\",\"upload_media_duration_ms\":1000,\"content_tags\":\"use_default_cover\",\"upload_id\":\"0\",\"retry_context\":\"{\\\"num_reupload\\\":0,\\\"cover_photo_re_upload_count\\\":0,\\\"num_step_manual_retry\\\":0,\\\"num_step_auto_retry\\\":0}\",\"session_id\":\"0\",\"media_type\":\"2\"}"
+        },
+        "file": {
+          "param": "path"
+        }
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "entityName",
+          "at": ["path:1"]
+        },
+        {
+          "param": "entityName",
+          "at": ["header:x-entity-name"]
+        },
+        {
+          "param": "size",
+          "at": ["header:x-entity-length"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["header:x-instagram-rupload-params", "json:/session_id"]
+        },
+        {
+          "param": "durationMs",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_duration_ms"]
+        },
+        {
+          "param": "width",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_width"]
+        },
+        {
+          "param": "height",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_height"]
+        }
+      ],
+      "params": [
+        {
+          "name": "entityName",
+          "pattern": "^[0-9a-f]{32}-0-\\d{1,12}-\\d{13}-\\d{13}$"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{13}$"
+        },
+        {
+          "name": "durationMs",
+          "type": "number",
+          "min": 1,
+          "max": 1800000
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "path",
+          "description": "The reel's video (a file in Greenlit's data folder)"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/rupload_igvideo/"
+      },
+      "response": {
+        "format": "json"
+      }
+    },
+    {
+      "name": "configureReelWithSound",
+      "description": "Publishes the uploaded video as a reel with a sound from Instagram's library, as the app's Share does (media/configure_to_clips, signed_body=SIGNATURE.{json}): the caption, the sound (music_params: its asset and cluster ids, where in the track it starts, how long it plays) and both volumes (clips_audio_metadata; volume_data holds the sound's volume as the app encodes it). The app mixes the sound into the uploaded video itself; Instagram links it.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_clips/?video=1",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22clips_share_preview_to_feed%22%3A%221%22%2C%22is_clips_edited%22%3A%220%22%2C%22like_and_view_counts_disabled%22%3A%220%22%2C%22camera_entry_point%22%3A%22360%22%2C%22tap_models%22%3A%22%5B%7B%5C%22x%5C%22%3A0.0%2C%5C%22y%5C%22%3A0.0%2C%5C%22z%5C%22%3A0%2C%5C%22width%5C%22%3A0.0%2C%5C%22height%5C%22%3A0.0%2C%5C%22rotation%5C%22%3A0.0%2C%5C%22type%5C%22%3A%5C%22music%5C%22%2C%5C%22allow_media_creation_with_music%5C%22%3Afalse%2C%5C%22allows_saving%5C%22%3Atrue%2C%5C%22audio_apply_source%5C%22%3A18%2C%5C%22audio_asset_id%5C%22%3A%5C%220%5C%22%2C%5C%22audio_asset_start_time_in_ms%5C%22%3A0%2C%5C%22audio_asset_suggested_start_time_in_ms%5C%22%3A0%2C%5C%22audio_cluster_id%5C%22%3A%5C%220%5C%22%2C%5C%22browse_session_id%5C%22%3A%5C%220%5C%22%2C%5C%22contains_lyrics%5C%22%3Afalse%2C%5C%22cover_artwork_thumbnail_uri%5C%22%3A%5C%22%5C%22%2C%5C%22cover_artwork_uri%5C%22%3A%5C%22%5C%22%2C%5C%22dash_manifest%5C%22%3A%5C%22%5C%22%2C%5C%22derived_content_start_time_in_ms%5C%22%3A0%2C%5C%22display_artist%5C%22%3A%5C%22%5C%22%2C%5C%22duration_in_ms%5C%22%3A1000%2C%5C%22has_lyrics%5C%22%3Afalse%2C%5C%22hide_remixing%5C%22%3Afalse%2C%5C%22highlight_start_times_in_ms%5C%22%3A%5B%5D%2C%5C%22id%5C%22%3A%5C%22%5C%22%2C%5C%22is_bookmarked%5C%22%3Afalse%2C%5C%22is_eligible_for_audio_effects%5C%22%3Atrue%2C%5C%22is_eligible_for_vinyl_sticker%5C%22%3Atrue%2C%5C%22is_explicit%5C%22%3Afalse%2C%5C%22is_local_audio%5C%22%3Afalse%2C%5C%22is_original_sound%5C%22%3Afalse%2C%5C%22is_trending_in_clips%5C%22%3Afalse%2C%5C%22music_product%5C%22%3A%5C%22clips_camera_format_v2%5C%22%2C%5C%22overlap_duration_in_ms%5C%22%3A1000%2C%5C%22picked_in_post_capture%5C%22%3Afalse%2C%5C%22placeholder_profile_pic_url%5C%22%3A%5C%22%5C%22%2C%5C%22progressive_download_url%5C%22%3A%5C%22%5C%22%2C%5C%22should_allow_music_editing%5C%22%3Afalse%2C%5C%22should_mute_audio%5C%22%3Afalse%2C%5C%22should_mute_audio_reason%5C%22%3A%5C%22%5C%22%2C%5C%22should_skip_attribution%5C%22%3Afalse%2C%5C%22tag%5C%22%3A%5C%220%5C%22%2C%5C%22title%5C%22%3A%5C%22%5C%22%2C%5C%22trend_rank%5C%22%3A0%2C%5C%22product%5C%22%3A%5C%22story_camera_clips_v2%5C%22%2C%5C%22should_render_soundwave%5C%22%3Afalse%2C%5C%22attribution%5C%22%3A%5C%22%5C%22%2C%5C%22is_sticker%5C%22%3Afalse%2C%5C%22display_type%5C%22%3A%5C%22music_hidden%5C%22%2C%5C%22tap_state%5C%22%3A0%2C%5C%22tap_state_str_id%5C%22%3A%5C%22%5C%22%7D%5D%22%2C%22is_created_with_sound_sync%22%3A%220%22%2C%22is_gifting_enabled%22%3A%220%22%2C%22disable_comments%22%3A%220%22%2C%22video_subtitles_translations_enabled%22%3A%220%22%2C%22contains_music_lyrics%22%3A%220%22%2C%22clips_creation_entry_point%22%3A%22clips%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22third_party_downloads_enabled%22%3A%221%22%2C%22timezone_offset%22%3A%220%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22disable_audio_filters%22%3A%22false%22%2C%22is_created_with_contextual_music_recs%22%3A%220%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22is_early_access%22%3A%220%22%2C%22_uuid%22%3A%220%22%2C%22creation_tool_info%22%3A%22%5B%7B%5C%22camera_tool%5C%22%3A97%7D%5D%22%2C%22cover_photo_cropping_type%22%3A%22FOUR_BY_THREE%22%2C%22caption%22%3A%22%22%2C%22acr_browser_entry_point%22%3A%22-2%22%2C%22video_subtitles_enabled%22%3A%221%22%2C%22created_from_highlight_info%22%3A%22%7B%7D%22%2C%22capture_type%22%3A%22clips_v2%22%2C%22audience%22%3A%22default%22%2C%22template_opt_in_status%22%3A%220%22%2C%22upload_id%22%3A%220%22%2C%22share_count_disabled%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%223%22%2C%22cover_frame_time_ms%22%3A%220%22%2C%22is_template_disabled%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22clips%22%3A%5B%7B%22length%22%3A1.0%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22back%22%7D%5D%2C%22poster_frame_index%22%3A0%2C%22length%22%3A1.0%2C%22audio_muted%22%3Afalse%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22clips_segments_metadata%22%3A%7B%22num_segments%22%3A1%2C%22clips_segments%22%3A%5B%7B%22index%22%3A0%2C%22face_effect_id%22%3Anull%2C%22speed%22%3A100%2C%22source_type%22%3A%220%22%2C%22duration_ms%22%3A1000%2C%22audio_type%22%3A%22music_selection%22%2C%22from_draft%22%3A%220%22%2C%22camera_position%22%3A-1%2C%22media_folder%22%3A%22Movies%22%2C%22media_type%22%3A%22video%22%2C%22original_media_type%22%3A2%2C%22original_segment_hash%22%3Anull%2C%22is_remix%22%3Afalse%2C%22has_reusable_template_asset%22%3Afalse%7D%5D%7D%2C%22music_params%22%3A%7B%22audio_asset_id%22%3A%220%22%2C%22audio_cluster_id%22%3A%220%22%2C%22audio_asset_start_time_in_ms%22%3A0%2C%22derived_content_start_time_in_ms%22%3A0%2C%22overlap_duration_in_ms%22%3A1000%2C%22browse_session_id%22%3A%220%22%2C%22product%22%3A%22story_camera_clips_v2%22%2C%22song_name%22%3A%22%22%2C%22artist_name%22%3A%22%22%2C%22alacorn_session_id%22%3A%22%22%2C%22audio_apply_source%22%3A18%7D%2C%22volume_data%22%3A%7B%22volume%22%3A%22%22%2C%22audio_content%22%3A%22%22%7D%2C%22additional_audio_info%22%3A%7B%22has_voiceover_attribution%22%3A%220%22%7D%2C%22clips_audio_metadata%22%3A%7B%22original%22%3A%7B%22volume_level%22%3A1.0%7D%2C%22song%22%3A%7B%22volume_level%22%3A1.0%2C%22is_saved%22%3A%220%22%2C%22artist_name%22%3A%22%22%2C%22audio_asset_id%22%3A%220%22%2C%22audio_cluster_id%22%3A%220%22%2C%22track_name%22%3A%22%22%2C%22is_picked_precapture%22%3A%221%22%2C%22audio_apply_source%22%3A18%7D%7D%2C%22gen_ai_detection_method%22%3A%22%22%2C%22location%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "caption",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/caption"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/length"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips/0/length"]
+        },
+        {
+          "param": "durationMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/clips_segments_metadata/clips_segments/0/duration_ms"
+          ]
+        },
+        {
+          "param": "durationMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/overlap_duration_in_ms"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "assetId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/audio_asset_id"]
+        },
+        {
+          "param": "assetId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/song/audio_asset_id"]
+        },
+        {
+          "param": "clusterId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/audio_cluster_id"]
+        },
+        {
+          "param": "clusterId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/song/audio_cluster_id"]
+        },
+        {
+          "param": "startMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/audio_asset_start_time_in_ms"]
+        },
+        {
+          "param": "songName",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/song_name"]
+        },
+        {
+          "param": "songName",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/song/track_name"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/artist_name"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/song/artist_name"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/music_params/browse_session_id"]
+        },
+        {
+          "param": "songVolume",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/song/volume_level"]
+        },
+        {
+          "param": "volumeData",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/volume_data/volume"]
+        },
+        {
+          "param": "originalVolume",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/original/volume_level"]
+        },
+        {
+          "param": "disableComments",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/disable_comments"]
+        },
+        {
+          "param": "shareToFeed",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_share_preview_to_feed"]
+        },
+        {
+          "param": "assetId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_asset_id"]
+        },
+        {
+          "param": "clusterId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_cluster_id"]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_suggested_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "durationMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/overlap_duration_in_ms"
+          ]
+        },
+        {
+          "param": "trackMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/duration_in_ms"]
+        },
+        {
+          "param": "songName",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/title"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/display_artist"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/attribution"]
+        },
+        {
+          "param": "cover",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/cover_artwork_thumbnail_uri"
+          ]
+        },
+        {
+          "param": "cover",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/cover_artwork_uri"]
+        },
+        {
+          "param": "audioUrl",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/progressive_download_url"
+          ]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/browse_session_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/tag"]
+        },
+        {
+          "param": "coverMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/cover_frame_time_ms"]
+        },
+        {
+          "param": "posterIndex",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/poster_frame_index"]
+        },
+        {
+          "param": "aiLabel",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/gen_ai_detection_method"]
+        },
+        {
+          "param": "location",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/location"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{13}$"
+        },
+        {
+          "name": "caption",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "min": 0.5,
+          "max": 1800
+        },
+        {
+          "name": "durationMs",
+          "type": "number",
+          "min": 500,
+          "max": 1800000
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "assetId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "clusterId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "startMs",
+          "type": "number",
+          "min": 0,
+          "max": 36000000
+        },
+        {
+          "name": "songName",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "artist",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "songVolume",
+          "type": "number",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "volumeData",
+          "pattern": "^[A-Za-z0-9+/=]{4,16}$"
+        },
+        {
+          "name": "originalVolume",
+          "type": "number",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "disableComments",
+          "required": false,
+          "default": "0",
+          "pattern": "^[01]$"
+        },
+        {
+          "name": "shareToFeed",
+          "required": false,
+          "default": "1",
+          "pattern": "^[01]$",
+          "description": "Also shown in the profile grid (the app's Share to feed)"
+        },
+        {
+          "name": "trackMs",
+          "type": "number",
+          "min": 0,
+          "max": 36000000
+        },
+        {
+          "name": "cover",
+          "required": false,
+          "default": "",
+          "description": "The sound's cover picture (its fbcdn address)"
+        },
+        {
+          "name": "audioUrl",
+          "required": false,
+          "default": "",
+          "description": "The sound's audio (its fbcdn address)"
+        },
+        {
+          "name": "coverMs",
+          "required": false,
+          "default": "0",
+          "pattern": "^\\d{1,9}$",
+          "description": "The cover's frame: its time in the video, milliseconds"
+        },
+        {
+          "name": "posterIndex",
+          "type": "number",
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "max": 100,
+          "description": "The cover's place in the video as the app counts it: its time as a percentage of the length"
+        },
+        {
+          "name": "aiLabel",
+          "required": false,
+          "default": "",
+          "enum": ["", "SELF_DISCLOSURE_FLOW"],
+          "description": "SELF_DISCLOSURE_FLOW for the AI label; empty for none"
+        },
+        {
+          "name": "location",
+          "required": false,
+          "default": "",
+          "description": "The place, as the app writes it: {\"name\",\"address\",\"lat\",\"lng\",\"external_source\":\"meta_place\",\"meta_place_id\"} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_clips/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "configureReel",
+      "description": "Publishes the uploaded video as a reel with its own audio (media/configure_to_clips, signed_body=SIGNATURE.{json}): configureReelWithSound's request with the sound's parts left out (music_params, tap_models, volume_data) and the original audio's volume.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_clips/?video=1",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22clips_share_preview_to_feed%22%3A%221%22%2C%22is_clips_edited%22%3A%220%22%2C%22like_and_view_counts_disabled%22%3A%220%22%2C%22camera_entry_point%22%3A%22360%22%2C%22is_created_with_sound_sync%22%3A%220%22%2C%22is_gifting_enabled%22%3A%220%22%2C%22disable_comments%22%3A%220%22%2C%22video_subtitles_translations_enabled%22%3A%220%22%2C%22contains_music_lyrics%22%3A%220%22%2C%22clips_creation_entry_point%22%3A%22clips%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22third_party_downloads_enabled%22%3A%221%22%2C%22timezone_offset%22%3A%220%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22disable_audio_filters%22%3A%22false%22%2C%22is_created_with_contextual_music_recs%22%3A%220%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22is_early_access%22%3A%220%22%2C%22_uuid%22%3A%220%22%2C%22creation_tool_info%22%3A%22%5B%7B%5C%22camera_tool%5C%22%3A97%7D%5D%22%2C%22cover_photo_cropping_type%22%3A%22FOUR_BY_THREE%22%2C%22caption%22%3A%22%22%2C%22acr_browser_entry_point%22%3A%22-2%22%2C%22video_subtitles_enabled%22%3A%221%22%2C%22created_from_highlight_info%22%3A%22%7B%7D%22%2C%22capture_type%22%3A%22clips_v2%22%2C%22audience%22%3A%22default%22%2C%22template_opt_in_status%22%3A%220%22%2C%22upload_id%22%3A%220%22%2C%22share_count_disabled%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%223%22%2C%22cover_frame_time_ms%22%3A%220%22%2C%22is_template_disabled%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22clips%22%3A%5B%7B%22length%22%3A1.0%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22back%22%7D%5D%2C%22poster_frame_index%22%3A0%2C%22length%22%3A1.0%2C%22audio_muted%22%3Afalse%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22clips_segments_metadata%22%3A%7B%22num_segments%22%3A1%2C%22clips_segments%22%3A%5B%7B%22index%22%3A0%2C%22face_effect_id%22%3Anull%2C%22speed%22%3A100%2C%22source_type%22%3A%220%22%2C%22duration_ms%22%3A1000%2C%22audio_type%22%3A%22original%22%2C%22from_draft%22%3A%220%22%2C%22camera_position%22%3A-1%2C%22media_folder%22%3A%22Movies%22%2C%22media_type%22%3A%22video%22%2C%22original_media_type%22%3A2%2C%22original_segment_hash%22%3Anull%2C%22is_remix%22%3Afalse%2C%22has_reusable_template_asset%22%3Afalse%7D%5D%7D%2C%22additional_audio_info%22%3A%7B%22has_voiceover_attribution%22%3A%220%22%7D%2C%22clips_audio_metadata%22%3A%7B%22original%22%3A%7B%22volume_level%22%3A1.0%7D%7D%2C%22gen_ai_detection_method%22%3A%22%22%2C%22location%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "caption",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/caption"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/length"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips/0/length"]
+        },
+        {
+          "param": "durationMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/clips_segments_metadata/clips_segments/0/duration_ms"
+          ]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "originalVolume",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_audio_metadata/original/volume_level"]
+        },
+        {
+          "param": "disableComments",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/disable_comments"]
+        },
+        {
+          "param": "shareToFeed",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips_share_preview_to_feed"]
+        },
+        {
+          "param": "coverMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/cover_frame_time_ms"]
+        },
+        {
+          "param": "posterIndex",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/poster_frame_index"]
+        },
+        {
+          "param": "aiLabel",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/gen_ai_detection_method"]
+        },
+        {
+          "param": "location",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/location"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{13}$"
+        },
+        {
+          "name": "caption",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "min": 0.5,
+          "max": 1800
+        },
+        {
+          "name": "durationMs",
+          "type": "number",
+          "min": 500,
+          "max": 1800000
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "originalVolume",
+          "type": "number",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "disableComments",
+          "required": false,
+          "default": "0",
+          "pattern": "^[01]$"
+        },
+        {
+          "name": "shareToFeed",
+          "required": false,
+          "default": "1",
+          "pattern": "^[01]$",
+          "description": "Also shown in the profile grid (the app's Share to feed)"
+        },
+        {
+          "name": "coverMs",
+          "required": false,
+          "default": "0",
+          "pattern": "^\\d{1,9}$",
+          "description": "The cover's frame: its time in the video, milliseconds"
+        },
+        {
+          "name": "posterIndex",
+          "type": "number",
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "max": 100,
+          "description": "The cover's place in the video as the app counts it: its time as a percentage of the length"
+        },
+        {
+          "name": "aiLabel",
+          "required": false,
+          "default": "",
+          "enum": ["", "SELF_DISCLOSURE_FLOW"],
+          "description": "SELF_DISCLOSURE_FLOW for the AI label; empty for none"
+        },
+        {
+          "name": "location",
+          "required": false,
+          "default": "",
+          "description": "The place, as the app writes it: {\"name\",\"address\",\"lat\",\"lng\",\"external_source\":\"meta_place\",\"meta_place_id\"} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_clips/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "deleteMedia",
+      "description": "Deletes one of the account's posts or reels, as the app's Delete does (media/<id>/delete/, signed_body=SIGNATURE.{json} naming the media id). Instagram keeps it in Recently deleted for 30 days, where the owner can restore it; it answers did_delete.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/0_0/delete/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22media_id%22%3A%220_0%22%2C%22_uid%22%3A%220%22%2C%22_uuid%22%3A%220%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_id"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{5,25}_\\d{3,25}$",
+          "description": "The post's id: its pk, an underscore, the account's id"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "deleted=did_delete", "message"]
+      }
+    },
+    {
+      "name": "uploadPhoto",
+      "description": "Sends a picture to Instagram's upload server, as the app does (rupload_igphoto/<entity name>): a feed picture, a story, a carousel's item (sidecar, with the carousel's id as its session) or a carousel video's cover (mediaType 2, with the video's upload id). The post exists only once a configure names the upload id. A picture story with a sound carries the sound in the upload (photo_to_video_duration_ms, music_burnin_params: the asset and where it starts): Instagram burns the sound into the picture there.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/rupload_igphoto/x",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/octet-stream",
+          "offset": "0",
+          "x-entity-type": "image/jpeg",
+          "x-entity-name": "x",
+          "x-entity-length": "0",
+          "x-instagram-rupload-params": "{\"upload_id\":\"0\",\"session_id\":\"0\",\"media_type\":\"1\",\"upload_engine_config_enum\":\"0\",\"is_sidecar\":\"1\",\"share_type\":\"feed\",\"is_optimistic_upload\":\"false\",\"image_compression\":\"{\\\"lib_name\\\":\\\"moz\\\",\\\"lib_version\\\":\\\"5.0.0\\\",\\\"quality\\\":\\\"80\\\",\\\"original_width\\\":1080,\\\"original_height\\\":1350}\",\"xsharing_user_ids\":\"[]\",\"retry_context\":\"{\\\"num_reupload\\\":0,\\\"cover_photo_re_upload_count\\\":0,\\\"num_step_manual_retry\\\":0,\\\"num_step_auto_retry\\\":0}\",\"cover_photo_type\":\"first_frame\",\"photo_to_video_duration_ms\":\"0\",\"music_burnin_params\":\"{}\",\"sticker_burnin_params\":\"[]\",\"for_album\":\"1\"}"
+        },
+        "file": {
+          "param": "path"
+        }
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "entityName",
+          "at": ["path:1"]
+        },
+        {
+          "param": "entityName",
+          "at": ["header:x-entity-name"]
+        },
+        {
+          "param": "size",
+          "at": ["header:x-entity-length"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_id"]
+        },
+        {
+          "param": "sessionId",
+          "at": ["header:x-instagram-rupload-params", "json:/session_id"]
+        },
+        {
+          "param": "mediaType",
+          "at": ["header:x-instagram-rupload-params", "json:/media_type"]
+        },
+        {
+          "param": "shareType",
+          "at": ["header:x-instagram-rupload-params", "json:/share_type"]
+        },
+        {
+          "param": "sidecar",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/is_sidecar"]
+        },
+        {
+          "param": "cover",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/cover_photo_type"]
+        },
+        {
+          "param": "width",
+          "at": ["header:x-instagram-rupload-params", "json:/image_compression", "json:/original_width"]
+        },
+        {
+          "param": "height",
+          "at": ["header:x-instagram-rupload-params", "json:/image_compression", "json:/original_height"]
+        },
+        {
+          "param": "photoToVideoMs",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/photo_to_video_duration_ms"]
+        },
+        {
+          "param": "musicBurnin",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/music_burnin_params"]
+        },
+        {
+          "param": "stickerBurnin",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/sticker_burnin_params"]
+        },
+        {
+          "param": "forAlbum",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/for_album"]
+        }
+      ],
+      "params": [
+        {
+          "name": "entityName",
+          "pattern": "^[0-9a-f_-]{8,80}$"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "sessionId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "mediaType",
+          "enum": ["1", "2"],
+          "description": "1 a picture, 2 a video's cover"
+        },
+        {
+          "name": "shareType",
+          "enum": ["feed", "stories"]
+        },
+        {
+          "name": "sidecar",
+          "required": false,
+          "default": "",
+          "enum": ["", "1"],
+          "description": "A carousel's item: \"1\""
+        },
+        {
+          "name": "cover",
+          "required": false,
+          "default": "",
+          "enum": ["", "first_frame"],
+          "description": "A video's cover: first_frame"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "path",
+          "description": "The file (in Greenlit's data folder)"
+        },
+        {
+          "name": "photoToVideoMs",
+          "required": false,
+          "default": "",
+          "description": "How long a picture with a sound lasts as video, milliseconds (a story: 20000); empty for no sound"
+        },
+        {
+          "name": "musicBurnin",
+          "required": false,
+          "default": "",
+          "description": "The sound burned into the picture: {\"asset_fbid\":\"<asset id>\",\"offset_ms\":<start>} as a string; empty for no sound"
+        },
+        {
+          "name": "stickerBurnin",
+          "required": false,
+          "default": "",
+          "description": "The stickers burned into the picture, as the app writes them: \"[]\"; empty for no sound"
+        },
+        {
+          "name": "forAlbum",
+          "required": false,
+          "default": "",
+          "description": "\"1\" for a story with a sound; empty otherwise"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/rupload_igphoto/"
+      },
+      "response": {
+        "format": "json"
+      }
+    },
+    {
+      "name": "uploadVideo",
+      "description": "Sends a story's or a carousel's video to Instagram's upload server in one piece, as the app does (rupload_igvideo/<entity name>, with its upload id). A story's video has its cover made by Instagram (extractCoverFrame); a carousel's gets one uploaded with uploadPhoto.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/rupload_igvideo/x",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/octet-stream",
+          "offset": "0",
+          "segment-start-offset": "0",
+          "segment-type": "3",
+          "x-entity-type": "video/mp4",
+          "x-entity-name": "x",
+          "x-entity-length": "0",
+          "x-instagram-rupload-params": "{\"upload_media_height\":\"1920\",\"share_type\":\"stories\",\"extract_cover_frame\":\"1\",\"upload_engine_config_enum\":\"0\",\"xsharing_user_ids\":\"[]\",\"upload_media_width\":\"1080\",\"is_optimistic_upload\":\"false\",\"upload_media_duration_ms\":\"1000\",\"content_tags\":\"use_default_cover\",\"upload_id\":\"0\",\"for_album\":\"1\",\"retry_context\":\"{\\\"num_reupload\\\":0,\\\"cover_photo_re_upload_count\\\":0,\\\"num_step_manual_retry\\\":0,\\\"num_step_auto_retry\\\":0}\",\"session_id\":\"0\",\"media_type\":\"2\",\"is_sidecar\":\"1\",\"music_burnin_params\":\"\"}"
+        },
+        "file": {
+          "param": "path"
+        }
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "entityName",
+          "at": ["path:1"]
+        },
+        {
+          "param": "entityName",
+          "at": ["header:x-entity-name"]
+        },
+        {
+          "param": "size",
+          "at": ["header:x-entity-length"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_id"]
+        },
+        {
+          "param": "sessionId",
+          "at": ["header:x-instagram-rupload-params", "json:/session_id"]
+        },
+        {
+          "param": "shareType",
+          "at": ["header:x-instagram-rupload-params", "json:/share_type"]
+        },
+        {
+          "param": "sidecar",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/is_sidecar"]
+        },
+        {
+          "param": "forAlbum",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/for_album"]
+        },
+        {
+          "param": "extractCover",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/extract_cover_frame"]
+        },
+        {
+          "param": "durationMsText",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_duration_ms"]
+        },
+        {
+          "param": "widthText",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["header:x-instagram-rupload-params", "json:/upload_media_height"]
+        },
+        {
+          "param": "musicBurnin",
+          "omitEmpty": true,
+          "at": ["header:x-instagram-rupload-params", "json:/music_burnin_params"]
+        }
+      ],
+      "params": [
+        {
+          "name": "entityName",
+          "pattern": "^[0-9a-f_-]{8,80}$"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "sessionId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "shareType",
+          "enum": ["feed", "stories"]
+        },
+        {
+          "name": "sidecar",
+          "required": false,
+          "default": "",
+          "enum": ["", "1"],
+          "description": "A carousel's item: \"1\""
+        },
+        {
+          "name": "forAlbum",
+          "required": false,
+          "default": "",
+          "enum": ["", "1"],
+          "description": "A story's video: \"1\", as the app sends it"
+        },
+        {
+          "name": "extractCover",
+          "required": false,
+          "default": "",
+          "enum": ["", "1"],
+          "description": "Instagram makes the cover from the first frame (a story): \"1\""
+        },
+        {
+          "name": "durationMsText",
+          "pattern": "^\\d{1,7}$"
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "path",
+          "description": "The file (in Greenlit's data folder)"
+        },
+        {
+          "name": "musicBurnin",
+          "required": false,
+          "default": "",
+          "description": "A story's sound burned into the video: {\"asset_fbid\":\"<asset id>\",\"offset_ms\":<start>} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/rupload_igvideo/"
+      },
+      "response": {
+        "format": "json"
+      }
+    },
+    {
+      "name": "configurePhoto",
+      "description": "Publishes an uploaded picture as a feed post, as the app's Share does (media/configure/, signed_body=SIGNATURE.{json}): the caption, the picture's size and crop, and the AI label when asked.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22app_attribution_android_namespace%22%3A%22%22%2C%22camera_entry_point%22%3A%22360%22%2C%22original_height%22%3A%221350%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22scene_capture_type%22%3A%22%22%2C%22timezone_offset%22%3A%220%22%2C%22source_type%22%3A%224%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22creation_tool_info%22%3A%22%5B%5D%22%2C%22caption%22%3A%22%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22upload_id%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%2211%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%2C%22crop_original_size%22%3A%5B1080.0%2C1350.0%5D%2C%22crop_center%22%3A%5B0.0%2C-0.0%5D%2C%22crop_zoom%22%3A1.0%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1350%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22gen_ai_detection_method%22%3A%22SELF_DISCLOSURE_FLOW%22%2C%22disable_comments%22%3A%220%22%2C%22location%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "caption",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/caption"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/edits/crop_original_size/0"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/edits/crop_original_size/1"]
+        },
+        {
+          "param": "aiLabel",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/gen_ai_detection_method"]
+        },
+        {
+          "param": "disableComments",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/disable_comments"]
+        },
+        {
+          "param": "location",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/location"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "caption",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "aiLabel",
+          "required": false,
+          "default": "",
+          "enum": ["", "SELF_DISCLOSURE_FLOW"],
+          "description": "The AI label (\"Made with AI\"): SELF_DISCLOSURE_FLOW, as the app's switch sends it; empty leaves it out"
+        },
+        {
+          "name": "disableComments",
+          "required": false,
+          "default": "0",
+          "pattern": "^[01]$"
+        },
+        {
+          "name": "location",
+          "required": false,
+          "default": "",
+          "description": "The place, as the app writes it: {\"name\",\"address\",\"lat\",\"lng\",\"external_source\":\"meta_place\",\"meta_place_id\"} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "configureSidecar",
+      "description": "Publishes uploaded pictures and videos as one carousel post, as the app's Share does (media/configure_sidecar/): the carousel's id (its items' upload session), the caption, its items (children_metadata, in order: each item's upload id, size and edits as the app writes them) and the AI label when asked. Sent without cookies, as the app sends it: with the web session's cookies Instagram answers \"SecFetch Policy violation\" (Nov 2026).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "cookies": false,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_sidecar/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22camera_entry_point%22%3A%22360%22%2C%22gen_ai_detection_method%22%3A%22SELF_DISCLOSURE_FLOW%22%2C%22carousel_mixed_aspect_ratio_type%22%3A%220%22%2C%22original_height%22%3A%220%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22timezone_offset%22%3A%220%22%2C%22source_type%22%3A%224%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22caption%22%3A%22%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22client_sidecar_id%22%3A%220%22%2C%22upload_id%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%226%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%220%22%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22children_metadata%22%3A%5B%5D%2C%22disable_comments%22%3A%220%22%2C%22location%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "sidecarId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "sidecarId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_sidecar_id"]
+        },
+        {
+          "param": "caption",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/caption"]
+        },
+        {
+          "param": "children",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/children_metadata"]
+        },
+        {
+          "param": "aiLabel",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/gen_ai_detection_method"]
+        },
+        {
+          "param": "disableComments",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/disable_comments"]
+        },
+        {
+          "param": "location",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/location"]
+        }
+      ],
+      "params": [
+        {
+          "name": "sidecarId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "caption",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "children",
+          "type": "array",
+          "description": "The items, 2 to 10, each an object as the app writes it (upload_id, sizes, edits)"
+        },
+        {
+          "name": "aiLabel",
+          "required": false,
+          "default": "",
+          "enum": ["", "SELF_DISCLOSURE_FLOW"],
+          "description": "The AI label (\"Made with AI\"): SELF_DISCLOSURE_FLOW, as the app's switch sends it; empty leaves it out"
+        },
+        {
+          "name": "disableComments",
+          "required": false,
+          "default": "0",
+          "pattern": "^[01]$"
+        },
+        {
+          "name": "location",
+          "required": false,
+          "default": "",
+          "description": "The place, as the app writes it: {\"name\",\"address\",\"lat\",\"lng\",\"external_source\":\"meta_place\",\"meta_place_id\"} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_sidecar/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "configureStoryPhoto",
+      "description": "Shares an uploaded picture to the account's story, as the app's \"Your story\" does (media/configure_to_story/).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_story/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22supported_capabilities_new%22%3A%22%5B%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22149.0%2C150.0%2C151.0%2C152.0%2C153.0%2C154.0%2C155.0%2C156.0%2C157.0%2C158.0%2C159.0%2C160.0%2C161.0%2C162.0%2C163.0%2C164.0%2C165.0%2C166.0%2C167.0%2C168.0%2C169.0%2C170.0%2C171.0%2C172.0%2C173.0%2C174.0%2C175.0%2C176.0%2C177.0%2C178.0%2C179.0%2C180.0%2C181.0%2C182.0%2C183.0%2C184.0%2C185.0%2C186.0%2C187.0%2C188.0%2C189.0%2C190.0%2C191.0%2C192.0%2C193.0%2C194.0%2C195.0%2C196.0%2C197.0%2C198.0%2C199.0%2C200.0%2C201.0%2C202.0%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_BETA_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22182.0-beta%2C183.0-beta%2C184.0-beta%2C185.0-beta%2C186.0-beta%2C187.0-beta%2C188.0-beta%2C189.0-beta%2C190.0-beta%2C191.0-beta%2C192.0-beta%2C193.0-beta%2C194.0-beta%2C195.0-beta%2C196.0-beta%2C197.0-beta%2C198.0-beta%2C199.0-beta%2C200.0-beta%2C201.0-beta%2C202.0-beta%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22FACE_TRACKER_VERSION%5C%22%2C%5C%22value%5C%22%3A%5C%2214%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22segmentation%5C%22%2C%5C%22value%5C%22%3A%5C%22segmentation_enabled%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22COMPRESSION%5C%22%2C%5C%22value%5C%22%3A%5C%22ETC2_COMPRESSION%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22gyroscope%5C%22%2C%5C%22value%5C%22%3A%5C%22gyroscope_enabled%5C%22%7D%5D%22%2C%22has_camera_metadata%22%3A%220%22%2C%22camera_entry_point%22%3A%2211%22%2C%22original_media_type%22%3A%221%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22scene_capture_type%22%3A%22%22%2C%22timezone_offset%22%3A%220%22%2C%22client_shared_at%22%3A%220%22%2C%22media_folder%22%3A%22Pictures%22%2C%22configure_mode%22%3A%221%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22creation_surface%22%3A%22camera%22%2C%22capture_type%22%3A%22normal%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22upload_id%22%3A%220%22%2C%22client_timestamp%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%222%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22media_transformation_info%22%3A%22%7B%5C%22width%5C%22%3A%5C%221080%5C%22%2C%5C%22height%5C%22%3A%5C%221920%5C%22%2C%5C%22x_transform%5C%22%3A%5C%220%5C%22%2C%5C%22y_transform%5C%22%3A%5C%220%5C%22%2C%5C%22zoom%5C%22%3A%5C%221.0%5C%22%2C%5C%22rotation%5C%22%3A%5C%220.0%5C%22%2C%5C%22background_coverage%5C%22%3A%5C%220.0%5C%22%7D%22%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%2C%22crop_original_size%22%3A%5B1080.0%2C1920.0%5D%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22tap_models%22%3A%22%22%2C%22story_sticker_ids%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_shared_at"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_timestamp"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/height"]
+        },
+        {
+          "param": "tapModels",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models"]
+        },
+        {
+          "param": "stickerIds",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_sticker_ids"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "nowSec",
+          "pattern": "^\\d{10}$",
+          "description": "The time it is shared, Unix seconds"
+        },
+        {
+          "name": "tapModels",
+          "required": false,
+          "default": "",
+          "description": "The story's stickers as the app writes them (tap_models: a JSON array as a string), e.g. a location sticker; empty for none"
+        },
+        {
+          "name": "stickerIds",
+          "required": false,
+          "default": "",
+          "description": "The stickers' ids as the app names them (story_sticker_ids, e.g. location_sticker); empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_story/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "configureStoryVideo",
+      "description": "Shares an uploaded video to the account's story, as the app's \"Your story\" does (media/configure_to_story/?video=1): its length and size.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_story/?video=1",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22supported_capabilities_new%22%3A%22%5B%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22149.0%2C150.0%2C151.0%2C152.0%2C153.0%2C154.0%2C155.0%2C156.0%2C157.0%2C158.0%2C159.0%2C160.0%2C161.0%2C162.0%2C163.0%2C164.0%2C165.0%2C166.0%2C167.0%2C168.0%2C169.0%2C170.0%2C171.0%2C172.0%2C173.0%2C174.0%2C175.0%2C176.0%2C177.0%2C178.0%2C179.0%2C180.0%2C181.0%2C182.0%2C183.0%2C184.0%2C185.0%2C186.0%2C187.0%2C188.0%2C189.0%2C190.0%2C191.0%2C192.0%2C193.0%2C194.0%2C195.0%2C196.0%2C197.0%2C198.0%2C199.0%2C200.0%2C201.0%2C202.0%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_BETA_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22182.0-beta%2C183.0-beta%2C184.0-beta%2C185.0-beta%2C186.0-beta%2C187.0-beta%2C188.0-beta%2C189.0-beta%2C190.0-beta%2C191.0-beta%2C192.0-beta%2C193.0-beta%2C194.0-beta%2C195.0-beta%2C196.0-beta%2C197.0-beta%2C198.0-beta%2C199.0-beta%2C200.0-beta%2C201.0-beta%2C202.0-beta%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22FACE_TRACKER_VERSION%5C%22%2C%5C%22value%5C%22%3A%5C%2214%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22segmentation%5C%22%2C%5C%22value%5C%22%3A%5C%22segmentation_enabled%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22COMPRESSION%5C%22%2C%5C%22value%5C%22%3A%5C%22ETC2_COMPRESSION%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22gyroscope%5C%22%2C%5C%22value%5C%22%3A%5C%22gyroscope_enabled%5C%22%7D%5D%22%2C%22has_camera_metadata%22%3A%220%22%2C%22camera_entry_point%22%3A%2211%22%2C%22original_media_type%22%3A%222%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22timezone_offset%22%3A%220%22%2C%22client_shared_at%22%3A%220%22%2C%22media_folder%22%3A%22Movies%22%2C%22configure_mode%22%3A%221%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22video_result%22%3A%22%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22creation_surface%22%3A%22camera%22%2C%22capture_type%22%3A%22normal%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22upload_id%22%3A%220%22%2C%22client_timestamp%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%2211%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22media_transformation_info%22%3A%22%7B%5C%22width%5C%22%3A%5C%221080%5C%22%2C%5C%22height%5C%22%3A%5C%221920%5C%22%2C%5C%22x_transform%5C%22%3A%5C%220%5C%22%2C%5C%22y_transform%5C%22%3A%5C%220%5C%22%2C%5C%22zoom%5C%22%3A%5C%221.0%5C%22%2C%5C%22rotation%5C%22%3A%5C%220.0%5C%22%2C%5C%22background_coverage%5C%22%3A%5C%220.0%5C%22%7D%22%2C%22clips%22%3A%5B%7B%22length%22%3A1.0%2C%22source_type%22%3A%224%22%7D%5D%2C%22poster_frame_index%22%3A0%2C%22length%22%3A1.0%2C%22audio_muted%22%3Afalse%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22tap_models%22%3A%22%22%2C%22story_sticker_ids%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/length"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips/0/length"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_shared_at"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_timestamp"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/height"]
+        },
+        {
+          "param": "tapModels",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models"]
+        },
+        {
+          "param": "stickerIds",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_sticker_ids"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "min": 0.5,
+          "max": 60
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "nowSec",
+          "pattern": "^\\d{10}$",
+          "description": "The time it is shared, Unix seconds"
+        },
+        {
+          "name": "tapModels",
+          "required": false,
+          "default": "",
+          "description": "The story's stickers as the app writes them (tap_models: a JSON array as a string), e.g. a location sticker; empty for none"
+        },
+        {
+          "name": "stickerIds",
+          "required": false,
+          "default": "",
+          "description": "The stickers' ids as the app names them (story_sticker_ids, e.g. location_sticker); empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_story/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "configureStoryPhotoWithSound",
+      "description": "Shares an uploaded picture to the account's story with a sound from Instagram's library, as the app's \"Your story\" does after a sound is added in the editor (media/configure_to_story/): the sound goes in as the app's music sticker, hidden (music only), with its asset and cluster ids and where in the track it starts; Instagram links it and plays it over the story. The sound's audio address, cover, title, artist and length come from the sound search, as the app's sticker carries them.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_story/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22supported_capabilities_new%22%3A%22%5B%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22149.0%2C150.0%2C151.0%2C152.0%2C153.0%2C154.0%2C155.0%2C156.0%2C157.0%2C158.0%2C159.0%2C160.0%2C161.0%2C162.0%2C163.0%2C164.0%2C165.0%2C166.0%2C167.0%2C168.0%2C169.0%2C170.0%2C171.0%2C172.0%2C173.0%2C174.0%2C175.0%2C176.0%2C177.0%2C178.0%2C179.0%2C180.0%2C181.0%2C182.0%2C183.0%2C184.0%2C185.0%2C186.0%2C187.0%2C188.0%2C189.0%2C190.0%2C191.0%2C192.0%2C193.0%2C194.0%2C195.0%2C196.0%2C197.0%2C198.0%2C199.0%2C200.0%2C201.0%2C202.0%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_BETA_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22182.0-beta%2C183.0-beta%2C184.0-beta%2C185.0-beta%2C186.0-beta%2C187.0-beta%2C188.0-beta%2C189.0-beta%2C190.0-beta%2C191.0-beta%2C192.0-beta%2C193.0-beta%2C194.0-beta%2C195.0-beta%2C196.0-beta%2C197.0-beta%2C198.0-beta%2C199.0-beta%2C200.0-beta%2C201.0-beta%2C202.0-beta%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22FACE_TRACKER_VERSION%5C%22%2C%5C%22value%5C%22%3A%5C%2214%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22segmentation%5C%22%2C%5C%22value%5C%22%3A%5C%22segmentation_enabled%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22COMPRESSION%5C%22%2C%5C%22value%5C%22%3A%5C%22ETC2_COMPRESSION%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22gyroscope%5C%22%2C%5C%22value%5C%22%3A%5C%22gyroscope_enabled%5C%22%7D%5D%22%2C%22has_camera_metadata%22%3A%220%22%2C%22camera_entry_point%22%3A%2211%22%2C%22original_media_type%22%3A%221%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22scene_capture_type%22%3A%22%22%2C%22timezone_offset%22%3A%220%22%2C%22client_shared_at%22%3A%220%22%2C%22media_folder%22%3A%22Pictures%22%2C%22configure_mode%22%3A%221%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22creation_surface%22%3A%22camera%22%2C%22capture_type%22%3A%22normal%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22upload_id%22%3A%220%22%2C%22client_timestamp%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%222%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22media_transformation_info%22%3A%22%7B%5C%22width%5C%22%3A%5C%221080%5C%22%2C%5C%22height%5C%22%3A%5C%221920%5C%22%2C%5C%22x_transform%5C%22%3A%5C%220%5C%22%2C%5C%22y_transform%5C%22%3A%5C%220%5C%22%2C%5C%22zoom%5C%22%3A%5C%221.0%5C%22%2C%5C%22rotation%5C%22%3A%5C%220.0%5C%22%2C%5C%22background_coverage%5C%22%3A%5C%220.0%5C%22%7D%22%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%2C%22crop_original_size%22%3A%5B1080.0%2C1920.0%5D%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22tap_models%22%3A%22%5B%7B%5C%22x%5C%22%3A0.5%2C%5C%22y%5C%22%3A0.5%2C%5C%22z%5C%22%3A0%2C%5C%22width%5C%22%3A0.0%2C%5C%22height%5C%22%3A0.0%2C%5C%22rotation%5C%22%3A0.0%2C%5C%22scale_x%5C%22%3A0.0009259259%2C%5C%22scale_y%5C%22%3A0.00052083336%2C%5C%22color%5C%22%3A%5C%22%23ffffff%5C%22%2C%5C%22type%5C%22%3A%5C%22music%5C%22%2C%5C%22allow_media_creation_with_music%5C%22%3Afalse%2C%5C%22allows_saving%5C%22%3Atrue%2C%5C%22audio_apply_source%5C%22%3A18%2C%5C%22audio_asset_id%5C%22%3A%5C%220%5C%22%2C%5C%22audio_asset_start_time_in_ms%5C%22%3A0%2C%5C%22audio_asset_suggested_start_time_in_ms%5C%22%3A0%2C%5C%22audio_cluster_id%5C%22%3A%5C%220%5C%22%2C%5C%22browse_session_id%5C%22%3A%5C%220%5C%22%2C%5C%22contains_lyrics%5C%22%3Afalse%2C%5C%22cover_artwork_thumbnail_uri%5C%22%3A%5C%22%5C%22%2C%5C%22cover_artwork_uri%5C%22%3A%5C%22%5C%22%2C%5C%22dash_manifest%5C%22%3A%5C%22%5C%22%2C%5C%22display_artist%5C%22%3A%5C%22%5C%22%2C%5C%22duration_in_ms%5C%22%3A20000%2C%5C%22has_lyrics%5C%22%3Afalse%2C%5C%22hide_remixing%5C%22%3Afalse%2C%5C%22highlight_start_times_in_ms%5C%22%3A%5B%5D%2C%5C%22id%5C%22%3A%5C%22%5C%22%2C%5C%22is_bookmarked%5C%22%3Afalse%2C%5C%22is_eligible_for_audio_effects%5C%22%3Atrue%2C%5C%22is_eligible_for_vinyl_sticker%5C%22%3Atrue%2C%5C%22is_explicit%5C%22%3Afalse%2C%5C%22is_local_audio%5C%22%3Afalse%2C%5C%22is_original_sound%5C%22%3Afalse%2C%5C%22is_trending_in_clips%5C%22%3Afalse%2C%5C%22music_product%5C%22%3A%5C%22post_capture_sticker%5C%22%2C%5C%22overlap_duration_in_ms%5C%22%3A20000%2C%5C%22picked_in_post_capture%5C%22%3Afalse%2C%5C%22placeholder_profile_pic_url%5C%22%3A%5C%22%5C%22%2C%5C%22progressive_download_url%5C%22%3A%5C%22%5C%22%2C%5C%22should_allow_music_editing%5C%22%3Afalse%2C%5C%22should_mute_audio%5C%22%3Afalse%2C%5C%22should_mute_audio_reason%5C%22%3A%5C%22%5C%22%2C%5C%22should_skip_attribution%5C%22%3Afalse%2C%5C%22tag%5C%22%3A%5C%220%5C%22%2C%5C%22title%5C%22%3A%5C%22%5C%22%2C%5C%22trend_rank%5C%22%3A0%2C%5C%22product%5C%22%3A%5C%22story_camera_music_overlay_post_capture%5C%22%2C%5C%22should_render_soundwave%5C%22%3Afalse%2C%5C%22attribution%5C%22%3A%5C%22%5C%22%2C%5C%22is_sticker%5C%22%3Atrue%2C%5C%22display_type%5C%22%3A%5C%22music_hidden%5C%22%2C%5C%22tap_state%5C%22%3A0%2C%5C%22tap_state_str_id%5C%22%3A%5C%22music_overlay_sticker_hidden%5C%22%2C%5C%22song_monetization_info%5C%22%3A%5C%22ROYALTY_FREE%5C%22%2C%5C%22alacorn_session_id%5C%22%3A%5C%220%5C%22%7D%5D%22%2C%22story_music_metadata%22%3A%22%7B%5C%22audio_asset_id%5C%22%3A%5C%220%5C%22%2C%5C%22audio_cluster_id%5C%22%3A%5C%220%5C%22%2C%5C%22song_name%5C%22%3A%5C%22%5C%22%2C%5C%22artist_name%5C%22%3A%5C%22%5C%22%2C%5C%22alacorn_session_id%5C%22%3A%5C%220%5C%22%7D%22%2C%22story_sticker_ids%22%3A%22music_overlay_sticker_hidden%22%2C%22story_media_attribution_link_types%22%3A%5B%22music%22%5D%2C%22no_token_crosspost%22%3A%221%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_shared_at"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_timestamp"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/height"]
+        },
+        {
+          "param": "assetId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_asset_id"]
+        },
+        {
+          "param": "assetId",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/story_music_metadata",
+            "json:/audio_asset_id"
+          ]
+        },
+        {
+          "param": "clusterId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_cluster_id"]
+        },
+        {
+          "param": "clusterId",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/story_music_metadata",
+            "json:/audio_cluster_id"
+          ]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_suggested_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "lengthMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/overlap_duration_in_ms"
+          ]
+        },
+        {
+          "param": "trackMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/duration_in_ms"]
+        },
+        {
+          "param": "audioUrl",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/progressive_download_url"
+          ]
+        },
+        {
+          "param": "cover",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/cover_artwork_uri"]
+        },
+        {
+          "param": "cover",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/cover_artwork_thumbnail_uri"
+          ]
+        },
+        {
+          "param": "title",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/title"]
+        },
+        {
+          "param": "title",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_music_metadata", "json:/song_name"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/display_artist"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/attribution"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_music_metadata", "json:/artist_name"]
+        },
+        {
+          "param": "dashManifest",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/dash_manifest"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/tag"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/browse_session_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/alacorn_session_id"]
+        },
+        {
+          "param": "monetization",
+          "omitEmpty": true,
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/song_monetization_info"
+          ]
+        },
+        {
+          "param": "highlights",
+          "omitEmpty": true,
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/highlight_start_times_in_ms"
+          ]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "nowSec",
+          "pattern": "^\\d{10}$",
+          "description": "The time it is shared, Unix seconds"
+        },
+        {
+          "name": "assetId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "clusterId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "startMs",
+          "type": "number",
+          "min": 0,
+          "max": 3600000,
+          "description": "Where in the track the sound starts, milliseconds"
+        },
+        {
+          "name": "lengthMs",
+          "type": "number",
+          "min": 1000,
+          "max": 60000,
+          "description": "How long it plays, milliseconds (a story is 20 seconds at most with a sound)"
+        },
+        {
+          "name": "trackMs",
+          "type": "number",
+          "min": 1000,
+          "max": 3600000,
+          "description": "The whole track's length, milliseconds"
+        },
+        {
+          "name": "audioUrl",
+          "description": "The track's audio address, as the sound search gives it (progressive_download_url)"
+        },
+        {
+          "name": "cover",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "title",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "artist",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "dashManifest",
+          "description": "The track's DASH manifest, as the sound search gives it: the player finds the audio through it"
+        },
+        {
+          "name": "monetization",
+          "required": false,
+          "description": "The sound's monetization info as the search gives it (ROYALTY_FREE)"
+        },
+        {
+          "name": "highlights",
+          "type": "array",
+          "required": false,
+          "description": "The sound's suggested start times, milliseconds"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_story/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "placeSearch",
+      "description": "Places for a post's location, as the app's \"Add location\" searches them (graphql_www, IGPlaceSearchQuery, the app's request with the instagram.com sign-in's session as its IGT header; no coordinates are sent). Each place: its Meta place id, name, the distance line the app shows, and its coordinates.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/graphql_www",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded",
+          "x-fb-friendly-name": "IGPlaceSearchQuery",
+          "x-root-field-name": "ig_place_search"
+        },
+        "body": "method=post&format=json&server_timestamps=true&locale=user&fb_api_req_friendly_name=IGPlaceSearchQuery&client_doc_id=182496963816957186458261742509&variables=%7B%22request%22%3A%7B%22entry_point%22%3A%22DEFAULT%22%2C%22pinned_meta_place_id%22%3Anull%2C%22latitude%22%3Anull%2C%22rank_token%22%3A%220%22%2C%22search_query%22%3A%22x%22%2C%22longitude%22%3Anull%7D%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "query",
+          "at": ["form:variables", "json:/request/search_query"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/request/rank_token"]
+        }
+      ],
+      "params": [
+        {
+          "name": "query"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/graphql_www"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.ig_place_search.meta_places[*]",
+        "pick": ["placeId=id", "name", "subtitle", "lat=latitude", "lng=longitude"]
+      }
+    },
+    {
+      "name": "postComment",
+      "description": "Posts a comment on a post, as the app's comment box does (media/<media id>/comment/, signed_body=SIGNATURE.{json}); the app's own request with the sign-in's session as its IGT header. Left out: the app's user_breadcrumb (its signed typing-behavior token), the device's and session's ids and navigation. Used for a post's first comment, on the account's own post.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/x/comment/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22starting_clips_media_id%22%3A%220%22%2C%22comment_creation_key%22%3A%220%22%2C%22delivery_class%22%3A%22organic%22%2C%22idempotence_token%22%3A%220%22%2C%22carousel_child_mentions%22%3A%22%5B%5D%22%2C%22chaining_seed_media_id%22%3A%220%22%2C%22include_carousel_child_mentions%22%3A%22false%22%2C%22is_from_carousel_child_thread%22%3A%22false%22%2C%22carousel_index%22%3A%22-1%22%2C%22radio_type%22%3A%22wifi-none%22%2C%22_uid%22%3A%220%22%2C%22is_text_app_xpost_attempt%22%3A%22false%22%2C%22_uuid%22%3A%220%22%2C%22comment_text%22%3A%22x%22%2C%22recs_ix%22%3A%22-1%22%2C%22is_carousel_bumped_post%22%3A%22false%22%2C%22floating_context_items%22%3A%22%5B%5D%22%2C%22container_module%22%3A%22self_comments_v2_feed_contextual_self_profile%22%2C%22feed_position%22%3A%220%22%2C%22ranking_session_id%22%3A%220%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "param": "numericId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/starting_clips_media_id"]
+        },
+        {
+          "param": "numericId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/chaining_seed_media_id"]
+        },
+        {
+          "param": "text",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/comment_text"]
+        },
+        {
+          "param": "token",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/comment_creation_key"]
+        },
+        {
+          "param": "token",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/idempotence_token"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/ranking_session_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{4,25}_\\d{3,20}$",
+          "description": "The post: its id and the account id, as Instagram names it"
+        },
+        {
+          "name": "numericId",
+          "pattern": "^\\d{4,25}$",
+          "description": "The post's id without the account's"
+        },
+        {
+          "name": "text"
+        },
+        {
+          "name": "token",
+          "pattern": "^[0-9a-f-]{36}$",
+          "description": "One id for this attempt, so a retry does not post twice"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "id=comment.pk", "message"]
+      }
+    },
+    {
+      "name": "pinComment",
+      "description": "Pins a comment under the account's own post, as the app's Pin does on a long-pressed comment (media/<media id>/pin_comment/<comment id>/, signed_body=SIGNATURE.{json} with the user and device ids left out).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/x/pin_comment/y/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22_uid%22%3A%220%22%2C%22_uuid%22%3A%220%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "param": "commentId",
+          "at": ["path:5"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{4,25}_\\d{3,20}$",
+          "description": "The post: its id and the account id, as Instagram names it"
+        },
+        {
+          "name": "commentId",
+          "pattern": "^\\d{5,25}$",
+          "description": "The comment to pin, as postComment answered"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "message"]
+      }
+    },
+    {
+      "name": "editMedia",
+      "description": "Changes a post's caption, as the app's Edit does on the account's own post (media/<media id>/edit_media/, signed_body=SIGNATURE.{json}); the app's own request with the sign-in's session as its IGT header. It also names the post's AI label (the app sends the current state, so the label is kept, not cleared). Left out: the device's and session's ids and navigation.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/x/edit_media/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22allow_edit_boosted_media%22%3A%22true%22%2C%22gen_ai_detection_method%22%3A%22NONE%22%2C%22caption_text%22%3A%22x%22%2C%22_uid%22%3A%220%22%2C%22_uuid%22%3A%220%22%2C%22is_carousel_bumped_post%22%3A%22false%22%2C%22container_module%22%3A%22edit_media_info%22%2C%22feed_position%22%3A%220%22%2C%22location%22%3A%22%22%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "param": "caption",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/caption_text"]
+        },
+        {
+          "param": "aiMethod",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/gen_ai_detection_method"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "param": "location",
+          "omitEmpty": true,
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/location"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{4,25}_\\d{3,20}$",
+          "description": "The post: its id and the account id, as Instagram names it"
+        },
+        {
+          "name": "caption"
+        },
+        {
+          "name": "aiMethod",
+          "required": false,
+          "default": "NONE",
+          "enum": ["NONE", "SELF_DISCLOSURE_FLOW"],
+          "description": "The post's AI label as it is now: NONE, or SELF_DISCLOSURE_FLOW when it has one"
+        },
+        {
+          "name": "location",
+          "required": false,
+          "default": "",
+          "description": "The place, as the app writes it: {\"name\",\"address\",\"lat\",\"lng\",\"external_source\":\"meta_place\",\"meta_place_id\"} as a string; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "message"]
+      },
+      "cookies": false
+    },
+    {
+      "name": "configureStoryVideoWithSound",
+      "description": "Shares an uploaded video to the account's story with a sound from Instagram's library, as the app's \"Your story\" does after a sound is added in the editor (media/configure_to_story/?video=1): configureStoryVideo's request with the sound as the app's hidden music sticker (as configureStoryPhotoWithSound) and the video's own sound muted, as the app's \"music only\" sends it. The upload carries the sound for Instagram to burn in (uploadVideo's musicBurnin).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/configure_to_story/?video=1",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "signed_body=SIGNATURE.%7B%22supported_capabilities_new%22%3A%22%5B%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22149.0%2C150.0%2C151.0%2C152.0%2C153.0%2C154.0%2C155.0%2C156.0%2C157.0%2C158.0%2C159.0%2C160.0%2C161.0%2C162.0%2C163.0%2C164.0%2C165.0%2C166.0%2C167.0%2C168.0%2C169.0%2C170.0%2C171.0%2C172.0%2C173.0%2C174.0%2C175.0%2C176.0%2C177.0%2C178.0%2C179.0%2C180.0%2C181.0%2C182.0%2C183.0%2C184.0%2C185.0%2C186.0%2C187.0%2C188.0%2C189.0%2C190.0%2C191.0%2C192.0%2C193.0%2C194.0%2C195.0%2C196.0%2C197.0%2C198.0%2C199.0%2C200.0%2C201.0%2C202.0%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22SUPPORTED_BETA_SDK_VERSIONS%5C%22%2C%5C%22value%5C%22%3A%5C%22182.0-beta%2C183.0-beta%2C184.0-beta%2C185.0-beta%2C186.0-beta%2C187.0-beta%2C188.0-beta%2C189.0-beta%2C190.0-beta%2C191.0-beta%2C192.0-beta%2C193.0-beta%2C194.0-beta%2C195.0-beta%2C196.0-beta%2C197.0-beta%2C198.0-beta%2C199.0-beta%2C200.0-beta%2C201.0-beta%2C202.0-beta%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22FACE_TRACKER_VERSION%5C%22%2C%5C%22value%5C%22%3A%5C%2214%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22segmentation%5C%22%2C%5C%22value%5C%22%3A%5C%22segmentation_enabled%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22COMPRESSION%5C%22%2C%5C%22value%5C%22%3A%5C%22ETC2_COMPRESSION%5C%22%7D%2C%7B%5C%22name%5C%22%3A%5C%22gyroscope%5C%22%2C%5C%22value%5C%22%3A%5C%22gyroscope_enabled%5C%22%7D%5D%22%2C%22has_camera_metadata%22%3A%220%22%2C%22camera_entry_point%22%3A%2211%22%2C%22original_media_type%22%3A%222%22%2C%22original_height%22%3A%221920%22%2C%22hide_from_profile_grid%22%3A%22false%22%2C%22timezone_offset%22%3A%220%22%2C%22client_shared_at%22%3A%220%22%2C%22media_folder%22%3A%22Movies%22%2C%22configure_mode%22%3A%221%22%2C%22source_type%22%3A%224%22%2C%22camera_position%22%3A%22unknown%22%2C%22video_result%22%3A%22%22%2C%22_uid%22%3A%220%22%2C%22async_publish%22%3A%221%22%2C%22_uuid%22%3A%220%22%2C%22creation_surface%22%3A%22camera%22%2C%22capture_type%22%3A%22normal%22%2C%22waterfall_id%22%3A%220%22%2C%22audience%22%3A%22default%22%2C%22upload_id%22%3A%220%22%2C%22client_timestamp%22%3A%220%22%2C%22bottom_camera_dial_selected%22%3A%2211%22%2C%22attempt_id%22%3A%220%22%2C%22publish_id%22%3A%221%22%2C%22original_width%22%3A%221080%22%2C%22media_transformation_info%22%3A%22%7B%5C%22width%5C%22%3A%5C%221080%5C%22%2C%5C%22height%5C%22%3A%5C%221920%5C%22%2C%5C%22x_transform%5C%22%3A%5C%220%5C%22%2C%5C%22y_transform%5C%22%3A%5C%220%5C%22%2C%5C%22zoom%5C%22%3A%5C%221.0%5C%22%2C%5C%22rotation%5C%22%3A%5C%220.0%5C%22%2C%5C%22background_coverage%5C%22%3A%5C%220.0%5C%22%7D%22%2C%22clips%22%3A%5B%7B%22length%22%3A1.0%2C%22source_type%22%3A%224%22%7D%5D%2C%22poster_frame_index%22%3A0%2C%22length%22%3A1.0%2C%22audio_muted%22%3Atrue%2C%22edits%22%3A%7B%22filter_type%22%3A0%2C%22filter_strength%22%3A1.0%7D%2C%22extra%22%3A%7B%22source_width%22%3A1080%2C%22source_height%22%3A1920%7D%2C%22device%22%3A%7B%22manufacturer%22%3A%22Google%22%2C%22model%22%3A%22sdk_gphone64_x86_64%22%2C%22android_version%22%3A33%2C%22android_release%22%3A%2213%22%7D%2C%22tap_models%22%3A%22%5B%7B%5C%22x%5C%22%3A0.5%2C%5C%22y%5C%22%3A0.5%2C%5C%22z%5C%22%3A0%2C%5C%22width%5C%22%3A0.0%2C%5C%22height%5C%22%3A0.0%2C%5C%22rotation%5C%22%3A0.0%2C%5C%22scale_x%5C%22%3A0.0009259259%2C%5C%22scale_y%5C%22%3A0.00052083336%2C%5C%22color%5C%22%3A%5C%22%23ffffff%5C%22%2C%5C%22type%5C%22%3A%5C%22music%5C%22%2C%5C%22allow_media_creation_with_music%5C%22%3Afalse%2C%5C%22allows_saving%5C%22%3Atrue%2C%5C%22audio_apply_source%5C%22%3A18%2C%5C%22audio_asset_id%5C%22%3A%5C%220%5C%22%2C%5C%22audio_asset_start_time_in_ms%5C%22%3A0%2C%5C%22audio_asset_suggested_start_time_in_ms%5C%22%3A0%2C%5C%22audio_cluster_id%5C%22%3A%5C%220%5C%22%2C%5C%22browse_session_id%5C%22%3A%5C%220%5C%22%2C%5C%22contains_lyrics%5C%22%3Afalse%2C%5C%22cover_artwork_thumbnail_uri%5C%22%3A%5C%22%5C%22%2C%5C%22cover_artwork_uri%5C%22%3A%5C%22%5C%22%2C%5C%22dash_manifest%5C%22%3A%5C%22%5C%22%2C%5C%22display_artist%5C%22%3A%5C%22%5C%22%2C%5C%22duration_in_ms%5C%22%3A20000%2C%5C%22has_lyrics%5C%22%3Afalse%2C%5C%22hide_remixing%5C%22%3Afalse%2C%5C%22highlight_start_times_in_ms%5C%22%3A%5B%5D%2C%5C%22id%5C%22%3A%5C%22%5C%22%2C%5C%22is_bookmarked%5C%22%3Afalse%2C%5C%22is_eligible_for_audio_effects%5C%22%3Atrue%2C%5C%22is_eligible_for_vinyl_sticker%5C%22%3Atrue%2C%5C%22is_explicit%5C%22%3Afalse%2C%5C%22is_local_audio%5C%22%3Afalse%2C%5C%22is_original_sound%5C%22%3Afalse%2C%5C%22is_trending_in_clips%5C%22%3Afalse%2C%5C%22music_product%5C%22%3A%5C%22post_capture_sticker%5C%22%2C%5C%22overlap_duration_in_ms%5C%22%3A20000%2C%5C%22picked_in_post_capture%5C%22%3Afalse%2C%5C%22placeholder_profile_pic_url%5C%22%3A%5C%22%5C%22%2C%5C%22progressive_download_url%5C%22%3A%5C%22%5C%22%2C%5C%22should_allow_music_editing%5C%22%3Afalse%2C%5C%22should_mute_audio%5C%22%3Afalse%2C%5C%22should_mute_audio_reason%5C%22%3A%5C%22%5C%22%2C%5C%22should_skip_attribution%5C%22%3Afalse%2C%5C%22tag%5C%22%3A%5C%220%5C%22%2C%5C%22title%5C%22%3A%5C%22%5C%22%2C%5C%22trend_rank%5C%22%3A0%2C%5C%22product%5C%22%3A%5C%22story_camera_music_overlay_post_capture%5C%22%2C%5C%22should_render_soundwave%5C%22%3Afalse%2C%5C%22attribution%5C%22%3A%5C%22%5C%22%2C%5C%22is_sticker%5C%22%3Atrue%2C%5C%22display_type%5C%22%3A%5C%22music_hidden%5C%22%2C%5C%22tap_state%5C%22%3A0%2C%5C%22tap_state_str_id%5C%22%3A%5C%22music_overlay_sticker_hidden%5C%22%2C%5C%22song_monetization_info%5C%22%3A%5C%22ROYALTY_FREE%5C%22%2C%5C%22alacorn_session_id%5C%22%3A%5C%220%5C%22%7D%5D%22%2C%22story_sticker_ids%22%3A%22music_overlay_sticker_hidden%22%2C%22story_music_metadata%22%3A%22%7B%5C%22audio_asset_id%5C%22%3A%5C%220%5C%22%2C%5C%22audio_cluster_id%5C%22%3A%5C%220%5C%22%2C%5C%22song_name%5C%22%3A%5C%22%5C%22%2C%5C%22artist_name%5C%22%3A%5C%22%5C%22%2C%5C%22alacorn_session_id%5C%22%3A%5C%220%5C%22%7D%22%2C%22story_media_attribution_link_types%22%3A%5B%22music%22%5D%7D"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "ref": "cookie:ds_user_id",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/_uuid"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/waterfall_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/attempt_id"]
+        },
+        {
+          "param": "uploadId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/upload_id"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/length"]
+        },
+        {
+          "param": "seconds",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/clips/0/length"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/original_height"]
+        },
+        {
+          "param": "width",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_width"]
+        },
+        {
+          "param": "height",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/extra/source_height"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_shared_at"]
+        },
+        {
+          "param": "nowSec",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/client_timestamp"]
+        },
+        {
+          "param": "widthText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/width"]
+        },
+        {
+          "param": "heightText",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/media_transformation_info", "json:/height"]
+        },
+        {
+          "param": "assetId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_asset_id"]
+        },
+        {
+          "param": "assetId",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/story_music_metadata",
+            "json:/audio_asset_id"
+          ]
+        },
+        {
+          "param": "clusterId",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/audio_cluster_id"]
+        },
+        {
+          "param": "clusterId",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/story_music_metadata",
+            "json:/audio_cluster_id"
+          ]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "startMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/audio_asset_suggested_start_time_in_ms"
+          ]
+        },
+        {
+          "param": "lengthMs",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/overlap_duration_in_ms"
+          ]
+        },
+        {
+          "param": "trackMs",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/duration_in_ms"]
+        },
+        {
+          "param": "audioUrl",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/progressive_download_url"
+          ]
+        },
+        {
+          "param": "cover",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/cover_artwork_uri"]
+        },
+        {
+          "param": "cover",
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/cover_artwork_thumbnail_uri"
+          ]
+        },
+        {
+          "param": "title",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/title"]
+        },
+        {
+          "param": "title",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_music_metadata", "json:/song_name"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/display_artist"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/attribution"]
+        },
+        {
+          "param": "artist",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/story_music_metadata", "json:/artist_name"]
+        },
+        {
+          "param": "dashManifest",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/dash_manifest"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/tag"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/browse_session_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:signed_body", "prefix:SIGNATURE.", "json:/tap_models", "json:/0/alacorn_session_id"]
+        },
+        {
+          "param": "monetization",
+          "omitEmpty": true,
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/song_monetization_info"
+          ]
+        },
+        {
+          "param": "highlights",
+          "omitEmpty": true,
+          "at": [
+            "form:signed_body",
+            "prefix:SIGNATURE.",
+            "json:/tap_models",
+            "json:/0/highlight_start_times_in_ms"
+          ]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^\\d{10,20}$"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "min": 0.5,
+          "max": 60
+        },
+        {
+          "name": "widthText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "heightText",
+          "pattern": "^\\d{2,5}$"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "nowSec",
+          "pattern": "^\\d{10}$",
+          "description": "The time it is shared, Unix seconds"
+        },
+        {
+          "name": "assetId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "clusterId",
+          "pattern": "^\\d{5,25}$"
+        },
+        {
+          "name": "startMs",
+          "type": "number",
+          "min": 0,
+          "max": 3600000,
+          "description": "Where in the track the sound starts, milliseconds"
+        },
+        {
+          "name": "lengthMs",
+          "type": "number",
+          "min": 1000,
+          "max": 60000,
+          "description": "How long it plays, milliseconds (a story is 20 seconds at most with a sound)"
+        },
+        {
+          "name": "trackMs",
+          "type": "number",
+          "min": 1000,
+          "max": 3600000,
+          "description": "The whole track's length, milliseconds"
+        },
+        {
+          "name": "audioUrl",
+          "description": "The track's audio address, as the sound search gives it (progressive_download_url)"
+        },
+        {
+          "name": "cover",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "title",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "artist",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "dashManifest",
+          "description": "The track's DASH manifest, as the sound search gives it: the player finds the audio through it"
+        },
+        {
+          "name": "monetization",
+          "required": false,
+          "description": "The sound's monetization info as the search gives it (ROYALTY_FREE)"
+        },
+        {
+          "name": "highlights",
+          "type": "array",
+          "required": false,
+          "description": "The sound's suggested start times, milliseconds"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/configure_to_story/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "pk=media.pk", "code=media.code", "id=media.id", "message"]
+      }
+    },
+    {
+      "name": "disableComments",
+      "description": "Turns comments off on the account's own post, as the post menu's \"Turn off commenting\" does (media/<media id>/disable_comments/, the device's id only).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/x/disable_comments/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "_uuid=0"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:_uuid"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{4,25}_\\d{3,20}$",
+          "description": "The post: its id and the account id, as Instagram names it"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "message"]
+      }
+    },
+    {
+      "name": "enableComments",
+      "description": "Turns comments back on on the account's own post, as the post menu's \"Turn on commenting\" does (media/<media id>/enable_comments/).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://i.instagram.com/api/v1/media/x/enable_comments/",
+        "headers": {
+          "user-agent": "Instagram 455.0.0.51.72 Android (33/13; 420dpi; 1080x2400; Google/google; sdk_gphone64_x86_64; emu64x; ranchu; en_US; 754201213)",
+          "x-ig-app-id": "567067343352427",
+          "x-ig-capabilities": "3brTv10C",
+          "x-bloks-version-id": "38c9c25c1e1c66a4a2ccc7e22630a4114b951b1961dccf946407c9cd620bbb06",
+          "x-ig-app-locale": "en_US",
+          "x-ig-device-locale": "en_US",
+          "x-ig-mapped-locale": "en_US",
+          "x-ig-connection-type": "WIFI",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        "body": "_uuid=0"
+      },
+      "slots": [
+        {
+          "gen": "igt",
+          "at": ["header:authorization"]
+        },
+        {
+          "param": "mediaId",
+          "at": ["path:3"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:_uuid"]
+        }
+      ],
+      "params": [
+        {
+          "name": "mediaId",
+          "pattern": "^\\d{4,25}_\\d{3,20}$",
+          "description": "The post: its id and the account id, as Instagram names it"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "i.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "message"]
+      }
+    }
+  ]
+}

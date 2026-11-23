@@ -1,0 +1,23 @@
+// Shared contracts between the Greenlit server, the web app and external clients.
+// Every area lives in its own file under ./areas; import them directly
+// (`@greenlit/shared/areas/media`) or through this barrel.
+export * from './errors.ts'
+export * from './common.ts'
+export * from './theme.ts'
+export * from './search.ts'
+export * from './areas/users.ts'
+export * from './areas/settings.ts'
+export * from './areas/files.ts'
+export * from './areas/projects.ts'
+export * from './areas/media.ts'
+export * from './areas/tags.ts'
+export * from './areas/links.ts'
+export * from './areas/places.ts'
+export * from './areas/comments.ts'
+export * from './areas/reviews.ts'
+export * from './areas/versions.ts'
+export * from './areas/notifications.ts'
+export * from './areas/share.ts'
+export * from './areas/storage.ts'
+export * from './areas/posts.ts'
+export * from './areas/connectors.ts'

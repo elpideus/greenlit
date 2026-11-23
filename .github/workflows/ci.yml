@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - run: npm install -g pnpm@12.21.0
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: |
+          node_modules/.bin/tsc -p packages/shared
+          node_modules/.bin/tsc -p packages/composition
+          node_modules/.bin/tsc -p packages/player
+          node_modules/.bin/tsc -p packages/platforms
+          node_modules/.bin/tsc -p apps/server
+          node_modules/.bin/tsc -p apps/web
+      - name: Tests
+        run: pnpm exec vitest run
+      - name: Build web
+        run: pnpm --filter @greenlit/web build

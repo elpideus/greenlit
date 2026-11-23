@@ -1,0 +1,96 @@
+{
+  "name": "tiktok",
+  "displayName": "TikTok",
+  "baseUrl": "https://www.tiktok.com",
+  "description": "tiktok.com's own requests, signed in with the cookies of a TikTok login (sessionid, sid_tt; the QR sign-in). `account` is the passport request the site calls for the signed-in account; `musicSearch` is TikTok Studio's sound search. Both are plain reads; TikTok Studio's writes carry the page's own signatures and are made in the page.",
+  "loginCookies": ["sessionid", "sid_tt"],
+  "pace": {
+    "minIntervalMs": 1500
+  },
+  "operations": [
+    {
+      "name": "account",
+      "description": "The signed-in TikTok account: id, handle, name, picture, secUid.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "GET",
+        "url": "https://www.tiktok.com/passport/web/account/info/?aid=1988&app_language=en&app_name=tiktok_web",
+        "headers": {
+          "referer": "https://www.tiktok.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty"
+        }
+      },
+      "slots": [],
+      "params": [],
+      "trigger": {
+        "url": "https://www.tiktok.com/"
+      },
+      "match": {
+        "method": "GET",
+        "host": "www.tiktok.com",
+        "path": "/passport/web/account/info/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data",
+        "pick": [
+          "id=user_id_str",
+          "handle=username",
+          "name=screen_name",
+          "picture=avatar_url",
+          "secUid=sec_user_id"
+        ]
+      }
+    },
+    {
+      "name": "musicSearch",
+      "description": "TikTok's sounds for a post, as TikTok Studio's video editor searches them (its Sounds panel, api/search/music/full/ with search_channel tiktok_music_create): each sound's id, title, author, cover, its audio (play_url), its length and how many videos use it. A plain read with the sign-in's cookies (no page signature).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "GET",
+        "url": "https://www.tiktok.com/api/search/music/full/?aid=1988&keyword=x&cursor=0&count=20&search_channel=tiktok_music_create",
+        "headers": {
+          "accept": "*/*",
+          "referer": "https://www.tiktok.com/tiktokstudio/upload?from=upload"
+        }
+      },
+      "slots": [
+        {
+          "param": "query",
+          "at": ["query:keyword"]
+        }
+      ],
+      "params": [
+        {
+          "name": "query"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.tiktok.com/tiktokstudio/upload?from=upload"
+      },
+      "match": {
+        "method": "GET",
+        "host": "www.tiktok.com",
+        "path": "/api/search/music/full/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data[*].music_info",
+        "pick": [
+          "trackId=id_str",
+          "title",
+          "author",
+          "cover=cover_medium.url_list[0]",
+          "preview=play_url.url_list[0]",
+          "duration",
+          "usage=user_count",
+          "original=is_original_sound"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1987 @@
+{
+  "name": "facebook",
+  "displayName": "Facebook",
+  "baseUrl": "https://www.facebook.com",
+  "description": "facebook.com's own GraphQL requests, learned from its web pages in November 2026. Signed in with the cookies of a Facebook login (c_user, xs). Each request carries the session's fb_dtsg, which facebook.com hands out as JSON at /ajax/dtsg/; `av` is who acts: the login itself or a Page's profile (Pages in Facebook's profile-based experience). Reels go through Meta Business Suite's own requests (business.facebook.com, same login): its music library's search, its video upload and its reel Share, where Facebook adds the sound itself.",
+  "loginCookies": ["c_user", "xs"],
+  "pace": {
+    "minIntervalMs": 700
+  },
+  "operations": [
+    {
+      "name": "me",
+      "description": "The signed-in login itself: its profile id, name and picture.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "CometProfileSwitcherListQuery"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=CometProfileSwitcherListQuery&variables=%7B%22enable_lar_eligibility_check%22%3Atrue%2C%22scale%22%3A2%7D&server_timestamps=true&doc_id=29283947621228950"
+      },
+      "slots": [
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        }
+      ],
+      "params": [],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "CometProfileSwitcherListQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.viewer.actor",
+        "pick": ["id", "name", "kind=__typename", "picture=profile_picture.uri"]
+      }
+    },
+    {
+      "name": "profiles",
+      "description": "The login's own profile and every Page profile it can switch to and act as (the account menu's profile switcher).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "CometProfileSwitcherListQuery"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=CometProfileSwitcherListQuery&variables=%7B%22enable_lar_eligibility_check%22%3Atrue%2C%22scale%22%3A2%7D&server_timestamps=true&doc_id=29283947621228950"
+      },
+      "slots": [
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        }
+      ],
+      "params": [],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "CometProfileSwitcherListQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.viewer.actor.profile_switcher_eligible_profiles.nodes[*].profile",
+        "pick": [
+          "id",
+          "name",
+          "kind=__typename",
+          "picture=profile_picture.uri",
+          "url",
+          "delegatePageId=delegate_page_id"
+        ]
+      }
+    },
+    {
+      "name": "pageId",
+      "description": "A Page's classic Page id (the one Business Suite and the Graph API use), from its facebook.com profile page (delegate_page_id). Read once at sign-in, to tell that two connectors reach the same Page.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "GET",
+        "url": "https://www.facebook.com/profile.php?id=0",
+        "headers": {
+          "accept": "text/html",
+          "sec-fetch-site": "none",
+          "sec-fetch-mode": "navigate",
+          "sec-fetch-dest": "document"
+        }
+      },
+      "slots": [
+        {
+          "param": "profileId",
+          "at": ["query:id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "profileId",
+          "pattern": "^\\d{5,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "GET",
+        "host": "www.facebook.com",
+        "path": "/profile.php"
+      },
+      "response": {
+        "format": "embedded",
+        "embedded": {
+          "regex": "\"delegate_page_id\":(\")"
+        }
+      }
+    },
+    {
+      "name": "posts",
+      "description": "The latest posts of a profile or Page (its timeline), newest first: id, time, text, link and media. The answer streams one JSON value per line (GraphQL @stream/@defer), put back together.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "ProfileCometTimelineFeedRefetchQuery"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=ProfileCometTimelineFeedRefetchQuery&variables=%7B%22afterTime%22%3Anull%2C%22beforeTime%22%3Anull%2C%22count%22%3A10%2C%22cursor%22%3Anull%2C%22feedLocation%22%3A%22TIMELINE%22%2C%22feedbackSource%22%3A0%2C%22focusCommentID%22%3Anull%2C%22memorializedSplitTimeFilter%22%3Anull%2C%22omitPinnedPost%22%3Atrue%2C%22postedBy%22%3A%7B%22group%22%3A%22OWNER%22%7D%2C%22privacy%22%3Anull%2C%22privacySelectorRenderLocation%22%3A%22COMET_STREAM%22%2C%22referringStoryRenderLocation%22%3Anull%2C%22renderLocation%22%3A%22timeline%22%2C%22run_with_continuation_key%22%3Atrue%2C%22scale%22%3A2%2C%22stream_count%22%3A1%2C%22taggedInOnly%22%3Anull%2C%22trackingCode%22%3Anull%2C%22useDefaultActor%22%3Afalse%2C%22id%22%3A%220%22%2C%22__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedStory_enable_reactor_facepilerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_social_bubblesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_post_permalink_white_space_clickrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__IsWorkUserrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentActionLinkStableIDsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__TestPilotShouldIncludeDemoAdUseCaserelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFI_dedicated_comment_routable_dialog_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReels_enable_view_dubbed_audio_type_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedShareMedia_shouldPrefetchShareImagerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider%22%3Afalse%2C%22__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider%22%3Afalse%2C%22__relay_internal__pv__IsMergQAPollsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider%22%3A%22AUTO_TRANSLATE%22%2C%22__relay_internal__pv__GeminiUFISaveToKnowledgeHubGKrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIShareActionMigrationrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFISingleLineUFIrelayprovider%22%3Atrue%2C%22__relay_internal__pv__relay_provider_comet_ufi_ssr_seo_deferrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider%22%3Atrue%2C%22__relay_internal__pv__GroupsCometGYSJFeedItemHeightrelayprovider%22%3A206%2C%22__relay_internal__pv__StoriesShouldEnablePhotosensitiveContentWarningrelayprovider%22%3Afalse%2C%22__relay_internal__pv__ShouldEnableBakedInTextStoriesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__StoriesShouldIncludeFbNotesrelayprovider%22%3Atrue%7D&server_timestamps=true&doc_id=29109263388724939"
+      },
+      "slots": [
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "profileId",
+          "at": ["form:variables", "json:/id"]
+        },
+        {
+          "param": "count",
+          "at": ["form:variables", "json:/count"]
+        },
+        {
+          "param": "cursor",
+          "at": ["form:variables", "json:/cursor"]
+        }
+      ],
+      "params": [
+        {
+          "name": "profileId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "required": false,
+          "default": 10,
+          "min": 1,
+          "max": 30
+        },
+        {
+          "name": "cursor",
+          "required": false
+        }
+      ],
+      "paging": {
+        "param": "cursor",
+        "next": "data.node.timeline_list_feed_units.page_info.end_cursor"
+      },
+      "trigger": {
+        "url": "https://www.facebook.com/profile.php?id={profileId}"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "ProfileCometTimelineFeedRefetchQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.node.timeline_list_feed_units.edges[*].node",
+        "key": "postId",
+        "pick": [
+          "postId=post_id",
+          "created=creation_time",
+          "text=comet_sections.content.story.message.text",
+          "url=comet_sections.context_layout.story.comet_sections.metadata[0].story.url",
+          "mediaUrl=attachments[0].styles.attachment.media.url",
+          "mediaType=attachments[0].styles.attachment.media.__typename",
+          "image=attachments[0].styles.attachment.media.photo_image.uri",
+          "thumbnail=attachments[0].styles.attachment.media.thumbnailImage.uri"
+        ]
+      }
+    },
+    {
+      "name": "uploadPhoto",
+      "description": "Uploads a picture for a post (not yet attached to anything): its photoID goes into createPost. Learned with the request aborted; not verified with a real send yet. As a Page: av and __user are the Page's profile id and the session carries the i_user cookie (the Page acted as), as facebook.com sends them after switching to the Page.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://upload.facebook.com/ajax/react_composer/attachments/photo/upload?av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x",
+        "headers": {
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty"
+        },
+        "multipart": {
+          "fields": {
+            "source": "8",
+            "profile_id": "{actorId}",
+            "waterfallxapp": "comet",
+            "upload_id": "{uploadId}"
+          },
+          "files": [
+            {
+              "name": "farr",
+              "param": "path",
+              "filename": "{filename}",
+              "contentType": "image/jpeg"
+            }
+          ]
+        }
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["query:av"]
+        },
+        {
+          "at": ["query:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["query:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "path",
+          "description": "The picture to upload (a file in Greenlit's data folder)"
+        },
+        {
+          "name": "filename",
+          "default": "photo.jpg",
+          "required": false
+        },
+        {
+          "name": "uploadId",
+          "default": "jsc_c_1",
+          "required": false
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "upload.facebook.com",
+        "path": "/ajax/react_composer/attachments/photo/upload"
+      },
+      "response": {
+        "format": "json",
+        "extract": "payload",
+        "pick": ["photoID", "imageSrc"]
+      }
+    },
+    {
+      "name": "createPost",
+      "description": "Publishes a post as the actor (the login or a Page profile): text, audience (base_state EVERYONE / FRIENDS / SELF = only me) and attachments ([{photo: {id}}] from uploadPhoto). Learned with the request aborted; not verified with a real send yet. As a Page: av and __user are the Page's profile id and the session carries the i_user cookie (the Page acted as), as facebook.com sends them after switching to the Page.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "ComposerStoryCreateMutation"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=ComposerStoryCreateMutation&variables=%7B%22input%22%3A%7B%22composer_entry_point%22%3A%22inline_composer%22%2C%22composer_source_surface%22%3A%22newsfeed%22%2C%22composer_type%22%3A%22feed%22%2C%22idempotence_token%22%3A%22x_FEED%22%2C%22source%22%3A%22WWW%22%2C%22ai_generated_self_disclosure_metadata%22%3A%7B%22was_self_disclosed_as_ai_generated%22%3Afalse%7D%2C%22audience%22%3A%7B%22privacy%22%3A%7B%22allow%22%3A%5B%5D%2C%22base_state%22%3A%22SELF%22%2C%22deny%22%3A%5B%5D%2C%22tag_expansion_state%22%3A%22UNSPECIFIED%22%7D%7D%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22inline_activities%22%3A%5B%5D%2C%22text_format_preset_id%22%3A%220%22%2C%22publishing_flow%22%3A%7B%22supported_flows%22%3A%5B%22ASYNC_SILENT%22%2C%22ASYNC_NOTIF%22%2C%22FALLBACK%22%5D%7D%2C%22reels_remix%22%3A%7B%22is_original_audio_reusable%22%3Atrue%2C%22remix_status%22%3A%22ENABLED%22%7D%2C%22post_publish_story_data%22%3A%7B%22reshare_post_as_sticker%22%3A%22DISABLED%22%7D%2C%22logging%22%3A%7B%22composer_session_id%22%3A%22x%22%7D%2C%22navigation_data%22%3A%7B%22attribution_id_v2%22%3A%22%22%7D%2C%22tracking%22%3A%5Bnull%5D%2C%22event_share_metadata%22%3A%7B%22surface%22%3A%22newsfeed%22%7D%2C%22actor_id%22%3A%220%22%2C%22client_mutation_id%22%3A%221%22%2C%22attachments%22%3A%5B%5D%2C%22place_attachment_setting%22%3A%22%22%2C%22explicit_place_id%22%3A%22%22%7D%2C%22feedLocation%22%3A%22NEWSFEED%22%2C%22feedbackSource%22%3A1%2C%22focusCommentID%22%3Anull%2C%22gridMediaWidth%22%3Anull%2C%22groupID%22%3Anull%2C%22scale%22%3A2%2C%22privacySelectorRenderLocation%22%3A%22COMET_STREAM%22%2C%22checkPhotosToReelsUpsellEligibility%22%3Atrue%2C%22referringStoryRenderLocation%22%3Anull%2C%22renderLocation%22%3A%22homepage_stream%22%2C%22useDefaultActor%22%3Afalse%2C%22inviteShortLinkKey%22%3Anull%2C%22isFeed%22%3Atrue%2C%22isFundraiser%22%3Afalse%2C%22isFunFactPost%22%3Afalse%2C%22isGroup%22%3Afalse%2C%22isEvent%22%3Afalse%2C%22isTimeline%22%3Afalse%2C%22isSocialLearning%22%3Afalse%2C%22isPageNewsFeed%22%3Afalse%2C%22isProfileReviews%22%3Afalse%2C%22isWorkSharedDraft%22%3Afalse%2C%22__relay_internal__pv__GeminiUFISaveToKnowledgeHubGKrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIShareActionMigrationrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFI_dedicated_comment_routable_dialog_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider%22%3A%22AUTO_TRANSLATE%22%2C%22__relay_internal__pv__IsWorkUserrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentActionLinkStableIDsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFISingleLineUFIrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedStory_enable_reactor_facepilerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_social_bubblesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_post_permalink_white_space_clickrelayprovider%22%3Afalse%2C%22__relay_internal__pv__TestPilotShouldIncludeDemoAdUseCaserelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReels_enable_view_dubbed_audio_type_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedShareMedia_shouldPrefetchShareImagerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider%22%3Afalse%2C%22__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider%22%3Afalse%2C%22__relay_internal__pv__IsMergQAPollsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__relay_provider_comet_ufi_ssr_seo_deferrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider%22%3Atrue%2C%22__relay_internal__pv__GroupsCometGYSJFeedItemHeightrelayprovider%22%3A206%2C%22__relay_internal__pv__StoriesShouldEnablePhotosensitiveContentWarningrelayprovider%22%3Afalse%2C%22__relay_internal__pv__ShouldEnableBakedInTextStoriesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__StoriesShouldIncludeFbNotesrelayprovider%22%3Atrue%2C%22__relay_internal__pv__groups_comet_use_glvrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredAuctionDistanceFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV1relayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV2relayprovider%22%3Afalse%7D&server_timestamps=true&doc_id=29304741702489334"
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["form:av"]
+        },
+        {
+          "at": ["form:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/message/text"]
+        },
+        {
+          "param": "actorId",
+          "at": ["form:variables", "json:/input/actor_id"]
+        },
+        {
+          "param": "audience",
+          "at": ["form:variables", "json:/input/audience/privacy/base_state"]
+        },
+        {
+          "param": "token",
+          "at": ["form:variables", "json:/input/idempotence_token"]
+        },
+        {
+          "param": "attachments",
+          "at": ["form:variables", "json:/input/attachments"]
+        },
+        {
+          "param": "placeShow",
+          "omitEmpty": true,
+          "at": ["form:variables", "json:/input/place_attachment_setting"]
+        },
+        {
+          "param": "placeId",
+          "omitEmpty": true,
+          "at": ["form:variables", "json:/input/explicit_place_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "audience",
+          "enum": ["EVERYONE", "FRIENDS", "SELF"],
+          "required": false,
+          "default": "SELF"
+        },
+        {
+          "name": "token",
+          "description": "A new <uuid>_FEED for each post (the composer's idempotence token)",
+          "pattern": "^[0-9a-f-]{36}_FEED$"
+        },
+        {
+          "name": "attachments",
+          "type": "array",
+          "required": false,
+          "default": []
+        },
+        {
+          "name": "placeId",
+          "required": false,
+          "default": "",
+          "pattern": "^(\\d{5,30})?$",
+          "description": "The post's place (a Page id from placeSearch); empty for none"
+        },
+        {
+          "name": "placeShow",
+          "required": false,
+          "default": "",
+          "enum": ["", "SHOW_ATTACHMENT"],
+          "description": "SHOW_ATTACHMENT with a place, as the composer sends it; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "ComposerStoryCreateMutation"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.story_create"
+      }
+    },
+    {
+      "name": "deletePost",
+      "description": "Deletes a post of the profile or Page acted as (facebook.com's own \"Delete post\"). The story id is base64 of S:_I<actor>:<post id>:<post id> for feed posts. Learned with the request aborted (Nov 2026), not sent yet. As a Page: av and __user are the Page's profile id and the session carries the i_user cookie.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "useCometFeedStoryDeleteMutation"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=useCometFeedStoryDeleteMutation&variables=%7B%22input%22%3A%7B%22story_id%22%3A%22x%22%2C%22story_location%22%3A%22PERMALINK%22%2C%22actor_id%22%3A%220%22%2C%22client_mutation_id%22%3A%221%22%7D%2C%22groupID%22%3Anull%2C%22inviteShortLinkKey%22%3Anull%2C%22renderLocation%22%3Anull%2C%22scale%22%3A2%2C%22__relay_internal__pv__groups_comet_use_glvrelayprovider%22%3Afalse%7D&server_timestamps=true&doc_id=29557927263819997"
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["form:av"]
+        },
+        {
+          "at": ["form:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "actorId",
+          "at": ["form:variables", "json:/input/actor_id"]
+        },
+        {
+          "param": "storyId",
+          "at": ["form:variables", "json:/input/story_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "storyId",
+          "description": "The story's id: base64 of S:_I<actor>:<post id>:<post id>",
+          "pattern": "^[A-Za-z0-9+/]{20,300}={0,2}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "useCometFeedStoryDeleteMutation"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    },
+    {
+      "name": "schedulePost",
+      "description": "A post Facebook publishes later by itself (the composer's Schedule post): createPost plus unpublished_content_data {scheduled_publish_time, SCHEDULED}. Hidden until then. Learned with the request aborted (Nov 2026), not sent yet. As a Page: av and __user are the Page's profile id and the session carries the i_user cookie.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "ComposerStoryCreateMutation"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=ComposerStoryCreateMutation&variables=%7B%22input%22%3A%7B%22composer_entry_point%22%3A%22inline_composer%22%2C%22composer_source_surface%22%3A%22newsfeed%22%2C%22composer_type%22%3A%22feed%22%2C%22idempotence_token%22%3A%22x_FEED%22%2C%22source%22%3A%22WWW%22%2C%22ai_generated_self_disclosure_metadata%22%3A%7B%22was_self_disclosed_as_ai_generated%22%3Afalse%7D%2C%22unpublished_content_data%22%3A%7B%22scheduled_publish_time%22%3A0%2C%22unpublished_content_type%22%3A%22SCHEDULED%22%7D%2C%22audience%22%3A%7B%22privacy%22%3A%7B%22allow%22%3A%5B%5D%2C%22base_state%22%3A%22SELF%22%2C%22deny%22%3A%5B%5D%2C%22tag_expansion_state%22%3A%22UNSPECIFIED%22%7D%7D%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22inline_activities%22%3A%5B%5D%2C%22text_format_preset_id%22%3A%220%22%2C%22publishing_flow%22%3A%7B%22supported_flows%22%3A%5B%22ASYNC_SILENT%22%2C%22ASYNC_NOTIF%22%2C%22FALLBACK%22%5D%7D%2C%22reels_remix%22%3A%7B%22is_original_audio_reusable%22%3Atrue%2C%22remix_status%22%3A%22ENABLED%22%7D%2C%22post_publish_story_data%22%3A%7B%22reshare_post_as_sticker%22%3A%22DISABLED%22%7D%2C%22logging%22%3A%7B%22composer_session_id%22%3A%22x%22%7D%2C%22navigation_data%22%3A%7B%22attribution_id_v2%22%3A%22%22%7D%2C%22tracking%22%3A%5Bnull%5D%2C%22event_share_metadata%22%3A%7B%22surface%22%3A%22newsfeed%22%7D%2C%22actor_id%22%3A%220%22%2C%22client_mutation_id%22%3A%221%22%2C%22attachments%22%3A%5B%5D%2C%22place_attachment_setting%22%3A%22%22%2C%22explicit_place_id%22%3A%22%22%7D%2C%22feedLocation%22%3A%22NEWSFEED%22%2C%22feedbackSource%22%3A1%2C%22focusCommentID%22%3Anull%2C%22gridMediaWidth%22%3Anull%2C%22groupID%22%3Anull%2C%22scale%22%3A2%2C%22privacySelectorRenderLocation%22%3A%22COMET_STREAM%22%2C%22checkPhotosToReelsUpsellEligibility%22%3Atrue%2C%22referringStoryRenderLocation%22%3Anull%2C%22renderLocation%22%3A%22homepage_stream%22%2C%22useDefaultActor%22%3Afalse%2C%22inviteShortLinkKey%22%3Anull%2C%22isFeed%22%3Atrue%2C%22isFundraiser%22%3Afalse%2C%22isFunFactPost%22%3Afalse%2C%22isGroup%22%3Afalse%2C%22isEvent%22%3Afalse%2C%22isTimeline%22%3Afalse%2C%22isSocialLearning%22%3Afalse%2C%22isPageNewsFeed%22%3Afalse%2C%22isProfileReviews%22%3Afalse%2C%22isWorkSharedDraft%22%3Afalse%2C%22__relay_internal__pv__GeminiUFISaveToKnowledgeHubGKrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIShareActionMigrationrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFI_dedicated_comment_routable_dialog_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider%22%3A%22AUTO_TRANSLATE%22%2C%22__relay_internal__pv__IsWorkUserrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentActionLinkStableIDsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFISingleLineUFIrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedStory_enable_reactor_facepilerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_social_bubblesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_post_permalink_white_space_clickrelayprovider%22%3Afalse%2C%22__relay_internal__pv__TestPilotShouldIncludeDemoAdUseCaserelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReels_enable_view_dubbed_audio_type_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedShareMedia_shouldPrefetchShareImagerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider%22%3Afalse%2C%22__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider%22%3Afalse%2C%22__relay_internal__pv__IsMergQAPollsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__relay_provider_comet_ufi_ssr_seo_deferrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider%22%3Atrue%2C%22__relay_internal__pv__GroupsCometGYSJFeedItemHeightrelayprovider%22%3A206%2C%22__relay_internal__pv__StoriesShouldEnablePhotosensitiveContentWarningrelayprovider%22%3Afalse%2C%22__relay_internal__pv__ShouldEnableBakedInTextStoriesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__StoriesShouldIncludeFbNotesrelayprovider%22%3Atrue%2C%22__relay_internal__pv__groups_comet_use_glvrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredAuctionDistanceFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV1relayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV2relayprovider%22%3Afalse%7D&server_timestamps=true&doc_id=29304741702489334"
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["form:av"]
+        },
+        {
+          "at": ["form:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/message/text"]
+        },
+        {
+          "param": "actorId",
+          "at": ["form:variables", "json:/input/actor_id"]
+        },
+        {
+          "param": "audience",
+          "at": ["form:variables", "json:/input/audience/privacy/base_state"]
+        },
+        {
+          "param": "token",
+          "at": ["form:variables", "json:/input/idempotence_token"]
+        },
+        {
+          "param": "attachments",
+          "at": ["form:variables", "json:/input/attachments"]
+        },
+        {
+          "param": "publishAt",
+          "at": ["form:variables", "json:/input/unpublished_content_data/scheduled_publish_time"]
+        },
+        {
+          "param": "placeShow",
+          "omitEmpty": true,
+          "at": ["form:variables", "json:/input/place_attachment_setting"]
+        },
+        {
+          "param": "placeId",
+          "omitEmpty": true,
+          "at": ["form:variables", "json:/input/explicit_place_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "audience",
+          "enum": ["EVERYONE", "FRIENDS", "SELF"],
+          "required": false,
+          "default": "SELF"
+        },
+        {
+          "name": "token",
+          "description": "A new <uuid>_FEED for each post (the composer's idempotence token)",
+          "pattern": "^[0-9a-f-]{36}_FEED$"
+        },
+        {
+          "name": "attachments",
+          "type": "array",
+          "required": false,
+          "default": []
+        },
+        {
+          "name": "publishAt",
+          "type": "number",
+          "description": "When Facebook publishes it (Unix seconds)",
+          "min": 1700000000,
+          "max": 4102444800
+        },
+        {
+          "name": "placeId",
+          "required": false,
+          "default": "",
+          "pattern": "^(\\d{5,30})?$",
+          "description": "The post's place (a Page id from placeSearch); empty for none"
+        },
+        {
+          "name": "placeShow",
+          "required": false,
+          "default": "",
+          "enum": ["", "SHOW_ATTACHMENT"],
+          "description": "SHOW_ATTACHMENT with a place, as the composer sends it; empty for none"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "ComposerStoryCreateMutation"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.story_create"
+      }
+    },
+    {
+      "name": "draftPost",
+      "description": "A draft (the composer's Save as draft): createPost plus unpublished_content_data {null, DRAFT}; only the Page's people see it. Learned with the request aborted (Nov 2026), not sent yet. As a Page: av and __user are the Page's profile id and the session carries the i_user cookie.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "ComposerStoryCreateMutation"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=ComposerStoryCreateMutation&variables=%7B%22input%22%3A%7B%22composer_entry_point%22%3A%22inline_composer%22%2C%22composer_source_surface%22%3A%22newsfeed%22%2C%22composer_type%22%3A%22feed%22%2C%22idempotence_token%22%3A%22x_FEED%22%2C%22source%22%3A%22WWW%22%2C%22ai_generated_self_disclosure_metadata%22%3A%7B%22was_self_disclosed_as_ai_generated%22%3Afalse%7D%2C%22unpublished_content_data%22%3A%7B%22scheduled_publish_time%22%3Anull%2C%22unpublished_content_type%22%3A%22DRAFT%22%7D%2C%22audience%22%3A%7B%22privacy%22%3A%7B%22allow%22%3A%5B%5D%2C%22base_state%22%3A%22SELF%22%2C%22deny%22%3A%5B%5D%2C%22tag_expansion_state%22%3A%22UNSPECIFIED%22%7D%7D%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22inline_activities%22%3A%5B%5D%2C%22text_format_preset_id%22%3A%220%22%2C%22publishing_flow%22%3A%7B%22supported_flows%22%3A%5B%22ASYNC_SILENT%22%2C%22ASYNC_NOTIF%22%2C%22FALLBACK%22%5D%7D%2C%22reels_remix%22%3A%7B%22is_original_audio_reusable%22%3Atrue%2C%22remix_status%22%3A%22ENABLED%22%7D%2C%22post_publish_story_data%22%3A%7B%22reshare_post_as_sticker%22%3A%22DISABLED%22%7D%2C%22logging%22%3A%7B%22composer_session_id%22%3A%22x%22%7D%2C%22navigation_data%22%3A%7B%22attribution_id_v2%22%3A%22%22%7D%2C%22tracking%22%3A%5Bnull%5D%2C%22event_share_metadata%22%3A%7B%22surface%22%3A%22newsfeed%22%7D%2C%22actor_id%22%3A%220%22%2C%22client_mutation_id%22%3A%221%22%2C%22attachments%22%3A%5B%5D%7D%2C%22feedLocation%22%3A%22NEWSFEED%22%2C%22feedbackSource%22%3A1%2C%22focusCommentID%22%3Anull%2C%22gridMediaWidth%22%3Anull%2C%22groupID%22%3Anull%2C%22scale%22%3A2%2C%22privacySelectorRenderLocation%22%3A%22COMET_STREAM%22%2C%22checkPhotosToReelsUpsellEligibility%22%3Atrue%2C%22referringStoryRenderLocation%22%3Anull%2C%22renderLocation%22%3A%22homepage_stream%22%2C%22useDefaultActor%22%3Afalse%2C%22inviteShortLinkKey%22%3Anull%2C%22isFeed%22%3Atrue%2C%22isFundraiser%22%3Afalse%2C%22isFunFactPost%22%3Afalse%2C%22isGroup%22%3Afalse%2C%22isEvent%22%3Afalse%2C%22isTimeline%22%3Afalse%2C%22isSocialLearning%22%3Afalse%2C%22isPageNewsFeed%22%3Afalse%2C%22isProfileReviews%22%3Afalse%2C%22isWorkSharedDraft%22%3Afalse%2C%22__relay_internal__pv__GeminiUFISaveToKnowledgeHubGKrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIShareActionMigrationrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredDataFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldChangeAdIdFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFI_dedicated_comment_routable_dialog_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentAutoTranslationTyperelayprovider%22%3A%22AUTO_TRANSLATE%22%2C%22__relay_internal__pv__IsWorkUserrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentAvatarStickerAnimatedImagerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFICommentActionLinksRewriteEnabledrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometUFICommentActionLinkStableIDsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFIReactionsEnableShortNamerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometUFISingleLineUFIrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedStory_enable_reactor_facepilerelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_social_bubblesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__CometFeedStory_enable_post_permalink_white_space_clickrelayprovider%22%3Afalse%2C%22__relay_internal__pv__TestPilotShouldIncludeDemoAdUseCaserelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReels_deprecate_short_form_video_context_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReels_enable_view_dubbed_audio_type_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometFeedShareMedia_shouldPrefetchShareImagerelayprovider%22%3Atrue%2C%22__relay_internal__pv__CometImmersivePhotoCanUserDisable3DMotionrelayprovider%22%3Afalse%2C%22__relay_internal__pv__WorkCometIsEmployeeGKProviderrelayprovider%22%3Afalse%2C%22__relay_internal__pv__IsMergQAPollsrelayprovider%22%3Afalse%2C%22__relay_internal__pv__FBReelsMediaFooter_comet_enable_reels_ads_gkrelayprovider%22%3Atrue%2C%22__relay_internal__pv__relay_provider_comet_ufi_ssr_seo_deferrelayprovider%22%3Atrue%2C%22__relay_internal__pv__FBReelsIFUTileContent_reelsIFUPlayOnHoverrelayprovider%22%3Atrue%2C%22__relay_internal__pv__GroupsCometGYSJFeedItemHeightrelayprovider%22%3A206%2C%22__relay_internal__pv__StoriesShouldEnablePhotosensitiveContentWarningrelayprovider%22%3Afalse%2C%22__relay_internal__pv__ShouldEnableBakedInTextStoriesrelayprovider%22%3Afalse%2C%22__relay_internal__pv__StoriesShouldIncludeFbNotesrelayprovider%22%3Atrue%2C%22__relay_internal__pv__groups_comet_use_glvrelayprovider%22%3Afalse%2C%22__relay_internal__pv__GHLShouldChangeSponsoredAuctionDistanceFieldNamerelayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV1relayprovider%22%3Atrue%2C%22__relay_internal__pv__GHLShouldUseSponsoredAuctionLabelFieldNameV2relayprovider%22%3Afalse%7D&server_timestamps=true&doc_id=29304741702489334"
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["form:av"]
+        },
+        {
+          "at": ["form:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/message/text"]
+        },
+        {
+          "param": "actorId",
+          "at": ["form:variables", "json:/input/actor_id"]
+        },
+        {
+          "param": "audience",
+          "at": ["form:variables", "json:/input/audience/privacy/base_state"]
+        },
+        {
+          "param": "token",
+          "at": ["form:variables", "json:/input/idempotence_token"]
+        },
+        {
+          "param": "attachments",
+          "at": ["form:variables", "json:/input/attachments"]
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "audience",
+          "enum": ["EVERYONE", "FRIENDS", "SELF"],
+          "required": false,
+          "default": "SELF"
+        },
+        {
+          "name": "token",
+          "description": "A new <uuid>_FEED for each post (the composer's idempotence token)",
+          "pattern": "^[0-9a-f-]{36}_FEED$"
+        },
+        {
+          "name": "attachments",
+          "type": "array",
+          "required": false,
+          "default": []
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "ComposerStoryCreateMutation"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.story_create"
+      }
+    },
+    {
+      "name": "musicSearch",
+      "description": "Meta's music library for a Page's reel, as Business Suite's reel composer searches it (ReelComposerAudioSearchResultsContainerFBQuery, as the Page): each sound's asset id, title, artist, cover, the whole track (progressive_download) and its length; its tags' names are the track's suggested starts in ms. Tracks are the ones available for business use.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/reels_composer/"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=11&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=ReelComposerAudioSearchResultsContainerFBQuery&variables=%7B%22params%22%3A%7B%22first%22%3A20%2C%22creation_tools_actor_id%22%3A%220%22%2C%22product%22%3A%22META_BUSINESS_SUITE%22%2C%22search_text%22%3A%22x%22%2C%22collaborator_id%22%3Anull%2C%22browse_session_id%22%3A%220%22%2C%22caller_id%22%3A%22www_cpx_reel_composer%22%7D%7D&server_timestamps=true&doc_id=28390145833987158"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/params/creation_tools_actor_id"]
+        },
+        {
+          "param": "query",
+          "at": ["form:variables", "json:/params/search_text"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/params/browse_session_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "query"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.fb_music_picker_container.items[*].item",
+        "pick": [
+          "kind=__typename",
+          "assetId=id",
+          "title=display_title.text",
+          "artist=display_subtitle.text",
+          "cover=display_image.uri",
+          "preview=progressive_download[0].url",
+          "durationMs=duration_in_ms",
+          "tags=tags[*].name"
+        ]
+      }
+    },
+    {
+      "name": "videoUploadStart",
+      "description": "Starts a reel's video upload as Business Suite does (ajax/video/upload/requests/start/, for the Page): the file's size. Answers the video's id and the upload session's; the bytes then go with videoUploadBytes, then videoUploadReceive. An upload makes no post.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/ajax/video/upload/requests/start/?av=0&__a=1",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/reels_composer/",
+          "x_fb_video_waterfall_id": "0"
+        },
+        "body": "__user=0&__a=1&fb_dtsg=x&waterfall_id=0&target_id=0&source=composer_cs_reel_composer&composer_entry_point_ref=biz_web_home&supports_chunking=true&supports_file_api=true&file_size=0&file_extension=mp4&partition_start_offset=0&partition_end_offset=0&has_file_been_replaced=false&video_publisher_action_source%5Bproduct%5D=business_suite&video_publisher_action_source%5Bfeature%5D=cs_reel_composer&video_publisher_action_source%5Bentry_point%5D=biz_web_home"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["query:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "waterfallId",
+          "at": ["form:waterfall_id"]
+        },
+        {
+          "param": "waterfallId",
+          "at": ["header:x_fb_video_waterfall_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:target_id"]
+        },
+        {
+          "param": "size",
+          "at": ["form:file_size"]
+        },
+        {
+          "param": "size",
+          "at": ["form:partition_end_offset"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "waterfallId",
+          "pattern": "^[0-9a-f-]{36}$",
+          "description": "The upload's id (a UUID), the same for its three steps"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/ajax/video/upload/requests/start/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "payload",
+        "pick": [
+          "videoId=video_id",
+          "sessionId=upload_session_id",
+          "startOffset=start_offset",
+          "endOffset=end_offset"
+        ]
+      }
+    },
+    {
+      "name": "videoUploadBytes",
+      "description": "Sends the reel's video to Facebook's upload service in one piece (rupload.facebook.com/fb_video/<name>), for the upload videoUploadStart began. Answers the handle videoUploadReceive passes on.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://rupload.facebook.com/fb_video/x?__user=0&__a=1&__comet_req=11&fb_dtsg=x",
+        "headers": {
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/",
+          "offset": "0",
+          "x-entity-length": "0",
+          "x-entity-name": "x",
+          "x-entity-type": "video/mp4",
+          "x-total-asset-size": "0",
+          "composer_session_id": "0",
+          "end_offset": "0",
+          "id": "0",
+          "product_media_id": "0",
+          "start_offset": "0"
+        },
+        "file": {
+          "param": "path"
+        }
+      },
+      "slots": [
+        {
+          "ref": "cookie:c_user",
+          "at": ["query:__user"]
+        },
+        {
+          "at": ["query:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "entityName",
+          "at": ["path:1"]
+        },
+        {
+          "param": "filename",
+          "at": ["header:x-entity-name"]
+        },
+        {
+          "param": "size",
+          "at": ["header:x-entity-length"]
+        },
+        {
+          "param": "size",
+          "at": ["header:x-total-asset-size"]
+        },
+        {
+          "param": "waterfallId",
+          "at": ["header:composer_session_id"]
+        },
+        {
+          "param": "endOffset",
+          "at": ["header:end_offset"]
+        },
+        {
+          "param": "sessionId",
+          "at": ["header:id"]
+        },
+        {
+          "param": "videoId",
+          "at": ["header:product_media_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "entityName",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        {
+          "name": "filename",
+          "required": false,
+          "default": "reel.mp4",
+          "pattern": "^[\\w.-]{1,80}$"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "waterfallId",
+          "pattern": "^[0-9a-f-]{36}$"
+        },
+        {
+          "name": "endOffset",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "sessionId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "videoId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "path",
+          "description": "The reel's video (a file in Greenlit's data folder)"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "rupload.facebook.com",
+        "path": "/fb_video/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["handle=h"]
+      }
+    },
+    {
+      "name": "videoUploadReceive",
+      "description": "Finishes the reel's video upload as Business Suite does (ajax/video/upload/requests/receive/): the handle the upload service answered, for the whole file. The video can then be published with createReel.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/ajax/video/upload/requests/receive/?av=0&__a=1",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/reels_composer/",
+          "x_fb_video_waterfall_id": "0"
+        },
+        "body": "__user=0&__a=1&fb_dtsg=x&waterfall_id=0&target_id=0&source=composer_cs_reel_composer&composer_entry_point_ref=biz_web_home&supports_chunking=true&video_id=0&supports_upload_service=true&partition_start_offset=0&partition_end_offset=0&start_offset=0&end_offset=0&upload_speed=0&fbuploader_video_file_chunk=x&has_file_been_replaced=false&video_publisher_action_source%5Bproduct%5D=business_suite&video_publisher_action_source%5Bfeature%5D=cs_reel_composer&video_publisher_action_source%5Bentry_point%5D=biz_web_home"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["query:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "waterfallId",
+          "at": ["form:waterfall_id"]
+        },
+        {
+          "param": "waterfallId",
+          "at": ["header:x_fb_video_waterfall_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:target_id"]
+        },
+        {
+          "param": "videoId",
+          "at": ["form:video_id"]
+        },
+        {
+          "param": "size",
+          "at": ["form:partition_end_offset"]
+        },
+        {
+          "param": "size",
+          "at": ["form:end_offset"]
+        },
+        {
+          "param": "handle",
+          "at": ["form:fbuploader_video_file_chunk"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "waterfallId",
+          "pattern": "^[0-9a-f-]{36}$"
+        },
+        {
+          "name": "videoId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "handle",
+          "description": "videoUploadBytes' answer"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/ajax/video/upload/requests/receive/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "payload"
+      }
+    },
+    {
+      "name": "createReel",
+      "description": "Publishes an uploaded video as the Page's reel, as Business Suite's reel composer Shares it (BusinessComposerStoryCreationMutation, Facebook only): the text, the cover, and the edits Facebook renders itself — a sound from the library (music_overlay: its asset, where in the track it starts and for how long, in seconds; left out for none) and both volumes (audio_mixing, 0 to 1). Its place, when it has one, is explicit_place_id (a Page id from placeSearch).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/reels_composer/"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=11&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=BusinessComposerStoryCreationMutation&variables=%7B%22input%22%3A%7B%22client_mutation_id%22%3A%220%22%2C%22base%22%3A%7B%22actor_id%22%3A%220%22%2C%22composer_entry_point%22%3A%22unknown%22%2C%22should_use_legacy_scheduling_infra%22%3Afalse%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22attachments%22%3A%5B%7B%22video%22%3A%7B%22id%22%3A%220%22%2C%22should_skip_encoding%22%3Afalse%2C%22estimated_video_length_in_ms%22%3A1000%2C%22additional_video_metadata%22%3A%7B%22thumbnailFileID%22%3A%220%22%2C%22videoTags%22%3A%5B%5D%2C%22externalVideoID%22%3A%22%22%2C%22customLabels%22%3A%5B%5D%2C%22embeddable%22%3Atrue%2C%22inStreamAdsSettings%22%3A%7B%22ad_breaks_block_lists%22%3A%5B%5D%2C%22has_ad_breaks_block_lists%22%3Afalse%2C%22should_auto_insert_ad_breaks%22%3Afalse%2C%22should_use_image_ads%22%3Afalse%7D%2C%22showsV2EpisodeData%22%3Anull%2C%22translatedAudioMetadata%22%3Anull%2C%22crosspostingConfigData%22%3A%5B%5D%2C%22gameID%22%3Anull%2C%22videoCopyrightData%22%3A%7B%22is_edit%22%3Afalse%2C%22monitoring_type%22%3A%22VIDEO_ONLY%22%2C%22protect_video%22%3Afalse%2C%22attribution_id%22%3Anull%2C%22copyright_excluded_segments%22%3A%5B%5D%2C%22copyright_ownership_countries%22%3A%5B%5D%2C%22are_copyright_countries_included%22%3Atrue%2C%22copyright_allowlisted_ig_users%22%3A%5B%5D%2C%22copyright_allowlisted_fb_users%22%3A%5B%5D%2C%22copyright_selected_category%22%3Anull%2C%22copyright_rule_id%22%3Anull%2C%22copyright_creation_source%22%3A%22CPX_UNIFIED_COMPOSER%22%7D%2C%22closedCaptions%22%3Anull%2C%22autoGenCaptionsSettings%22%3A%7B%22autogenerate_captions_enabled%22%3Atrue%2C%22should_review_all_captions%22%3Afalse%7D%7D%2C%22video_generation_params%22%3A%7B%22web_reels_composer_video_edits%22%3A%7B%22source_video_id%22%3A%220%22%2C%22trim_timestamps%22%3A%7B%22start_time_in_sec%22%3A0%2C%22end_time_in_sec%22%3A1%7D%2C%22music_overlay%22%3A%7B%22id%22%3A%220%22%2C%22offset%22%3A0%2C%22duration%22%3A1%7D%2C%22main_track%22%3A%5B%7B%22video_id%22%3A%220%22%2C%22original_resolution%22%3A%7B%22height%22%3A1920%2C%22width%22%3A1080%7D%7D%5D%2C%22audio_mixing%22%3A%7B%22music_volume%22%3A1%2C%22original_volume%22%3A1%7D%2C%22audio_enhancement%22%3A%7B%22processing%22%3A0%7D%2C%22keep_original_aspect_ratio%22%3Atrue%2C%22allow_trim_beyond_max_length%22%3Atrue%2C%22overlay%22%3A%5B%5D%2C%22manual_reframe%22%3Anull%2C%22reframe_aspect_ratio%22%3Anull%2C%22reframe_aggressiveness%22%3A1%2C%22photo_track%22%3A%5B%5D%7D%7D%2C%22title%22%3A%22%22%2C%22videolist%22%3Anull%2C%22video_collaboration%22%3A%7B%22collaborators%22%3A%5B%5D%7D%2C%22reels_poll%22%3Anull%2C%22was_created_via_unified_video_flow%22%3A%7B%22was_created_via_unified_video_flow%22%3Atrue%7D%7D%7D%5D%2C%22source%22%3A%22WWW%22%2C%22unpublished_content_data%22%3Anull%2C%22explicit_place_id%22%3A%22%22%2C%22audiences%22%3A%5B%7B%22business_presence%22%3A%7B%22business_presence_id%22%3A%220%22%7D%7D%5D%2C%22groups_schedule_resharing%22%3A%7B%22reshare_destination%22%3A%5B%5D%7D%2C%22post_collaborators%22%3A%7B%22post_collaborators%22%3A%5B%5D%7D%2C%22comment_attached_posting%22%3Anull%2C%22post_publish_story_data%22%3A%7B%22resharing_frequency%22%3Anull%2C%22reshare_post_as_sticker%22%3A%22DISABLED%22%7D%2C%22boost_status%22%3A%7B%22is_boost_toggle_on%22%3Anull%2C%22is_boost_afterparty_eligible%22%3Anull%7D%7D%2C%22channels%22%3A%5B%22FACEBOOK_NEWS_FEED%22%5D%2C%22FACEBOOK_NEWS_FEED%22%3A%7B%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22reels_remix%22%3A%7B%22remix_status%22%3A%22ENABLED%22%2C%22is_original_audio_reusable%22%3Atrue%7D%2C%22has_overridden_video_format%22%3Atrue%7D%2C%22FACEBOOK_GROUP%22%3Anull%2C%22INSTAGRAM_POST%22%3A%7B%22share_to_threads%22%3Afalse%7D%2C%22identities%22%3A%5B%220%22%5D%2C%22ad_campaign_group%22%3Anull%2C%22raw_boosted_component_spec%22%3A%22null%22%2C%22logging%22%3A%7B%22composer_session_id%22%3A%220%22%7D%7D%2C%22checkPhotosToReelsUpsellEligibility%22%3Afalse%7D&server_timestamps=true&doc_id=9453776261410796"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/client_mutation_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/logging/composer_session_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/actor_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/audiences/0/business_presence/business_presence_id"]
+        },
+        {
+          "param": "identities",
+          "at": ["form:variables", "json:/input/identities"]
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/base/message/text"]
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/FACEBOOK_NEWS_FEED/message/text"]
+        },
+        {
+          "param": "videoId",
+          "at": ["form:variables", "json:/input/base/attachments/0/video/id"]
+        },
+        {
+          "param": "videoId",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/source_video_id"
+          ]
+        },
+        {
+          "param": "videoId",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/main_track/0/video_id"
+          ]
+        },
+        {
+          "param": "lengthMs",
+          "at": ["form:variables", "json:/input/base/attachments/0/video/estimated_video_length_in_ms"]
+        },
+        {
+          "param": "coverId",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/additional_video_metadata/thumbnailFileID"
+          ]
+        },
+        {
+          "param": "seconds",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/trim_timestamps/end_time_in_sec"
+          ]
+        },
+        {
+          "param": "width",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/main_track/0/original_resolution/width"
+          ]
+        },
+        {
+          "param": "height",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/main_track/0/original_resolution/height"
+          ]
+        },
+        {
+          "param": "music",
+          "omitEmpty": true,
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/music_overlay"
+          ]
+        },
+        {
+          "param": "musicVolume",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/audio_mixing/music_volume"
+          ]
+        },
+        {
+          "param": "originalVolume",
+          "at": [
+            "form:variables",
+            "json:/input/base/attachments/0/video/video_generation_params/web_reels_composer_video_edits/audio_mixing/original_volume"
+          ]
+        },
+        {
+          "param": "placeId",
+          "at": ["form:variables", "json:/input/base/explicit_place_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "identities",
+          "type": "array",
+          "description": "Who posts: the Page's id"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "videoId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "lengthMs",
+          "type": "number",
+          "min": 1,
+          "max": 14460000
+        },
+        {
+          "name": "coverId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "min": 1,
+          "max": 14460
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "min": 1,
+          "max": 8192
+        },
+        {
+          "name": "music",
+          "type": "object",
+          "required": false,
+          "description": "The sound: {\"id\": its asset id, \"offset\": where in the track it starts (s), \"duration\": how long it plays (s)}; leave out for none"
+        },
+        {
+          "name": "musicVolume",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "required": false,
+          "default": 1
+        },
+        {
+          "name": "originalVolume",
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "required": false,
+          "default": 1
+        },
+        {
+          "name": "placeId",
+          "required": false,
+          "default": "",
+          "pattern": "^(\\d{5,30})?$",
+          "description": "The reel's place (a Page id from placeSearch); empty for none, as the composer sends it"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    },
+    {
+      "name": "createStory",
+      "description": "Shares a picture to a Page's story, as Business Suite's story composer does (BusinessComposerStoryCreationMutation, the same GraphQL document as a reel's), as the Page (`av` its classic id, the login's session): the picture is uploaded first (uploadPhoto, as the Page) and named here. Shared to the Facebook story only (channels: FACEBOOK_STORY); the composer's default also shares to the linked Instagram account, which Greenlit leaves out.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/story_composer/"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=11&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=BusinessComposerStoryCreationMutation&variables=%7B%22input%22%3A%7B%22client_mutation_id%22%3A%220%22%2C%22base%22%3A%7B%22actor_id%22%3A%220%22%2C%22composer_entry_point%22%3A%22unknown%22%2C%22source%22%3A%22WWW%22%2C%22unpublished_content_data%22%3Anull%2C%22attachments%22%3A%5B%7B%22photo%22%3A%7B%22id%22%3A%220%22%2C%22story_call_to_action_data%22%3Anull%2C%22overlays%22%3A%5B%5D%7D%7D%5D%2C%22story_original_attachments_data%22%3A%5B%7B%22original_photo_id%22%3A%220%22%2C%22burned_photo%22%3A%7B%22story_call_to_action_data%22%3Anull%2C%22id%22%3A%220%22%2C%22overlays%22%3A%5B%5D%7D%7D%5D%7D%2C%22channels%22%3A%5B%22FACEBOOK_STORY%22%5D%2C%22identities%22%3A%5B%220%22%5D%2C%22FACEBOOK_STORY%22%3A%7B%22geo_gating%22%3Anull%2C%22attachments%22%3A%5B%7B%22photo%22%3A%7B%22id%22%3A%220%22%2C%22story_call_to_action_data%22%3Anull%2C%22overlays%22%3A%5B%5D%7D%7D%5D%7D%2C%22INSTAGRAM_STORY%22%3Anull%2C%22logging%22%3A%7B%22composer_session_id%22%3A%220%22%7D%7D%2C%22checkPhotosToReelsUpsellEligibility%22%3Afalse%7D&server_timestamps=true&doc_id=9453776261410796"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/client_mutation_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/logging/composer_session_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/actor_id"]
+        },
+        {
+          "param": "identities",
+          "at": ["form:variables", "json:/input/identities"]
+        },
+        {
+          "param": "photoId",
+          "at": ["form:variables", "json:/input/base/attachments/0/photo/id"]
+        },
+        {
+          "param": "photoId",
+          "at": ["form:variables", "json:/input/base/story_original_attachments_data/0/original_photo_id"]
+        },
+        {
+          "param": "photoId",
+          "at": ["form:variables", "json:/input/base/story_original_attachments_data/0/burned_photo/id"]
+        },
+        {
+          "param": "photoId",
+          "at": ["form:variables", "json:/input/FACEBOOK_STORY/attachments/0/photo/id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "identities",
+          "type": "array",
+          "description": "Who posts: the Page's id"
+        },
+        {
+          "name": "photoId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The uploaded picture"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    },
+    {
+      "name": "placeSearch",
+      "description": "Places for a post's \"Check in\", as facebook.com's composer searches them (useComposerLocationPickerTypeaheadDataSourceQuery): each place's Page id (the post's explicit_place_id), its name, and whether it is a city-like place (geohub).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://www.facebook.com",
+          "referer": "https://www.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "useComposerLocationPickerTypeaheadDataSourceQuery"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=useComposerLocationPickerTypeaheadDataSourceQuery&variables=%7B%22query_data%22%3A%7B%22caller_platform%22%3A%22FB_COMPOSER_CHECKIN%22%2C%22query%22%3A%22x%22%2C%22session_id%22%3A%220%22%7D%2C%22num_nearby_places%22%3A20%2C%22category_icon_size%22%3A72%7D&server_timestamps=true&doc_id=26544272061837065"
+      },
+      "slots": [
+        {
+          "param": "actorId",
+          "at": ["form:av"]
+        },
+        {
+          "at": ["form:__user"],
+          "param": "actorId"
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "query",
+          "at": ["form:variables", "json:/query_data/query"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/query_data/session_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "actorId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "query"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.facebook.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "useComposerLocationPickerTypeaheadDataSourceQuery"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data.checkin_search_query.place_results.edges[*].node",
+        "pick": ["placeId=id", "name", "geohub=is_geohub"]
+      }
+    },
+    {
+      "name": "encodeVideo",
+      "description": "Asks Facebook to encode an uploaded video for the composer, as Business Suite's story composer does once the upload is received (BusinessComposerVideoEncodingTriggerMutation, as the Page). It makes no post: the story's Share is ready once the video is encoded.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/story_composer/"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=11&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=BusinessComposerVideoEncodingTriggerMutation&variables=%7B%22input%22%3A%7B%22client_mutation_id%22%3A%220%22%2C%22video_id%22%3A%220%22%2C%22actor_id%22%3A%220%22%2C%22source%22%3A%22biz_composer%22%7D%7D&server_timestamps=true&doc_id=24270092939258127"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/client_mutation_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/actor_id"]
+        },
+        {
+          "param": "videoId",
+          "at": ["form:variables", "json:/input/video_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "videoId",
+          "pattern": "^\\d{5,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    },
+    {
+      "name": "createVideoStory",
+      "description": "Shares an uploaded video to a Page's story, as Business Suite's story composer does (BusinessComposerStoryCreationMutation, Facebook story only): createStory's Share with the video as the attachment. The video goes up first (videoUploadStart, videoUploadBytes, videoUploadReceive) and is encoded (encodeVideo).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/latest/story_composer/"
+        },
+        "body": "av=0&__user=0&__a=1&__comet_req=11&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=BusinessComposerStoryCreationMutation&variables=%7B%22input%22%3A%7B%22client_mutation_id%22%3A%220%22%2C%22base%22%3A%7B%22actor_id%22%3A%220%22%2C%22composer_entry_point%22%3A%22unknown%22%2C%22source%22%3A%22WWW%22%2C%22unpublished_content_data%22%3Anull%2C%22attachments%22%3A%5B%7B%22video%22%3A%7B%22id%22%3A%220%22%2C%22story_call_to_action_data%22%3Anull%2C%22overlays%22%3A%5B%5D%7D%7D%5D%2C%22story_original_attachments_data%22%3A%5B%5D%7D%2C%22channels%22%3A%5B%22FACEBOOK_STORY%22%5D%2C%22identities%22%3A%5B%220%22%5D%2C%22FACEBOOK_STORY%22%3A%7B%22geo_gating%22%3Anull%2C%22attachments%22%3A%5B%7B%22video%22%3A%7B%22id%22%3A%220%22%2C%22story_call_to_action_data%22%3Anull%2C%22overlays%22%3A%5B%5D%7D%7D%5D%7D%2C%22INSTAGRAM_STORY%22%3Anull%2C%22logging%22%3A%7B%22composer_session_id%22%3A%220%22%7D%7D%2C%22checkPhotosToReelsUpsellEligibility%22%3Afalse%7D&server_timestamps=true&doc_id=9453776261410796"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/client_mutation_id"]
+        },
+        {
+          "gen": "uuid",
+          "at": ["form:variables", "json:/input/logging/composer_session_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/actor_id"]
+        },
+        {
+          "param": "identities",
+          "at": ["form:variables", "json:/input/identities"]
+        },
+        {
+          "param": "videoId",
+          "at": ["form:variables", "json:/input/base/attachments/0/video/id"]
+        },
+        {
+          "param": "videoId",
+          "at": ["form:variables", "json:/input/FACEBOOK_STORY/attachments/0/video/id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Page's id (its classic id, as Business Suite's asset_id)"
+        },
+        {
+          "name": "identities",
+          "type": "array",
+          "description": "Who posts: the Page's id"
+        },
+        {
+          "name": "videoId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The uploaded video"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    },
+    {
+      "name": "plannerToken",
+      "description": "The access token Business Suite's planner uses, as its settings page embeds it for itself (a plain GET of the page with the login's session; the token is read from the page's HTML and kept in memory only). It is the person's token: Graph calls made with it act as the login.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "GET",
+        "url": "https://business.facebook.com/latest/settings/business_assets?asset_id=0",
+        "headers": {
+          "accept": "text/html,application/xhtml+xml",
+          "sec-fetch-dest": "document",
+          "sec-fetch-mode": "navigate",
+          "sec-fetch-site": "same-origin"
+        }
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["query:asset_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "GET",
+        "host": "business.facebook.com",
+        "path": "/latest/settings/business_assets"
+      },
+      "response": {
+        "format": "embedded",
+        "embedded": {
+          "regex": "(\"EAA[A-Za-z0-9]{40,}\")"
+        }
+      }
+    },
+    {
+      "name": "pageToken",
+      "description": "A Page's own access token, as Business Suite reads it with its planner token (Graph GET /<page>?fields=access_token): what Graph calls made as the Page carry. Kept in memory only. Sent with the login's session cookies, as Business Suite's own Graph calls are (its token is tied to that session).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "GET",
+        "url": "https://graph.facebook.com/v21.0/0?fields=access_token&access_token=x",
+        "headers": {
+          "referer": "https://business.facebook.com/"
+        }
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["path:1"]
+        },
+        {
+          "param": "token",
+          "at": ["query:access_token"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "token",
+          "pattern": "^EAA[A-Za-z0-9]{40,}$",
+          "description": "The planner token (plannerToken)"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "GET",
+        "host": "graph.facebook.com",
+        "path": "/v21.0/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["token=access_token", "id"]
+      }
+    },
+    {
+      "name": "pageComment",
+      "description": "Posts a comment under a Page's post as the Page, as Business Suite replies to comments (Graph POST /<page>_<post>/comments with the Page's token; a reel Facebook named no post for: its video). Sent with the login's session cookies, as Business Suite's own Graph calls are (its token is tied to that session).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v21.0/0_0/comments",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "referer": "https://business.facebook.com/"
+        },
+        "body": "message=x&access_token=x"
+      },
+      "slots": [
+        {
+          "param": "target",
+          "at": ["path:1"]
+        },
+        {
+          "param": "text",
+          "at": ["form:message"]
+        },
+        {
+          "param": "token",
+          "at": ["form:access_token"]
+        }
+      ],
+      "params": [
+        {
+          "name": "target",
+          "pattern": "^\\d{5,30}(_\\d{5,30})?$",
+          "description": "The post (<page>_<post>) or a reel's video id"
+        },
+        {
+          "name": "text"
+        },
+        {
+          "name": "token",
+          "pattern": "^EAA[A-Za-z0-9]{40,}$",
+          "description": "The Page's token (pageToken)"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/home"
+      },
+      "match": {
+        "method": "POST",
+        "host": "graph.facebook.com",
+        "path": "/v21.0/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["id", "error=error.message"]
+      }
+    }
+  ]
+}

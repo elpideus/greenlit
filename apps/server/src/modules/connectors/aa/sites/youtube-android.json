@@ -1,0 +1,530 @@
+{
+  "name": "youtube-android",
+  "displayName": "YouTube (Android app)",
+  "baseUrl": "https://youtubei.googleapis.com",
+  "description": "The YouTube Android app's own requests (InnerTube, client ANDROID 21.32.4), learned from the app on Greenlit's Android device in November 2026: what only the app does, a Short with a sound from YouTube's library. Authorized with the app's own token (session value androidToken), which Greenlit reads from its device.",
+  "pace": {
+    "minIntervalMs": 800
+  },
+  "operations": [
+    {
+      "name": "accountsList",
+      "description": "The app's account switcher (account/accounts_list): the Google account on the device and every channel it can act as, each with its pageId (the delegated identity) and channel id (clientIdentityId, without its UC).",
+      "readOnly": true,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://youtubei.googleapis.com/youtubei/v1/account/accounts_list",
+        "headers": {
+          "user-agent": "com.google.android.youtube/21.32.4(Linux; U; Android 13; en_US; sdk_gphone64_x86_64 Build/TE1A.240213.009) gzip",
+          "x-goog-api-format-version": "2",
+          "authorization": "Bearer x",
+          "content-type": "application/json"
+        },
+        "body": "{\"context\": {\"client\": {\"clientName\": \"ANDROID\", \"clientVersion\": \"21.32.4\", \"androidSdkVersion\": 33, \"hl\": \"en\", \"gl\": \"IT\"}}}"
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        }
+      ],
+      "params": [],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "youtubei.googleapis.com",
+        "path": "/youtubei/v1/account/accounts_list"
+      },
+      "response": {
+        "format": "json",
+        "extract": "contents[0].accountSectionListRenderer.contents[0].accountItemSectionRenderer.contents[*].accountItem",
+        "pick": [
+          "name=accountName.runs[0].text",
+          "handle=channelHandle.runs[0].text",
+          "hasChannel",
+          "selected=isSelected",
+          "pageId=identity.effectiveObfuscatedGaiaId",
+          "ownerId=identity.ownerObfuscatedGaiaId",
+          "channel=identity.clientIdentityId",
+          "photo=whosWatchingItemRenderer.whosWatchingItemRenderer.avatar.whosWatchingItemAvatarRenderer.avatarThumbnail.thumbnails[0].url"
+        ]
+      }
+    },
+    {
+      "name": "soundSearch",
+      "description": "Sounds for a Short, as the YouTube app's sound picker searches them (sfv/search): a sound is a YouTube video id, with its title, artist, duration and picture.",
+      "readOnly": true,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://youtubei.googleapis.com/youtubei/v1/sfv/search",
+        "headers": {
+          "user-agent": "com.google.android.youtube/21.32.4(Linux; U; Android 13; en_US; sdk_gphone64_x86_64 Build/TE1A.240213.009) gzip",
+          "x-goog-api-format-version": "2",
+          "authorization": "Bearer x",
+          "content-type": "application/json"
+        },
+        "body": "{\"context\": {\"client\": {\"clientName\": \"ANDROID\", \"clientVersion\": \"21.32.4\", \"androidSdkVersion\": 33, \"hl\": \"en\", \"gl\": \"IT\"}, \"user\": {\"onBehalfOfUser\": \"0\"}}, \"query\": \"x\", \"params\": \"EhH6AQ4yDBIICgIKABICCAAYAQ==\"}"
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "query",
+          "at": ["body", "json:/query"]
+        },
+        {
+          "param": "pageId",
+          "at": ["body", "json:/context/user/onBehalfOfUser"]
+        },
+        {
+          "param": "hl",
+          "at": ["body", "json:/context/client/hl"]
+        }
+      ],
+      "params": [
+        {
+          "name": "query"
+        },
+        {
+          "name": "pageId",
+          "pattern": "^\\d{10,30}$"
+        },
+        {
+          "name": "hl",
+          "required": false,
+          "default": "en",
+          "pattern": "^[a-z]{2}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "youtubei.googleapis.com",
+        "path": "/youtubei/v1/sfv/search"
+      },
+      "response": {
+        "format": "json",
+        "extract": "contents.sectionListRenderer.contents[0].itemSectionRenderer.contents[*].elementRenderer.newElement.type.componentType.model.sfvAudioItemModel.data",
+        "pick": [
+          "trackId=externalVideoId",
+          "title",
+          "artist=byline",
+          "duration",
+          "cover=thumbnail.sources[0].url",
+          "remixable=isCommerciallyRemixable",
+          "usage=remixCounts"
+        ]
+      }
+    },
+    {
+      "name": "soundPlayer",
+      "description": "A sound's audio, as the app's sound picker plays it: the player answer for the sound's video id (player), whose progressive format (itag 18, mp4 with AAC) has a plain address Greenlit cuts its preview from. The address works from the address that asked for it, for a few hours.",
+      "readOnly": true,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://youtubei.googleapis.com/youtubei/v1/player",
+        "headers": {
+          "user-agent": "com.google.android.youtube/21.32.4(Linux; U; Android 13; en_US; sdk_gphone64_x86_64 Build/TE1A.240213.009) gzip",
+          "x-goog-api-format-version": "2",
+          "authorization": "Bearer x",
+          "content-type": "application/json"
+        },
+        "body": "{\"context\": {\"client\": {\"clientName\": \"ANDROID\", \"clientVersion\": \"21.32.4\", \"androidSdkVersion\": 33, \"hl\": \"en\", \"gl\": \"IT\"}, \"user\": {\"onBehalfOfUser\": \"0\"}}, \"videoId\": \"x\", \"contentCheckOk\": true, \"racyCheckOk\": true}"
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "videoId",
+          "at": ["body", "json:/videoId"]
+        },
+        {
+          "param": "pageId",
+          "at": ["body", "json:/context/user/onBehalfOfUser"]
+        }
+      ],
+      "params": [
+        {
+          "name": "videoId",
+          "pattern": "^[A-Za-z0-9_-]{11}$"
+        },
+        {
+          "name": "pageId",
+          "pattern": "^\\d{10,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "youtubei.googleapis.com",
+        "path": "/youtubei/v1/player"
+      },
+      "response": {
+        "format": "json",
+        "pick": [
+          "status=playabilityStatus.status",
+          "lengthMs=streamingData.formats[0].approxDurationMs",
+          "url=streamingData.formats[0].url",
+          "itag=streamingData.formats[0].itag"
+        ]
+      }
+    },
+    {
+      "name": "uploadStart",
+      "description": "Starts a resumable upload to YouTube's upload server, as the app does (upload.youtube.com/upload/youtubei); the answer's headers carry the upload's address and its resource id.",
+      "readOnly": false,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://upload.youtube.com/upload/youtubei",
+        "headers": {
+          "user-agent": "com.google.android.youtube/1561190505 (Linux; U; Android 13; en_US; sdk_gphone64_x86_64; Build/TE1A.240213.009; Cronet/151.0.7922.71)",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded",
+          "x-goog-upload-command": "start",
+          "x-goog-upload-protocol": "resumable",
+          "x-goog-upload-header-content-length": "0"
+        },
+        "body": "{\"frontendUploadId\": \"0\", \"deviceDisplayName\": \"GOOGLE sdk_gphone64_x86_64\", \"fileId\": \"goog-edited-video://generated?videoFileUri=greenlit\", \"mp4MoovAtomRelocationStatus\": \"UNSUPPORTED\", \"transcodeResult\": \"DISABLED\", \"connectionType\": \"WIFI\"}"
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "size",
+          "at": ["header:x-goog-upload-header-content-length"]
+        },
+        {
+          "param": "frontendUploadId",
+          "at": ["body", "json:/frontendUploadId"]
+        }
+      ],
+      "params": [
+        {
+          "name": "size",
+          "pattern": "^\\d{1,12}$"
+        },
+        {
+          "name": "frontendUploadId",
+          "pattern": "^innertube_android:[0-9a-f-]{36}:0:v=3,api=1,cf=3$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "upload.youtube.com",
+        "path": "/upload/youtubei"
+      },
+      "response": {
+        "format": "json",
+        "headers": ["x-goog-upload-url", "x-goog-upload-header-scotty-resource-id", "x-goog-upload-status"],
+        "extract": "headers"
+      }
+    },
+    {
+      "name": "uploadBytes",
+      "description": "Sends the whole file to the upload started by uploadStart and finishes it.",
+      "readOnly": false,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "PUT",
+        "url": "https://upload.youtube.com/?upload_id=0&upload_protocol=resumable&origin=0",
+        "headers": {
+          "user-agent": "com.google.android.youtube/1561190505 (Linux; U; Android 13; en_US; sdk_gphone64_x86_64; Build/TE1A.240213.009; Cronet/151.0.7922.71)",
+          "authorization": "Bearer x",
+          "content-type": "application/x-www-form-urlencoded",
+          "x-goog-upload-command": "upload, finalize",
+          "x-goog-upload-protocol": "resumable",
+          "x-goog-upload-offset": "0"
+        },
+        "file": {
+          "param": "path"
+        }
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "uploadId",
+          "at": ["query:upload_id"]
+        },
+        {
+          "param": "origin",
+          "at": ["query:origin"]
+        }
+      ],
+      "params": [
+        {
+          "name": "uploadId",
+          "pattern": "^[A-Za-z0-9_-]{20,400}$"
+        },
+        {
+          "name": "origin",
+          "pattern": "^[A-Za-z0-9_=-]{10,400}$"
+        },
+        {
+          "name": "path",
+          "description": "The video (a file in Greenlit's data folder)"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "PUT",
+        "host": "upload.youtube.com",
+        "path": "/"
+      },
+      "response": {
+        "format": "json",
+        "headers": ["x-goog-upload-status"],
+        "extract": "headers"
+      }
+    },
+    {
+      "name": "createVideo",
+      "description": "Creates the Short from the uploaded file, as the app's Upload Short does (upload/createvideo, protobuf), acting as the channel (pageId). Field 11 is the edit: the video's own segment (11.5) and the sound (11.4); YouTube mixes the chosen sound (a YouTube video id) into the Short itself and links it (\"Use this sound\"). The video starts as a private draft until metadataUpdate. Recorded from the app on Greenlit's Android device (Nov 2026); the app's integrity data, device identifiers and request info are left out of the template, which YouTube accepts.",
+      "readOnly": false,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://youtubei.googleapis.com/youtubei/v1/upload/createvideo",
+        "headers": {
+          "user-agent": "com.google.android.youtube/21.32.4(Linux; U; Android 13; en_US; sdk_gphone64_x86_64 Build/TE1A.240213.009) gzip",
+          "x-goog-api-format-version": "2",
+          "authorization": "Bearer x",
+          "content-type": "application/x-protobuf"
+        },
+        "protobuf": "CqgCCpgCYgZHb29nbGVqE3Nka19ncGhvbmU2NF94ODZfNjSAAQOKAQcyMS4zMi40kgEHQW5kcm9pZJoBAjEzqgEFZW4tVVOoApsDsAKSB70CSZIkQMUCbtu2QMgCA9ACBPACAYoDA6ADAJADwNqTfqADBLgDmwPAA5IH6AMD8gMAgAQhjQQAAChAmAQA7QQAAIA/8AQBggUHRXRjL1VUQ+IFC0FPU1A7cmFuY2h18AUF+AXkz/QBigYFCAEQ0wiSBgZnb29nbGWiBgcKBQiWDxgBsgYEEAMYANgGAPIGLQoOCAQQARjwECCAHihgMGAKEQgCEAEYgCAggCAoYDBggAEBEgIIAxIECAEoAfoGCCoGEgQIAhAAgAeJvc+PARoHGgEwOAB4ADICEgASBQoDCgEwGgEwIANCCBoCCAAyAggBWqIBIh4KHAoTCgEwEgYIABICCAEaBggAEgIIARUAAIA/IAAqTwpICgYIABICCAEQAiIECAAQAFgBYgExbQAAgD96LAgDEAMaJAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAPyABFQAAgD8yLxItCisKIAoGbm9ybWFsEgZOT1JNQUwaDlNIT1JUU19QUkVTRVRTEQAAAAAAAPA/eAE="
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "resourceId",
+          "at": ["pb:2.1.1"]
+        },
+        {
+          "param": "frontendUploadId",
+          "at": ["pb:3"]
+        },
+        {
+          "param": "pageId",
+          "at": ["pb:1.3.3"]
+        },
+        {
+          "param": "soundId",
+          "at": ["pb:11.4.1.1.1"]
+        },
+        {
+          "param": "soundStartMs",
+          "at": ["pb:11.4.1.1.2.1"]
+        },
+        {
+          "param": "seconds",
+          "at": ["pb:11.4.1.1.2.2.1"]
+        },
+        {
+          "param": "seconds",
+          "at": ["pb:11.4.1.1.3.2.1"]
+        },
+        {
+          "param": "seconds",
+          "at": ["pb:11.5.1.1.2.1"]
+        },
+        {
+          "param": "nanos",
+          "at": ["pb:11.4.1.1.2.2.2"]
+        },
+        {
+          "param": "nanos",
+          "at": ["pb:11.4.1.1.3.2.2"]
+        },
+        {
+          "param": "nanos",
+          "at": ["pb:11.5.1.1.2.2"]
+        },
+        {
+          "param": "soundVolume",
+          "at": ["pb:11.4.1.2"]
+        },
+        {
+          "param": "originalVolume",
+          "at": ["pb:11.5.2"]
+        },
+        {
+          "param": "originalVolume",
+          "at": ["pb:11.5.1.13"]
+        }
+      ],
+      "params": [
+        {
+          "name": "resourceId",
+          "pattern": "^[A-Za-z0-9+/=_-]{20,2000}$"
+        },
+        {
+          "name": "frontendUploadId",
+          "pattern": "^innertube_android:[0-9a-f-]{36}:0:v=3,api=1,cf=3$"
+        },
+        {
+          "name": "pageId",
+          "pattern": "^\\d{10,30}$"
+        },
+        {
+          "name": "soundId",
+          "pattern": "^[A-Za-z0-9_-]{11}$"
+        },
+        {
+          "name": "soundStartMs",
+          "type": "number",
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "max": 36000000
+        },
+        {
+          "name": "seconds",
+          "type": "number",
+          "description": "The Short's length, whole seconds (the sound plays as long)",
+          "min": 1,
+          "max": 180
+        },
+        {
+          "name": "nanos",
+          "type": "number",
+          "description": "The rest of its length, nanoseconds",
+          "required": false,
+          "default": 0,
+          "min": 0,
+          "max": 999999999
+        },
+        {
+          "name": "soundVolume",
+          "type": "number",
+          "description": "The sound's volume, 0..1 (the app's Volume tool)",
+          "required": false,
+          "default": 1,
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "originalVolume",
+          "type": "number",
+          "description": "The video's own sound, 0..1",
+          "required": false,
+          "default": 1,
+          "min": 0,
+          "max": 1
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "youtubei.googleapis.com",
+        "path": "/youtubei/v1/upload/createvideo"
+      },
+      "response": {
+        "format": "protobuf",
+        "extract": "2"
+      }
+    },
+    {
+      "name": "metadataUpdate",
+      "description": "The new Short's title and description, private, not made for kids (video_manager/metadata_update, protobuf), as the app sends them right after createVideo. Other visibilities are set through Studio.",
+      "readOnly": false,
+      "learnedLoggedIn": false,
+      "request": {
+        "method": "POST",
+        "url": "https://youtubei.googleapis.com/youtubei/v1/video_manager/metadata_update",
+        "headers": {
+          "user-agent": "com.google.android.youtube/21.32.4(Linux; U; Android 13; en_US; sdk_gphone64_x86_64 Build/TE1A.240213.009) gzip",
+          "x-goog-api-format-version": "2",
+          "authorization": "Bearer x",
+          "content-type": "application/x-protobuf"
+        },
+        "protobuf": "CqgCCpgCYgZHb29nbGVqE3Nka19ncGhvbmU2NF94ODZfNjSAAQOKAQcyMS4zMi40kgEHQW5kcm9pZJoBAjEzqgEFZW4tVVOoApsDsAKSB70CSZIkQMUCbtu2QMgCA9ACBPACAYoDA6ADAJADwNqTfqADBLgDmwPAA5IH6AMD8gMAgAQhjQQAAChAmAQA7QQAAIA/8AQBggUHRXRjL1VUQ+IFC0FPU1A7cmFuY2h18AUF+AXkz/QBigYFCAEQ1AiSBgZnb29nbGWiBgcKBQiWDxgBsgYEEAMYANgGAPIGLQoOCAQQARjwECCAHihgMGAKEQgCEAEYgCAggCAoYDBggAEBEgIIAxIECAEoAfoGCCoGEgQIAhAAgAeJvc+PARoHGgEwOAB4ADICEgASATAaCAoBeCIBeCgBIgIoATIAagIoArICAggAugICCAGiBAQQAggBwgEFEAGwBwGYBQI="
+      },
+      "slots": [
+        {
+          "ref": "session:androidToken",
+          "at": ["header:authorization"],
+          "template": "Bearer {session:androidToken}"
+        },
+        {
+          "param": "videoId",
+          "at": ["pb:2"]
+        },
+        {
+          "param": "title",
+          "at": ["pb:3.1"]
+        },
+        {
+          "param": "description",
+          "at": ["pb:3.4"]
+        },
+        {
+          "param": "pageId",
+          "at": ["pb:1.3.3"]
+        }
+      ],
+      "params": [
+        {
+          "name": "videoId",
+          "pattern": "^[A-Za-z0-9_-]{11}$"
+        },
+        {
+          "name": "title"
+        },
+        {
+          "name": "description",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "pageId",
+          "pattern": "^\\d{10,30}$"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.youtube.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "youtubei.googleapis.com",
+        "path": "/youtubei/v1/video_manager/metadata_update"
+      },
+      "response": {
+        "format": "protobuf"
+      }
+    }
+  ]
+}

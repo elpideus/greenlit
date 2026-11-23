@@ -1,0 +1,32 @@
+{
+  "name": "greenlit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-friendly media library, review, publishing platform and lightweight video editor.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @greenlit/server --filter @greenlit/web dev",
+    "dev:server": "pnpm --filter @greenlit/server dev",
+    "dev:web": "pnpm --filter @greenlit/web dev",
+    "build": "pnpm --filter @greenlit/web build",
+    "start": "pnpm --filter @greenlit/server start",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "db:generate": "pnpm --filter @greenlit/server db:generate",
+    "db:migrate": "pnpm --filter @greenlit/server db:migrate",
+    "new:module": "node scripts/new-module.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/node": "^24.10.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  }
+}

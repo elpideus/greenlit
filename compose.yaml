@@ -1,0 +1,74 @@
+# Greenlit in production: the app (API, workers, web), its database, its Android device and the Cloudflare Tunnel,
+# as one project. From the repository folder:
+#   cp .env.example .env        # set GREENLIT_SECRET and GREENLIT_PUBLIC_URL (and CLOUDFLARE_TUNNEL_TOKEN)
+#   docker compose up -d --build
+# Everything restarts by itself (crashes, Docker restarts); `docker compose up -d --build` again after an update.
+#
+# Data lives in named volumes (media files, the database, the Android device). Back up the first two:
+#   docker compose exec db pg_dump -U greenlit greenlit | gzip > greenlit.sql.gz
+# The Android device (YouTube Shorts sounds) runs with the `android` profile, on by default in .env.example
+# (COMPOSE_PROFILES=android); it needs /dev/kvm. The tunnel runs whenever CLOUDFLARE_TUNNEL_TOKEN is set and is the
+# only way to reach Greenlit: no port is published on the host.
+# See docs/DOCKER.md.
+name: greenlit
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: greenlit:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GREENLIT_DATABASE_URL: postgres://greenlit:${POSTGRES_PASSWORD:-greenlit}@db:5432/greenlit
+      GREENLIT_SECRET: ${GREENLIT_SECRET:?set GREENLIT_SECRET in .env (openssl rand -hex 32)}
+      GREENLIT_PUBLIC_URL: ${GREENLIT_PUBLIC_URL:?set GREENLIT_PUBLIC_URL in .env (the Cloudflare hostname)}
+      GREENLIT_WORKERS: ${GREENLIT_WORKERS:-2}
+      # Greenlit's Android device: its adb server on the compose network.
+      GREENLIT_ANDROID_ADB: android:5037
+      TZ: ${TZ:-UTC}
+    # No published port: nothing listens on this computer. The tunnel reaches the app as http://app:8080 on the
+    # project's own network, and that is the only way in.
+    expose: ["8080"]
+    volumes:
+      - media:/data
+    # Chromium (renders, platform sessions) needs more shared memory than Docker's default 64 MB.
+    shm_size: 1gb
+
+  db:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: greenlit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-greenlit}
+      POSTGRES_DB: greenlit
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greenlit"]
+      interval: 5s
+      retries: 30
+
+  # Greenlit's Android device (the emulator, headless, with its own virtual camera). Only the app reaches it.
+  android:
+    extends:
+      file: docker/android/compose.yaml
+      service: android
+    profiles: [android]
+
+  # The Cloudflare Tunnel (docker/tunnel): connects when CLOUDFLARE_TUNNEL_TOKEN is set and idles otherwise.
+  # In Cloudflare, point the tunnel's public hostname at http://app:8080.
+  tunnel:
+    build: docker/tunnel
+    image: greenlit-tunnel:latest
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [app]
+
+volumes:
+  media:
+  pgdata:
+  android:

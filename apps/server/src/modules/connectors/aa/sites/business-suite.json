@@ -1,0 +1,270 @@
+{
+  "name": "business-suite",
+  "displayName": "Meta Business Suite",
+  "baseUrl": "https://business.facebook.com",
+  "description": "Meta Business Suite's own web requests (business.facebook.com), signed in with a Facebook login's cookies. Learned in November 2026 from Greenlit's Business Suite dry runs with the final request aborted; not used by a connector yet (the meta-business-suite connector still drives the page).",
+  "loginCookies": ["c_user", "xs"],
+  "pace": {
+    "minIntervalMs": 700
+  },
+  "operations": [
+    {
+      "name": "uploadPhoto",
+      "description": "A picture for a Business Suite post (upload-business.facebook.com): av is the Page, __user and profile_id the login, __bid the business portfolio. Recorded in a dry run (Nov 2026).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://upload-business.facebook.com/ajax/react_composer/attachments/photo/upload?av=0&__aaid=0&__bid=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x",
+        "headers": {
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/",
+          "sec-fetch-site": "same-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty"
+        },
+        "multipart": {
+          "fields": {
+            "source": "8",
+            "profile_id": "{cookie:c_user}",
+            "waterfallxapp": "comet",
+            "upload_id": "{uploadId}"
+          },
+          "files": [
+            {
+              "name": "farr",
+              "param": "path",
+              "filename": "{filename}",
+              "contentType": "image/jpeg"
+            }
+          ]
+        }
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["query:av"]
+        },
+        {
+          "param": "businessId",
+          "at": ["query:__bid"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["query:__user"]
+        },
+        {
+          "at": ["query:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://business.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "businessId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "path",
+          "description": "The picture to upload (a file in Greenlit's data folder)"
+        },
+        {
+          "name": "filename",
+          "default": "photo.jpg",
+          "required": false
+        },
+        {
+          "name": "uploadId",
+          "default": "1024",
+          "required": false
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/composer"
+      },
+      "match": {
+        "method": "POST",
+        "host": "upload-business.facebook.com",
+        "path": "/ajax/react_composer/attachments/photo/upload"
+      },
+      "response": {
+        "format": "json",
+        "extract": "payload",
+        "pick": ["photoID", "imageSrc"]
+      }
+    },
+    {
+      "name": "createPost",
+      "description": "Business Suite's own post creation (BusinessComposerStoryCreationMutation): one request for the chosen channels (INSTAGRAM_POST, FACEBOOK_NEWS_FEED), now or scheduled (unpublished_content_data in base and per channel). identities are the Page and the Instagram account's Business Suite id. Learned with the request aborted (Nov 2026), not sent yet; not minimized (that needs real sends).",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://business.facebook.com/api/graphql/",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded",
+          "origin": "https://business.facebook.com",
+          "referer": "https://business.facebook.com/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-fb-friendly-name": "BusinessComposerStoryCreationMutation"
+        },
+        "body": "av=0&__aaid=0&__bid=0&__user=0&__a=1&__comet_req=15&fb_dtsg=x&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=BusinessComposerStoryCreationMutation&variables=%7B%22input%22%3A%7B%22client_mutation_id%22%3A%22x%22%2C%22base%22%3A%7B%22actor_id%22%3A%220%22%2C%22composer_entry_point%22%3A%22unknown%22%2C%22should_use_legacy_scheduling_infra%22%3Afalse%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22attachments%22%3A%5B%5D%2C%22source%22%3A%22WWW%22%2C%22unpublished_content_data%22%3Anull%2C%22explicit_place_id%22%3A%22%22%2C%22audiences%22%3A%5B%7B%22business_presence%22%3A%7B%22business_presence_id%22%3A%220%22%7D%7D%5D%2C%22post_collaborators%22%3A%7B%22post_collaborators%22%3A%5B%5D%7D%2C%22comment_attached_posting%22%3Anull%2C%22post_publish_story_data%22%3A%7B%22resharing_frequency%22%3Anull%2C%22reshare_post_as_sticker%22%3A%22DISABLED%22%7D%2C%22boost_status%22%3A%7B%22is_boost_toggle_on%22%3Anull%2C%22is_boost_afterparty_eligible%22%3Anull%7D%7D%2C%22channels%22%3A%5B%22INSTAGRAM_POST%22%5D%2C%22FACEBOOK_NEWS_FEED%22%3A%7B%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22unpublished_content_data%22%3Anull%7D%2C%22FACEBOOK_GROUP%22%3Anull%2C%22INSTAGRAM_POST%22%3A%7B%22unpublished_content_data%22%3Anull%2C%22message%22%3A%7B%22ranges%22%3A%5B%5D%2C%22text%22%3A%22%22%7D%2C%22share_to_threads%22%3Afalse%2C%22collaborators%22%3A%7B%22collaborator_ids%22%3A%5B%5D%7D%7D%2C%22identities%22%3A%5B%220%22%2C%220%22%5D%2C%22ad_campaign_group%22%3Anull%2C%22raw_boosted_component_spec%22%3A%22null%22%2C%22share_to_threads_destination_asset_id%22%3Anull%2C%22logging%22%3A%7B%22composer_session_id%22%3A%22x%22%7D%7D%2C%22checkPhotosToReelsUpsellEligibility%22%3Atrue%7D&server_timestamps=true&doc_id=9453776261410796"
+      },
+      "slots": [
+        {
+          "param": "pageId",
+          "at": ["form:av"]
+        },
+        {
+          "param": "businessId",
+          "at": ["form:__bid"]
+        },
+        {
+          "ref": "cookie:c_user",
+          "at": ["form:__user"]
+        },
+        {
+          "at": ["form:fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://business.facebook.com/ajax/dtsg/?__a=1",
+              "headers": {
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "cors",
+                "sec-fetch-dest": "empty"
+              }
+            },
+            "slots": []
+          },
+          "path": "payload.token"
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/actor_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/base/audiences/0/business_presence/business_presence_id"]
+        },
+        {
+          "param": "pageId",
+          "at": ["form:variables", "json:/input/identities/0"]
+        },
+        {
+          "param": "igIdentityId",
+          "at": ["form:variables", "json:/input/identities/1"]
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/base/message/text"]
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/INSTAGRAM_POST/message/text"]
+        },
+        {
+          "param": "text",
+          "at": ["form:variables", "json:/input/FACEBOOK_NEWS_FEED/message/text"]
+        },
+        {
+          "param": "attachments",
+          "at": ["form:variables", "json:/input/base/attachments"]
+        },
+        {
+          "param": "channels",
+          "at": ["form:variables", "json:/input/channels"]
+        },
+        {
+          "param": "unpublished",
+          "at": ["form:variables", "json:/input/base/unpublished_content_data"]
+        },
+        {
+          "param": "unpublished",
+          "at": ["form:variables", "json:/input/INSTAGRAM_POST/unpublished_content_data"]
+        },
+        {
+          "param": "token",
+          "at": ["form:variables", "json:/input/client_mutation_id"]
+        },
+        {
+          "param": "token",
+          "at": ["form:variables", "json:/input/logging/composer_session_id"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pageId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "businessId",
+          "pattern": "^\\d{5,30}$"
+        },
+        {
+          "name": "igIdentityId",
+          "pattern": "^\\d{5,30}$",
+          "description": "The Instagram account's id among the composer's identities"
+        },
+        {
+          "name": "text",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "attachments",
+          "type": "array",
+          "required": false,
+          "default": []
+        },
+        {
+          "name": "channels",
+          "type": "array",
+          "description": "INSTAGRAM_POST and/or FACEBOOK_NEWS_FEED"
+        },
+        {
+          "name": "unpublished",
+          "type": "object",
+          "required": false,
+          "default": null,
+          "description": "{scheduled_publish_time, unpublished_content_type: SCHEDULED} to schedule"
+        },
+        {
+          "name": "token",
+          "pattern": "^[0-9a-f-]{36}$",
+          "description": "A new uuid for each post (the composer session)"
+        }
+      ],
+      "trigger": {
+        "url": "https://business.facebook.com/latest/composer"
+      },
+      "match": {
+        "method": "POST",
+        "host": "business.facebook.com",
+        "path": "/api/graphql/",
+        "operationName": "BusinessComposerStoryCreationMutation"
+      },
+      "response": {
+        "format": "json",
+        "extract": "data"
+      }
+    }
+  ]
+}

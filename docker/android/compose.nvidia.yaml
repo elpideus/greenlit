@@ -1,0 +1,17 @@
+# Greenlit's Android device drawing on an NVIDIA GPU instead of in software (much smoother), through NVIDIA's
+# container toolkit on the machine (docs/DOCKER.md). Add it to the compose files you use:
+#   docker compose -f docker/compose.dev.yaml -f docker/android/compose.nvidia.yaml --profile android up -d
+#   docker compose -f compose.yaml -f docker/android/compose.nvidia.yaml up -d
+# (or COMPOSE_FILE=compose.yaml:docker/android/compose.nvidia.yaml). Without the toolkit Docker refuses it.
+services:
+  android:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, graphics, display, utility]
+    environment:
+      # The driver's EGL and GL libraries, mounted in by the toolkit: the emulator renders headless with them.
+      NVIDIA_DRIVER_CAPABILITIES: all

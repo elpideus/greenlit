@@ -1,0 +1,29 @@
+{
+  "signIn": "Accedi",
+  "signInTo": "Accedi a {{name}}",
+  "welcome": "Riprese, revisioni e pubblicazioni per uno studio che filma il proprio lavoro.",
+  "email": "Email",
+  "password": "Password",
+  "remember": "Resta connesso",
+  "signingIn": "Accesso…",
+  "wrong": "Email e password non corrispondono a nessun account.",
+  "setup": {
+    "title": "Configura {{name}}",
+    "body": "Diventi l'amministratore. Potrai invitare i revisori subito dopo.",
+    "name": "Il tuo nome",
+    "workspace": "Nome dello spazio di lavoro",
+    "timeZone": "Fuso orario",
+    "timeZoneHint": "Le programmazioni vengono inviate ai social in questo fuso orario.",
+    "language": "Lingua",
+    "code": "Codice di configurazione",
+    "codeHint": "Si trova nel log del server: docker compose logs app | grep \"setup code\"",
+    "create": "Crea l'account amministratore",
+    "passwordHint": "Almeno 8 caratteri."
+  },
+  "share": {
+    "opening": "Apertura del link…",
+    "failed": "Questo link non si può aprire",
+    "askAgain": "I link condivisi funzionano una volta sola e scadono. Chiedine uno nuovo a chi te l'ha mandato.",
+    "signInInstead": "Accedi"
+  }
+}

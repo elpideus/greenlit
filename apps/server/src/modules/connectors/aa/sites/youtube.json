@@ -1,0 +1,194 @@
+{
+  "name": "youtube",
+  "displayName": "YouTube",
+  "baseUrl": "https://www.youtube.com",
+  "description": "YouTube and YouTube Studio's own requests (youtubei), learned from their web pages in November 2026. Signed in with the cookies of a Google sign-in; a channel is acted as with its pageId (x-goog-pageid) and channel id (delegation context). Studio's writes need Google's BotGuard attestation and are not plain requests.",
+  "loginCookies": ["SAPISID", "SID"],
+  "pace": { "minIntervalMs": 400 },
+  "operations": [
+    {
+      "name": "channels",
+      "description": "Every channel this Google sign-in can act as (the avatar menu's channel switcher): name, handle, picture, pageId. The sign-in's own identity has no pageId when it has no channel.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.youtube.com/youtubei/v1/account/accounts_list?prettyPrint=false",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "",
+          "x-origin": "https://www.youtube.com",
+          "x-goog-authuser": "0",
+          "x-youtube-client-name": "1",
+          "x-youtube-client-version": "2.20261119.07.00"
+        },
+        "body": "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"2.20261119.07.00\",\"hl\":\"en\",\"gl\":\"IT\"}},\"requestType\":\"ACCOUNTS_LIST_REQUEST_TYPE_CHANNEL_SWITCHER\",\"callCircumstance\":\"SWITCHING_USERS_FULL\"}"
+      },
+      "slots": [{ "gen": "sapisidhash", "at": ["header:authorization"] }],
+      "params": [],
+      "trigger": { "url": "https://www.youtube.com/channel_switcher" },
+      "match": { "method": "POST", "host": "www.youtube.com", "path": "/youtubei/v1/account/accounts_list" },
+      "response": {
+        "format": "json",
+        "extract": "actions[0].updateChannelSwitcherPageAction.page.channelSwitcherPageRenderer.contents[*].accountItemRenderer",
+        "pick": [
+          "name=accountName.simpleText",
+          "handle=channelHandle.simpleText",
+          "hasChannel",
+          "selected=isSelected",
+          "photo=accountPhoto.thumbnails[0].url",
+          "subscribers=accountByline.simpleText",
+          "pageId=serviceEndpoint.selectActiveIdentityEndpoint.supportedTokens[0].pageIdToken.pageId"
+        ]
+      }
+    },
+    {
+      "name": "resolveHandle",
+      "description": "The channel id (UC…) of a channel handle such as @studioassociatogem. Public: no session needed.",
+      "readOnly": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.youtube.com/youtubei/v1/navigation/resolve_url?prettyPrint=false",
+        "headers": { "content-type": "application/json" },
+        "body": "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"2.20261119.07.00\",\"hl\":\"en\",\"gl\":\"IT\"}},\"url\":\"https://www.youtube.com/@example\"}"
+      },
+      "slots": [
+        { "param": "handle", "at": ["body", "json:/url"], "template": "https://www.youtube.com/{handle}" }
+      ],
+      "params": [
+        {
+          "name": "handle",
+          "description": "The handle, with its @",
+          "pattern": "^@[\\w.\\-]{1,100}$",
+          "example": "@youtube"
+        }
+      ],
+      "trigger": { "url": "https://www.youtube.com/{handle}" },
+      "match": { "method": "POST", "host": "www.youtube.com", "path": "/youtubei/v1/navigation/resolve_url" },
+      "response": { "format": "json", "extract": "endpoint.browseEndpoint.browseId" }
+    },
+    {
+      "name": "videos",
+      "description": "A channel's uploads, newest first, as YouTube Studio lists them (all visibilities, drafts included).",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://studio.youtube.com/youtubei/v1/creator/list_creator_videos?alt=json",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "",
+          "x-origin": "https://studio.youtube.com",
+          "x-goog-authuser": "0",
+          "x-goog-pageid": "",
+          "x-youtube-client-name": "62",
+          "x-youtube-client-version": "1.20261119.02.00"
+        },
+        "body": "{\"filter\":{\"and\":{\"operands\":[{\"channelIdIs\":{\"value\":\"UC\"}}]}},\"order\":\"VIDEO_ORDER_DISPLAY_TIME_DESC\",\"pageSize\":50,\"pageToken\":\"\",\"mask\":{\"videoId\":true,\"title\":true,\"description\":true,\"privacy\":true,\"status\":true,\"draftStatus\":true,\"contentType\":true,\"lengthSeconds\":true,\"timeCreatedSeconds\":true,\"timePublishedSeconds\":true,\"watchUrl\":true,\"thumbnailDetails\":{\"all\":true},\"scheduledPublishingDetails\":{\"all\":true},\"publicMetrics\":{\"all\":true}},\"context\":{\"client\":{\"clientName\":62,\"clientVersion\":\"1.20261119.02.00\",\"hl\":\"en\",\"gl\":\"IT\"},\"user\":{\"onBehalfOfUser\":\"0\",\"delegationContext\":{\"externalChannelId\":\"UC\",\"roleType\":{\"channelRoleType\":\"CREATOR_CHANNEL_ROLE_TYPE_OWNER\"}}}}}"
+      },
+      "slots": [
+        { "gen": "sapisidhash", "at": ["header:authorization"] },
+        { "param": "pageId", "at": ["header:x-goog-pageid"] },
+        { "param": "channelId", "at": ["body", "json:/filter/and/operands/0/channelIdIs/value"] },
+        { "param": "channelId", "at": ["body", "json:/context/user/delegationContext/externalChannelId"] },
+        { "param": "pageId", "at": ["body", "json:/context/user/onBehalfOfUser"] },
+        { "param": "pageToken", "at": ["body", "json:/pageToken"] }
+      ],
+      "params": [
+        { "name": "pageId", "description": "The channel's pageId (from channels)", "pattern": "^\\d{6,30}$" },
+        { "name": "channelId", "description": "The channel id, UC…", "pattern": "^UC[\\w-]{22}$" },
+        { "name": "pageToken", "required": false, "default": "" }
+      ],
+      "paging": { "param": "pageToken", "next": "nextPageToken" },
+      "trigger": { "url": "https://studio.youtube.com/channel/{channelId}/videos/upload" },
+      "match": {
+        "method": "POST",
+        "host": "studio.youtube.com",
+        "path": "/youtubei/v1/creator/list_creator_videos"
+      },
+      "response": {
+        "format": "json",
+        "extract": "videos",
+        "key": "videoId",
+        "pick": [
+          "videoId",
+          "title",
+          "description",
+          "privacy",
+          "status",
+          "draft=draftStatus",
+          "contentType",
+          "lengthSeconds",
+          "created=timeCreatedSeconds",
+          "published=timePublishedSeconds",
+          "watchUrl",
+          "thumbnail=thumbnailDetails.thumbnails[0].url",
+          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].publishTimeSeconds",
+          "views=publicMetrics.externalViewCount",
+          "likes=publicMetrics.likeCount",
+          "comments=publicMetrics.commentCount"
+        ]
+      }
+    },
+    {
+      "name": "video",
+      "description": "One upload's details as YouTube Studio reads them.",
+      "readOnly": true,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://studio.youtube.com/youtubei/v1/creator/get_creator_videos?alt=json",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "",
+          "x-origin": "https://studio.youtube.com",
+          "x-goog-authuser": "0",
+          "x-goog-pageid": "",
+          "x-youtube-client-name": "62",
+          "x-youtube-client-version": "1.20261119.02.00"
+        },
+        "body": "{\"videoIds\":[\"x\"],\"mask\":{\"videoId\":true,\"channelId\":true,\"title\":true,\"description\":true,\"privacy\":true,\"status\":true,\"draftStatus\":true,\"contentType\":true,\"timePublishedSeconds\":true,\"watchUrl\":true,\"tags\":{\"all\":true},\"thumbnailDetails\":{\"all\":true},\"scheduledPublishingDetails\":{\"all\":true},\"publicMetrics\":{\"all\":true}},\"context\":{\"client\":{\"clientName\":62,\"clientVersion\":\"1.20261119.02.00\",\"hl\":\"en\",\"gl\":\"IT\"},\"user\":{\"onBehalfOfUser\":\"0\",\"delegationContext\":{\"externalChannelId\":\"UC\",\"roleType\":{\"channelRoleType\":\"CREATOR_CHANNEL_ROLE_TYPE_OWNER\"}}}}}"
+      },
+      "slots": [
+        { "gen": "sapisidhash", "at": ["header:authorization"] },
+        { "param": "pageId", "at": ["header:x-goog-pageid"] },
+        { "param": "pageId", "at": ["body", "json:/context/user/onBehalfOfUser"] },
+        { "param": "channelId", "at": ["body", "json:/context/user/delegationContext/externalChannelId"] },
+        { "param": "videoId", "at": ["body", "json:/videoIds/0"] }
+      ],
+      "params": [
+        { "name": "pageId", "pattern": "^\\d{6,30}$" },
+        { "name": "channelId", "pattern": "^UC[\\w-]{22}$" },
+        { "name": "videoId", "pattern": "^[\\w-]{11}$" }
+      ],
+      "trigger": { "url": "https://studio.youtube.com/video/{videoId}/edit" },
+      "match": {
+        "method": "POST",
+        "host": "studio.youtube.com",
+        "path": "/youtubei/v1/creator/get_creator_videos"
+      },
+      "response": {
+        "format": "json",
+        "extract": "videos[0]",
+        "pick": [
+          "videoId",
+          "channelId",
+          "title",
+          "description",
+          "privacy",
+          "status",
+          "draft=draftStatus",
+          "contentType",
+          "published=timePublishedSeconds",
+          "watchUrl",
+          "tags=tags",
+          "thumbnail=thumbnailDetails.thumbnails[0].url",
+          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].publishTimeSeconds",
+          "views=publicMetrics.externalViewCount",
+          "likes=publicMetrics.likeCount",
+          "comments=publicMetrics.commentCount"
+        ]
+      }
+    }
+  ]
+}

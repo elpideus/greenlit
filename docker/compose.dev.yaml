@@ -1,0 +1,85 @@
+# Development. Two ways to work, both against this file's database:
+#
+#   1. On the host (fastest):   docker compose -f docker/compose.dev.yaml up -d      # Postgres on 127.0.0.1:54329
+#                               pnpm install && pnpm dev                              # API :4310, web :4300
+#   2. Fully in Docker:         docker compose -f docker/compose.dev.yaml --profile app up
+#      The `app` service runs `pnpm dev` in a container with ffmpeg, Chromium and adb, the source bind-mounted (hot
+#      reload for both the API and the web app) and its own node_modules volumes. Open http://localhost:4300.
+#
+# Add `--profile android` for Greenlit's Android device (adb on 127.0.0.1:15037; with option 1 run
+# GREENLIT_ANDROID_ADB=127.0.0.1:15037 pnpm dev). Production is compose.yaml at the repository root, never this file.
+name: greenlit-devstack
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: greenlit
+      POSTGRES_PASSWORD: greenlit
+      POSTGRES_DB: greenlit
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greenlit"]
+      interval: 3s
+      retries: 20
+
+  app:
+    profiles: [app]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: dev
+    image: greenlit-dev:latest
+    # The node user (uid 1000): files written into the bind-mounted repository stay owned by you.
+    user: node
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GREENLIT_DATABASE_URL: postgres://greenlit:greenlit@db:5432/greenlit
+      GREENLIT_DATA_DIR: /app/data
+      GREENLIT_API: http://localhost:4310
+      GREENLIT_WEB_URL: http://localhost:4300
+      GREENLIT_ANDROID_ADB: ${GREENLIT_ANDROID_ADB:-android:5037}
+      TZ: ${TZ:-Europe/Rome}
+    ports:
+      - "127.0.0.1:4300:4300"
+      - "127.0.0.1:4310:4310"
+    volumes:
+      - ..:/app
+      # The container's own dependencies (Linux builds of native modules), kept apart from the host's.
+      - nm-root:/app/node_modules
+      - nm-server:/app/apps/server/node_modules
+      - nm-web:/app/apps/web/node_modules
+      - nm-shared:/app/packages/shared/node_modules
+      - nm-composition:/app/packages/composition/node_modules
+      - nm-player:/app/packages/player/node_modules
+      - nm-platforms:/app/packages/platforms/node_modules
+      - nm-api-anything:/app/packages/api-anything/node_modules
+      - pnpm-store:/pnpm/store
+    shm_size: 1gb
+
+  android:
+    extends:
+      file: android/compose.yaml
+      service: android
+    profiles: [android]
+    ports:
+      - "127.0.0.1:15037:5037"
+
+volumes:
+  pgdata:
+  android:
+  nm-root:
+  nm-server:
+  nm-web:
+  nm-shared:
+  nm-composition:
+  nm-player:
+  nm-platforms:
+  nm-api-anything:
+  pnpm-store:

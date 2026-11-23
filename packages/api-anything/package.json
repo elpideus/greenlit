@@ -1,0 +1,46 @@
+{
+  "name": "api-anything",
+  "version": "0.4.0-greenlit.1",
+  "description": "Fork of api-anything 0.4.0 (MIT, goodnight000/api-anything) used by Greenlit: adds file and multipart request bodies and kept response headers.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./host": {
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    }
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "test": "node --import tsx --test test/*.test.ts test/edge/*.test.ts",
+    "check": "tsc -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodnight000/api-anything.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "node-html-parser": "^9.0.4",
+    "playwright-core": "^1.63.0",
+    "tldts": "^7.4.16",
+    "undici": "^7.30.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}

@@ -1,0 +1,153 @@
+/*
+ * Greenlit design tokens.
+ *
+ * Two layers:
+ *  1. Theme roles (--gl-*): set at runtime from the active theme pack (themes/<id>/theme.json, see lib/theme.ts).
+ *     The values below are the built-in Greenlit theme, so the first paint is already right.
+ *  2. Product tokens (--canvas, --ink, --signal…): what components use. They are derived from the roles,
+ *     so a theme pack never has to know about them.
+ *
+ * Components never use raw colours. See docs/DESIGN.md.
+ */
+
+:root,
+[data-theme-mode='dark'] {
+  --gl-bg: #0c0d0c;
+  --gl-bg-subtle: #080908;
+  --gl-surface: #131413;
+  --gl-surface-raised: #1a1c1a;
+  --gl-surface-hover: #212322;
+  --gl-border: rgba(237, 239, 237, 0.08);
+  --gl-border-strong: rgba(237, 239, 237, 0.15);
+  --gl-text: #edefed;
+  --gl-text-muted: #a8aca9;
+  --gl-text-subtle: #828683;
+  --gl-accent: #42d77b;
+  --gl-accent-hover: #5bdf8e;
+  --gl-accent-text: #04210f;
+  --gl-accent-soft: rgba(66, 215, 123, 0.14);
+  --gl-success: #42d77b;
+  --gl-warning: #f9b73f;
+  --gl-danger: #f75d59;
+  --gl-info: #6aa7f4;
+  --gl-focus: #42d77b;
+  --gl-overlay: rgba(4, 5, 4, 0.62);
+
+  --gl-font-ui: 'Geist Variable', Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --gl-font-display: 'Geist Variable', Geist, -apple-system, system-ui, sans-serif;
+  --gl-font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --gl-display-transform: none;
+  --gl-display-tracking: -0.024em;
+  --gl-display-weight: 600;
+  --gl-radius: 12px;
+
+  color-scheme: dark;
+
+  /* depth, tuned per mode */
+  --shadow-float: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 18px 48px -12px rgba(0, 0, 0, 0.7),
+    0 4px 12px -4px rgba(0, 0, 0, 0.45);
+  --shadow-sheet: 0 0 0 0.5px rgba(0, 0, 0, 0.7), 0 40px 120px -20px rgba(0, 0, 0, 0.85);
+  --shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 1px 2px rgba(0, 0, 0, 0.4);
+  --highlight: rgba(255, 255, 255, 0.05);
+  --material-alpha: 78%;
+}
+
+[data-theme-mode='light'] {
+  --gl-bg: #f5f7f6;
+  --gl-bg-subtle: #eaedeb;
+  --gl-surface: #ffffff;
+  --gl-surface-raised: #ffffff;
+  --gl-surface-hover: #eef1ef;
+  --gl-border: rgba(20, 23, 21, 0.09);
+  --gl-border-strong: rgba(20, 23, 21, 0.17);
+  --gl-text: #141715;
+  --gl-text-muted: #525753;
+  --gl-text-subtle: #686d69;
+  --gl-accent: #007f3d;
+  --gl-accent-hover: #006e35;
+  --gl-accent-text: #ffffff;
+  --gl-accent-soft: rgba(0, 127, 61, 0.1);
+  --gl-success: #007f3d;
+  --gl-warning: #a35f00;
+  --gl-danger: #c52c2a;
+  --gl-info: #1c65c8;
+  --gl-focus: #007f3d;
+  --gl-overlay: rgba(20, 23, 21, 0.32);
+
+  color-scheme: light;
+
+  --shadow-float: 0 0 0 0.5px rgba(20, 23, 21, 0.12), 0 18px 44px -14px rgba(20, 23, 21, 0.28),
+    0 3px 10px -4px rgba(20, 23, 21, 0.14);
+  --shadow-sheet: 0 0 0 0.5px rgba(20, 23, 21, 0.14), 0 40px 110px -24px rgba(20, 23, 21, 0.4);
+  --shadow-lift: 0 1px 2px rgba(20, 23, 21, 0.08);
+  --highlight: rgba(255, 255, 255, 0.7);
+  --material-alpha: 82%;
+}
+
+/* Also on any element with data-theme-mode, so a scoped preview (Settings → Branding) recomputes the product tokens
+   from palette roles set on that element. */
+:root,
+[data-theme-mode] {
+  /* surfaces */
+  --canvas: var(--gl-bg);
+  --well: var(--gl-bg-subtle);
+  --panel: var(--gl-surface);
+  --raised: var(--gl-surface-raised);
+  --hover: color-mix(in oklab, var(--gl-text) 6%, transparent);
+  --press: color-mix(in oklab, var(--gl-text) 10%, transparent);
+  --stage: #050605;
+  --material: color-mix(in oklab, var(--gl-surface-raised) var(--material-alpha), transparent);
+  --material-bar: color-mix(in oklab, var(--gl-bg) 80%, transparent);
+
+  /* edges */
+  --line: var(--gl-border);
+  --line-strong: var(--gl-border-strong);
+
+  /* text */
+  --ink: var(--gl-text);
+  --ink-2: var(--gl-text-muted);
+  --ink-3: var(--gl-text-subtle);
+  --ink-4: color-mix(in oklab, var(--gl-text-subtle) 55%, var(--gl-bg));
+
+  /* the signal and the states */
+  --signal: var(--gl-accent);
+  --signal-hover: var(--gl-accent-hover);
+  --signal-ink: var(--gl-accent-text);
+  --signal-soft: var(--gl-accent-soft);
+  --ok: var(--gl-success);
+  --review: var(--gl-warning);
+  --review-soft: color-mix(in oklab, var(--gl-warning) 15%, transparent);
+  --cut: var(--gl-danger);
+  --cut-soft: color-mix(in oklab, var(--gl-danger) 14%, transparent);
+  --cue: var(--gl-info);
+  --cue-soft: color-mix(in oklab, var(--gl-info) 15%, transparent);
+  --focus: var(--gl-focus);
+  --scrim: var(--gl-overlay);
+
+  /* radii scale from the theme's base radius */
+  --r-tag: calc(var(--gl-radius) * 0.34);
+  --r-control: calc(var(--gl-radius) * 0.6);
+  --r-tile: calc(var(--gl-radius) * 0.67);
+  --r-panel: var(--gl-radius);
+  --r-sheet: calc(var(--gl-radius) * 1.34);
+
+  /* motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-lamp: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-press: 90ms;
+  --t-hover: 140ms;
+  --t-lamp: 220ms;
+  --t-move: 280ms;
+
+  /* layout */
+  --bar-h: 52px;
+  --tabbar-h: 58px;
+  --gutter: 24px;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --gutter: 16px;
+  }
+}
