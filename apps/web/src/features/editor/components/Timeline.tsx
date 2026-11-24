@@ -29,30 +29,63 @@ import { IconButton, InlineEdit, type MenuEntry, Slider, Tooltip, toast, useCont
 import { compositionApi } from '../api'
 import { freeStart, mediaClipOps, round, trackFits } from '../edits'
 import { dispatch, preview, sendPresence, useDoc, useEditor } from '../store'
+import {
+  clipLayout,
+  DEFAULT_SIZES,
+  MAX_TRACK_H,
+  MIN_TRACK_H,
+  readSizes,
+  resetTrack,
+  resizeTrack,
+  rowAtY,
+  rowsOf,
+  type SizePreset,
+  sizeAll,
+  type TrackSizes,
+  trackHeight,
+} from '../trackSizes'
 import { clipActions } from './actions'
 import { ClipBody, clipLabel, TYPE_LOOK } from './clipLook'
+import { TrackHeightMenu } from './TrackHeightMenu'
 
 export const HEADER_W = 184
 const RULER_H = 30
 const PAD = 16
-const ROW = { visual: 60, audio: 44 } as const
 const EDGE = 7
 
 const get = useEditor.getState
 const set = useEditor.setState
 
-/** Display order: the top visual track first (it draws above the others), then audio. */
-function rowsOf(doc: Composition) {
-  const visual = doc.tracks.filter((t) => t.kind === 'visual').reverse()
-  const audio = doc.tracks.filter((t) => t.kind === 'audio')
-  let y = 0
-  return [...visual, ...audio].map((track) => {
-    const h = ROW[track.kind]
-    const row = { track, y, h }
-    y += h
-    return row
-  })
+const storedSizes = (key: string) => {
+  try {
+    const v = localStorage.getItem(key)
+    return v === null ? DEFAULT_SIZES : readSizes(JSON.parse(v))
+  } catch {
+    return DEFAULT_SIZES
+  }
 }
+
+/** The track heights of one editing project on this device (see trackSizes.ts), read again when the edit changes. */
+function useTrackSizes(id: string | null) {
+  const key = `gl.editor.tracks.${id ?? ''}`
+  const [state, setState] = useState(() => ({ key, sizes: storedSizes(key) }))
+  const sizes = state.key === key ? state.sizes : storedSizes(key)
+  const update = useCallback(
+    (fn: (s: TrackSizes) => TrackSizes) =>
+      setState((prev) => {
+        const next = fn(prev.key === key ? prev.sizes : storedSizes(key))
+        try {
+          localStorage.setItem(key, JSON.stringify(next))
+        } catch {}
+        return { key, sizes: next }
+      }),
+    [key],
+  )
+  return [sizes, update] as const
+}
+
+/** The ids of the tracks the edit has now (track heights forget the others). */
+const trackIds = () => (get().draft ?? get().doc)?.tracks.map((tr) => tr.id)
 
 interface DragState {
   kind: 'move' | 'trim-l' | 'trim-r'
@@ -75,13 +108,22 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
   const readOnly = useEditor((s) => s.readOnly)
   const presence = useEditor((s) => s.presence)
   const remote = useEditor((s) => s.remote)
+  const compositionId = useEditor((s) => s.id)
+  const [sizes, setSizes] = useTrackSizes(compositionId)
   const [snapOn, setSnapOn] = useStoredState('editor.snap', true)
   const [snapLine, setSnapLine] = useState<number | null>(null)
   const [dropAt, setDropAt] = useState<{ t: number; trackId: string | null } | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const drag = useRef<DragState | null>(null)
 
-  const rows = useMemo(() => (doc ? rowsOf(doc) : []), [doc])
+  const rows = useMemo(() => (doc ? rowsOf(doc, sizes) : []), [doc, sizes])
+  const rowsRef = useRef(rows)
+  rowsRef.current = rows
+  const resize = useCallback(
+    (trackId: string, h: number) => setSizes((s) => resizeTrack(s, trackId, h, trackIds())),
+    [setSizes],
+  )
+  const reset = useCallback((trackId: string) => setSizes((s) => resetTrack(s, trackId)), [setSizes])
   const end = doc ? Math.max(doc.duration, contentEnd(doc)) : 10
   const contentW = PAD * 2 + (end + Math.max(4, end * 0.25)) * pps
 
@@ -90,6 +132,19 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
     const el = scroller.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
+      // Alt + wheel: the height of the track under the pointer; with Shift, of every track.
+      if (e.altKey && !(e.ctrlKey || e.metaKey)) {
+        const rect = el.getBoundingClientRect()
+        const row = rowAtY(rowsRef.current, e.clientY - rect.top - RULER_H + el.scrollTop)
+        if (!row && !e.shiftKey) return
+        e.preventDefault()
+        // with Shift held, browsers turn the vertical wheel into a horizontal one
+        const k = Math.exp(-(e.deltaY || e.deltaX) * 0.002)
+        if (e.shiftKey) setSizes((s) => sizeAll(s, k))
+        // from the latest sizes, not the last render: a trackpad sends several events per frame
+        else if (row) setSizes((s) => resizeTrack(s, row.track.id, trackHeight(s, row.track) * k, trackIds()))
+        return
+      }
       if (!(e.ctrlKey || e.metaKey)) return
       e.preventDefault()
       const rect = el.getBoundingClientRect()
@@ -103,7 +158,7 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [])
+  }, [setSizes])
 
   // ── follow the playhead while playing ─────────────────────────────────────────
   useEffect(
@@ -129,8 +184,7 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
     (clientY: number) => {
       const el = scroller.current!
       const rect = el.getBoundingClientRect()
-      const y = clientY - rect.top - RULER_H + el.scrollTop
-      return rows.find((r) => y >= r.y && y < r.y + r.h) ?? null
+      return rowAtY(rows, clientY - rect.top - RULER_H + el.scrollTop)
     },
     [rows],
   )
@@ -383,7 +437,13 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
 
   return (
     <div className="flex min-h-0 flex-col bg-panel" style={{ height }}>
-      <TimelineBar snapOn={snapOn} setSnapOn={setSnapOn} scroller={scroller} />
+      <TimelineBar
+        snapOn={snapOn}
+        setSnapOn={setSnapOn}
+        scroller={scroller}
+        sizes={sizes}
+        sizeAll={(to) => setSizes((s) => sizeAll(s, to))}
+      />
       <div
         ref={scroller}
         className="relative min-h-0 flex-1 overflow-auto overscroll-contain"
@@ -421,7 +481,13 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
               style={{ width: HEADER_W }}
             >
               {rows.map((r) => (
-                <TrackHeader key={r.track.id} track={r.track} height={r.h} />
+                <TrackHeader
+                  key={r.track.id}
+                  track={r.track}
+                  height={r.h}
+                  onResize={resize}
+                  onReset={reset}
+                />
               ))}
             </div>
             <div
@@ -599,9 +665,20 @@ function Playhead({ pps }: { pps: number }) {
 
 // ── track header ───────────────────────────────────────────────────────────────────
 
-function TrackHeader({ track, height }: { track: Track; height: number }) {
+function TrackHeader({
+  track,
+  height,
+  onResize,
+  onReset,
+}: {
+  track: Track
+  height: number
+  onResize: (trackId: string, h: number) => void
+  onReset: (trackId: string) => void
+}) {
   const t = useT('editor')
   const readOnly = useEditor((s) => s.readOnly)
+  const sizing = useRef<{ y: number; h: number } | null>(null)
   const upd = (patch: Record<string, unknown>, label: string) =>
     dispatch([{ op: 'update_track', id: track.id, patch }], { label })
   const menu = useContextMenu(
@@ -637,7 +714,11 @@ function TrackHeader({ track, height }: { track: Track; height: number }) {
   )
   return (
     <div
-      className="group flex items-center gap-1 border-b border-line/60 pr-1.5 pl-3"
+      className={cn(
+        'group relative flex gap-1 border-b border-line/60 pr-1.5 pl-3',
+        // a tall track keeps its name and buttons at the top, as editors do
+        height >= 56 ? 'items-start pt-2' : 'items-center',
+      )}
       style={{ height }}
       {...menu}
     >
@@ -685,6 +766,41 @@ function TrackHeader({ track, height }: { track: Track; height: number }) {
           onClick={() => upd({ locked: !track.locked }, 'Lock')}
         />
       </span>
+      {/* the lower edge: drag to change the track's height, double-click for the size of all tracks */}
+      <Tooltip label={t('timeline.trackHeightDrag')} side="right">
+        {/* biome-ignore lint/a11y/useSemanticElements: a focusable splitter (arrow keys), which <hr> can't be */}
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-orientation="horizontal"
+          aria-label={t('timeline.trackHeight')}
+          aria-valuenow={height}
+          aria-valuemin={MIN_TRACK_H}
+          aria-valuemax={MAX_TRACK_H}
+          className="absolute inset-x-0 -bottom-[4px] z-10 h-[7px] cursor-row-resize touch-none outline-none after:absolute after:inset-x-0 after:top-[3px] after:h-px after:bg-signal/0 after:transition-colors hover:after:bg-signal/80 focus-visible:after:bg-signal"
+          onKeyDown={(e) => {
+            const step = e.key === 'ArrowDown' ? 8 : e.key === 'ArrowUp' ? -8 : 0
+            if (!step) return
+            e.preventDefault()
+            onResize(track.id, height + step)
+          }}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            e.stopPropagation()
+            sizing.current = { y: e.clientY, h: height }
+            e.currentTarget.setPointerCapture(e.pointerId)
+          }}
+          onPointerMove={(e) => {
+            const d = sizing.current
+            if (d) onResize(track.id, d.h + e.clientY - d.y)
+          }}
+          onPointerUp={() => {
+            sizing.current = null
+          }}
+          onDoubleClick={() => onReset(track.id)}
+        />
+      </Tooltip>
     </div>
   )
 }
@@ -723,11 +839,12 @@ const ClipBlock = memo(function ClipBlock({
   const Icon = look.icon
   const left = PAD + clip.start * pps
   const width = Math.max(4, clip.duration * pps)
-  const inner = h - 8
+  const { pad, inner, compact } = clipLayout(h)
   const menu = useContextMenu(() => clipActions.menu(clip.id))
-  const keys = selected
-    ? [...new Set(Object.values(clip.keyframes ?? {}).flatMap((l) => l.map((k) => k.t)))]
-    : []
+  const keys =
+    selected && !compact
+      ? [...new Set(Object.values(clip.keyframes ?? {}).flatMap((l) => l.map((k) => k.t)))]
+      : []
   const muted = track.hidden || track.muted || clip.hidden
   return (
     <div
@@ -754,7 +871,7 @@ const ClipBlock = memo(function ClipBlock({
         (clip.locked || track.locked) && 'cursor-not-allowed',
       )}
       style={{
-        transform: `translate(${left}px, ${y + 4}px)`,
+        transform: `translate(${left}px, ${y + pad}px)`,
         width,
         height: inner,
         background: `color-mix(in oklab, ${look.tint} 26%, #141614)`,
@@ -762,10 +879,22 @@ const ClipBlock = memo(function ClipBlock({
     >
       <ClipBody clip={clip} asset={asset} media={media} width={width} height={inner} />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-transparent" />
-      <div className="pointer-events-none absolute top-1 right-1.5 left-1.5 flex items-center gap-1.5 text-[11px] leading-4 font-[550] text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">
-        <Icon size={11} strokeWidth={2} className="shrink-0 opacity-80" />
-        {width > 46 && <span className="truncate">{clipLabel(clip, asset)}</span>}
-        {clip.speed !== 1 && width > 90 && (
+      <div
+        className={cn(
+          'pointer-events-none absolute right-1.5 left-1.5 flex gap-1.5 text-[11px] leading-4 font-[550] text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,.6)]',
+          compact ? 'top-1/2 -translate-y-1/2 items-center' : 'top-1 items-start',
+        )}
+      >
+        <Icon size={11} strokeWidth={2} className={cn('shrink-0 opacity-80', !compact && 'mt-[2.5px]')} />
+        {width > 46 && (
+          <span
+            className={cn('min-w-0', inner >= 56 ? 'line-clamp-3 break-words' : 'truncate')}
+            style={inner >= 56 ? { WebkitLineClamp: Math.max(2, Math.floor((inner - 12) / 16)) } : undefined}
+          >
+            {clipLabel(clip, asset)}
+          </span>
+        )}
+        {clip.speed !== 1 && width > 90 && !compact && (
           <span className="ml-auto shrink-0 rounded-[3px] bg-black/40 px-1 t-meta text-[10px]">
             {clip.speed}×
           </span>
@@ -803,10 +932,14 @@ function TimelineBar({
   snapOn,
   setSnapOn,
   scroller,
+  sizes,
+  sizeAll,
 }: {
   snapOn: boolean
   setSnapOn: (v: boolean) => void
   scroller: React.RefObject<HTMLDivElement | null>
+  sizes: TrackSizes
+  sizeAll: (to: SizePreset) => void
 }) {
   const t = useT('editor')
   const playing = useEditor((s) => s.playing)
@@ -896,6 +1029,7 @@ function TimelineBar({
         onClick={() => clipActions.remove()}
       />
       <span className="mx-1.5 h-4 w-px bg-line" />
+      <TrackHeightMenu sizes={sizes} sizeAll={sizeAll} />
       <IconButton
         size="sm"
         icon={Magnet}

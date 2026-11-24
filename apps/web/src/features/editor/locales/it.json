@@ -103,7 +103,12 @@
     "fit": "Adatta il montaggio",
     "snap": "Aggancio",
     "noRoom": "Non c'è spazio su quella traccia",
-    "dropHere": "Rilascia per aggiungere"
+    "dropHere": "Rilascia per aggiungere",
+    "trackHeight": "Altezza delle tracce",
+    "allTracks": "Tutte le tracce",
+    "size": { "small": "Piccole", "medium": "Medie", "large": "Grandi" },
+    "trackHeightDrag": "Trascina per cambiare l'altezza della traccia, doppio clic per la misura di tutte",
+    "trackHeightWheel": "Alt + rotella su una traccia ne cambia l'altezza, con Maiusc quella di tutte"
   },
   "inspector": {
     "inspector": "Proprietà",

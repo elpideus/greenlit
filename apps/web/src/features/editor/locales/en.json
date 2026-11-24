@@ -103,7 +103,12 @@
     "fit": "Fit the edit",
     "snap": "Snapping",
     "noRoom": "There is no room on that track",
-    "dropHere": "Drop to add"
+    "dropHere": "Drop to add",
+    "trackHeight": "Track height",
+    "allTracks": "All tracks",
+    "size": { "small": "Small", "medium": "Medium", "large": "Large" },
+    "trackHeightDrag": "Drag to change the track's height, double-click for the size of all tracks",
+    "trackHeightWheel": "Alt + wheel over a track changes its height, with Shift every track's"
   },
   "inspector": {
     "inspector": "Inspector",
