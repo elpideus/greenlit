@@ -23,6 +23,12 @@
   "view": { "grid": "Grid", "list": "List" },
   "remove": "Remove link",
   "removed": "Link removed",
+  "changeRelation": "Change relation",
+  "changeAll_one": "Change relation",
+  "changeAll_other": "Change all {{count}}",
+  "kept": "Kept by Greenlit",
+  "changed": "Relation changed",
+  "changedMany": "{{count}} links changed",
   "auto": "Added by Greenlit",
   "relations": {
     "source_of": { "forward": "Source of", "inverse": "Made from" },

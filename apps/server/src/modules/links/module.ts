@@ -15,6 +15,11 @@ export interface LinksService {
     to: EntityRef,
     opts?: { auto?: boolean; note?: string; actor?: Actor },
   ) => Promise<void>
+  /**
+   * Change a link's relation and/or turn it around (`reverse`: from and to swap). Greenlit's own links can't change
+   * (it keeps them in step with the editor, renders and posts). When the result exists already, the two become one.
+   */
+  change: (id: string, relation: LinkRelation, reverse: boolean) => Promise<void>
   /** Replace every automatic link of one relation from an entity (e.g. the media an editing project uses). */
   syncAuto: (from: EntityRef, relation: LinkRelation, to: EntityRef[]) => Promise<void>
   list: (ref: EntityRef, actor: Actor) => Promise<Link[]>
@@ -24,6 +29,12 @@ declare module '../../core/services.ts' {
     links?: LinksService
   }
 }
+
+const ChangeLinkInput = z.object({
+  relation: LinkRelation,
+  /** Swap from and to ("source of" ⇄ "made from"). */
+  reverse: z.boolean().default(false),
+})
 
 export default defineModule({
   id: 'links',
@@ -86,6 +97,20 @@ export default defineModule({
       },
     })
     route(ctx.api, {
+      method: 'patch',
+      path: '/links/{id}',
+      summary: "Change a link's relation, or turn it around (reverse: from and to swap)",
+      tags,
+      access: 'links.manage',
+      params: IdParams,
+      body: ChangeLinkInput,
+      response: Ok,
+      handler: async ({ params, body }) => {
+        await svc.change(params.id, body.relation, body.reverse)
+        return { ok: true as const }
+      },
+    })
+    route(ctx.api, {
       method: 'delete',
       path: '/links/{id}',
       summary: 'Remove a link',
@@ -109,6 +134,18 @@ export default defineModule({
       access: 'links.read',
       readOnly: true,
       handler: ({ type, id }, { actor }) => svc.list({ type, id }, actor),
+    })
+    ctx.mcp.tool({
+      name: 'links_update',
+      description:
+        "Change a link's relation (id from links_list), or turn it around with reverse: true (from and to swap: " +
+        '"source of" becomes "made from"). Links Greenlit added itself (auto) cannot change.',
+      input: { id: z.uuid(), ...ChangeLinkInput.shape },
+      access: 'links.manage',
+      handler: async ({ id, relation, reverse }) => {
+        await svc.change(id, relation, reverse)
+        return { ok: true }
+      },
     })
     ctx.mcp.tool({
       name: 'links_create',
@@ -161,6 +198,37 @@ function build(ctx: ModuleContext) {
         })
         .onConflictDoNothing()
       publish({ fromType: from.type, fromId: from.id, toType: to.type, toId: to.id })
+    },
+    async change(id: string, relation: LinkRelation, reverse: boolean) {
+      const row = await db.transaction(async (tx) => {
+        const [r] = await tx.select().from(links).where(eq(links.id, id)).for('update')
+        if (!r) throw notFound()
+        if (r.auto) throw badRequest('Greenlit keeps this link itself, so it cannot be changed')
+        const ends = reverse
+          ? { fromType: r.toType, fromId: r.toId, toType: r.fromType, toId: r.fromId }
+          : { fromType: r.fromType, fromId: r.fromId, toType: r.toType, toId: r.toId }
+        const [same] = await tx
+          .select({ id: links.id })
+          .from(links)
+          .where(
+            and(
+              eq(links.fromType, ends.fromType),
+              eq(links.fromId, ends.fromId),
+              eq(links.relation, relation),
+              eq(links.toType, ends.toType),
+              eq(links.toId, ends.toId),
+            ),
+          )
+        // That link exists already: keep it and drop this one.
+        if (same && same.id !== r.id) await tx.delete(links).where(eq(links.id, r.id))
+        else
+          await tx
+            .update(links)
+            .set({ ...ends, relation })
+            .where(eq(links.id, r.id))
+        return r
+      })
+      publish(row)
     },
     async syncAuto(from: EntityRef, relation: LinkRelation, to: EntityRef[]) {
       const existing = await db

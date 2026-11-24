@@ -23,6 +23,12 @@
   "view": { "grid": "Griglia", "list": "Elenco" },
   "remove": "Rimuovi il collegamento",
   "removed": "Collegamento rimosso",
+  "changeRelation": "Cambia relazione",
+  "changeAll_one": "Cambia relazione",
+  "changeAll_other": "Cambia tutti e {{count}}",
+  "kept": "Gestito da Greenlit",
+  "changed": "Relazione cambiata",
+  "changedMany": "{{count}} collegamenti cambiati",
   "auto": "Aggiunto da Greenlit",
   "relations": {
     "source_of": { "forward": "Origine di", "inverse": "Ricavato da" },

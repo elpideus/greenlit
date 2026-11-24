@@ -8,6 +8,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Check,
   ChevronRight,
   Clapperboard,
@@ -39,6 +40,7 @@ import {
   Button,
   Dialog,
   IconButton,
+  type MenuEntry,
   openContextMenu,
   SearchInput,
   Segmented,
@@ -58,7 +60,26 @@ export const hrefFor = (type: string, id: string) =>
         ? `/posts/${id}`
         : `/edit/${id}`
 
-/** Everything linked to an item, both directions, in plain words ("Made from", "Used in"). */
+/** A relation seen from this item: `forward` when the item is the link's `from` ("Source of"), else "Made from". */
+type Side = { relation: LinkRelation; forward: boolean }
+/** Every relation from this item's side; "Related to" reads the same both ways, so it appears once. */
+const SIDES: Side[] = Relations.options.flatMap<Side>((relation) =>
+  relation === 'related'
+    ? [{ relation, forward: true }]
+    : [
+        { relation, forward: true },
+        { relation, forward: false },
+      ],
+)
+const sameSide = (a: Side, b: Side) =>
+  a.relation === b.relation && (a.relation === 'related' || a.forward === b.forward)
+type Item = { link: LinkT; other: LinkT['from']; forward: boolean }
+
+/**
+ * Everything linked to an item, both directions, in plain words ("Made from", "Used in"). Right-click a link, or a
+ * group's heading for every link in it, to change the relation (turning "Source of" into "Made from" turns the link
+ * around). Links Greenlit keeps itself (editor usage, renders, posts) stay as they are.
+ */
 export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
   const t = useT('links')
   const qc = useQueryClient()
@@ -71,16 +92,49 @@ export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
   })
 
   const groups = useMemo(() => {
-    const map = new Map<string, { link: LinkT; other: LinkT['from'] }[]>()
+    const map = new Map<string, Item[]>()
     for (const l of data ?? []) {
       const forward = l.from.type === type && l.from.id === id
       const label = t(`relations.${l.relation}.${forward ? 'forward' : 'inverse'}`)
       const list = map.get(label) ?? []
-      list.push({ link: l, other: forward ? l.to : l.from })
+      list.push({ link: l, other: forward ? l.to : l.from, forward })
       map.set(label, list)
     }
     return [...map.entries()]
   }, [data, type, id, t])
+
+  const change = async (items: Item[], to: Side) => {
+    const todo = items.filter(
+      (x) => !x.link.auto && !sameSide({ relation: x.link.relation, forward: x.forward }, to),
+    )
+    if (!todo.length) return
+    const results = await Promise.allSettled(
+      todo.map((x) =>
+        api.patch(`/links/${x.link.id}`, {
+          relation: to.relation,
+          reverse: to.relation === 'related' ? false : x.forward !== to.forward,
+        }),
+      ),
+    )
+    const done = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failed) toast.error(failed.reason)
+    if (done) toast.done(done === 1 ? t('changed') : t('changedMany', { count: done }))
+    void qc.invalidateQueries({ queryKey: qk.links(type, id) })
+  }
+  /** The relations to change to, the current one ticked (when the links share one). */
+  const relationItems = (items: Item[]): MenuEntry[] => {
+    const own = items.filter((x) => !x.link.auto)
+    const first = own[0]
+    const current = first ? { relation: first.link.relation, forward: first.forward } : null
+    const shared =
+      !!current && own.every((x) => sameSide({ relation: x.link.relation, forward: x.forward }, current))
+    return SIDES.map((side) => ({
+      label: t(`relations.${side.relation}.${side.forward ? 'forward' : 'inverse'}`),
+      checked: shared && !!current && sameSide(current, side),
+      onSelect: () => void change(own, side),
+    }))
+  }
 
   const linked = useMemo(
     () => new Set((data ?? []).map((l) => keyOf(l.from.type === type && l.from.id === id ? l.to : l.from))),
@@ -122,14 +176,15 @@ export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
         <>
           {groups.map(([label, items]) => (
             <section key={label} className="mb-4">
-              <div className="px-2 pb-1.5 t-micro text-ink-3">{label}</div>
-              {items.map(({ link, other }, i) => (
-                <motion.div key={link.id} {...stagger(i)}>
+              <GroupHeading label={label} items={items} canManage={canManage} relationItems={relationItems} />
+              {items.map((item, i) => (
+                <motion.div key={item.link.id} {...stagger(i)}>
                   <LinkRow
-                    link={link}
-                    other={other}
+                    link={item.link}
+                    other={item.other}
                     canManage={canManage}
-                    onRemove={() => void remove(link)}
+                    relationItems={() => relationItems([item])}
+                    onRemove={() => void remove(item.link)}
                   />
                 </motion.div>
               ))}
@@ -153,15 +208,47 @@ export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
   )
 }
 
+/** A group's heading ("Source of"): right-click to change the relation of every link in it. */
+function GroupHeading({
+  label,
+  items,
+  canManage,
+  relationItems,
+}: {
+  label: string
+  items: Item[]
+  canManage: boolean
+  relationItems: (items: Item[]) => MenuEntry[]
+}) {
+  const t = useT('links')
+  const own = items.filter((x) => !x.link.auto).length
+  const ctx = useContextMenu(() =>
+    canManage
+      ? [
+          own
+            ? { label: t('changeAll', { count: own }), icon: ArrowLeftRight, items: relationItems(items) }
+            : { label: t('changeRelation'), icon: ArrowLeftRight, disabled: true, hint: t('kept') },
+        ]
+      : [],
+  )
+  return (
+    <div {...(canManage ? ctx : {})} className="px-2 pb-1.5 t-micro text-ink-3">
+      {label}
+    </div>
+  )
+}
+
 function LinkRow({
   link,
   other,
   canManage,
+  relationItems,
   onRemove,
 }: {
   link: LinkT
   other: LinkT['from']
   canManage: boolean
+  relationItems: () => MenuEntry[]
   onRemove: () => void
 }) {
   const t = useT('links')
@@ -169,6 +256,10 @@ function LinkRow({
   const Icon = ICON[other.type]
   const ctx = useContextMenu(() => [
     { label: t('common:open'), onSelect: () => navigate(hrefFor(other.type, other.id)) },
+    canManage &&
+      (link.auto
+        ? { label: t('changeRelation'), icon: ArrowLeftRight, disabled: true, hint: t('kept') }
+        : { label: t('changeRelation'), icon: ArrowLeftRight, items: relationItems() }),
     canManage && 'separator',
     canManage && { label: t('remove'), icon: X, danger: true, onSelect: onRemove },
   ])
@@ -467,7 +558,10 @@ function AddLink({
           )}
         </div>
         {kind === 'media' ? (
-          <div ref={setScroller} className="-mx-6 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 [--gutter:24px]">
+          <div
+            ref={setScroller}
+            className="-mx-6 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 [--gutter:24px]"
+          >
             <MediaBrowser
               key={openProject ?? 'all'}
               projectId={openProject ?? undefined}
