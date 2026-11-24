@@ -55,6 +55,17 @@ Rules that keep modules independent:
 Database: `pnpm db:generate` turns the module schemas into a migration in `apps/server/drizzle/`; the server
 applies migrations on start.
 
+Background jobs (`core/jobs.ts`): `ctx.jobs.send(name, data, { task })` queues a pg-boss job and, with `task`, a row
+in Activity (`core/tasks.ts`) whose kind is the job's name. A task that is done, failed or cancelled is never changed
+again, so work that was stopped and still reports progress can't make it "running" once more. A handler's
+`ctx.signal` is aborted when pg-boss takes its job back (a stop's 20 s grace ran out, the job timed out) or its task
+was cancelled meanwhile; it should stop then. A failure with attempts left puts the task back to "queued"
+("Trying again: …"); the last one fails it. On a stop, tasks of work still winding down are handed back (queued, or
+failed without attempts left). On start, before the workers, and every 5 minutes, tasks still queued or running
+whose job nobody works on take its state (`settleTask`: a cancelled, failed or completed job; a job gone; one waiting
+to run again). Tests: `core/jobs.test.ts`; its database part runs with `GREENLIT_TEST_DATABASE_URL` set to an empty
+database of its own.
+
 ## Web app
 
 `apps/web` is React 19 + Vite, Tailwind 4 on design tokens (docs/DESIGN.md), Base UI primitives, Motion, TanStack Query,

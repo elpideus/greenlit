@@ -1,9 +1,20 @@
-import { desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt } from 'drizzle-orm'
 import type { Db } from './db.ts'
 import type { RealtimeHub } from './realtime.ts'
 import { tasks } from './schema.ts'
 
 export type TaskState = 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+
+/** Waiting or being worked on. Every other state is final. */
+export const ACTIVE_STATES = ['queued', 'running'] as const satisfies TaskState[]
+
+export interface TaskPatch {
+  state: TaskState
+  progress: number
+  message: string
+  result: unknown
+  error: string
+}
 
 export interface TaskView {
   id: string
@@ -66,22 +77,35 @@ export class TaskService {
     return row!.id
   }
 
+  /**
+   * Changes a task that is still waiting or running. A finished one (done, failed, cancelled) is never changed
+   * again, so work that was stopped and still reports progress can't make it "running" once more. Returns false
+   * when nothing changed: the task is finished or gone, or (`notUpdatedSince`) it was updated after that moment.
+   * With `throttle` (progress), at most ~4 updates a second per task are written; the others count as done.
+   */
   async update(
     id: string,
-    patch: Partial<{ state: TaskState; progress: number; message: string; result: unknown; error: string }>,
-  ) {
-    // Progress-only updates are throttled to ~4 per second per task.
+    patch: Partial<TaskPatch>,
+    opts: { throttle?: boolean; notUpdatedSince?: Date } = {},
+  ): Promise<boolean> {
     const now = Date.now()
-    const onlyProgress = patch.state === 'running' && patch.result === undefined && patch.error === undefined
-    if (onlyProgress && now - (this.lastPush.get(id) ?? 0) < 250) return
+    if (opts.throttle && now - (this.lastPush.get(id) ?? 0) < 250) return true
     this.lastPush.set(id, now)
     const [row] = await this.db
       .update(tasks)
-      .set({ ...patch, updatedAt: new Date() })
-      .where(eq(tasks.id, id))
+      .set({ ...patch, updatedAt: new Date(now) })
+      .where(
+        and(
+          eq(tasks.id, id),
+          inArray(tasks.state, ACTIVE_STATES),
+          opts.notUpdatedSince ? lt(tasks.updatedAt, opts.notUpdatedSince) : undefined,
+        ),
+      )
       .returning()
-    if (row) this.push(toView(row))
-    if (patch.state === 'done' || patch.state === 'failed') this.lastPush.delete(id)
+    if (!row || !isActive(row.state)) this.lastPush.delete(id)
+    if (!row) return false
+    this.push(toView(row))
+    return true
   }
 
   async get(id: string) {
@@ -98,7 +122,7 @@ export class TaskService {
     const rows = await this.db
       .select()
       .from(tasks)
-      .where(inArray(tasks.state, ['queued', 'running']))
+      .where(inArray(tasks.state, ACTIVE_STATES))
       .orderBy(desc(tasks.createdAt))
     return rows.map(toView)
   }
@@ -110,3 +134,5 @@ export class TaskService {
     }
   }
 }
+
+export const isActive = (state: string) => (ACTIVE_STATES as readonly string[]).includes(state)
