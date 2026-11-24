@@ -70,3 +70,13 @@ Ops in one call are applied together (all or nothing). The result includes a rea
 - Check your work with `editor_frames` at the key moments before exporting.
 - The user may be watching in the editor: `editor_state` tells you where their playhead and selection are, and
   `editor_control` can move their playhead to show them something.
+
+## What an export is linked to
+
+The exported item is linked to its editing project ("Rendered from") and to every library item it is made of:
+the media whose clips are seen or heard in it, each linked as `source_of` the export ("Made from" on the item,
+`links_list` shows them). Brand kit files (logos, fonts, templates) are left out, and so is what the export leaves
+out: hidden clips and tracks, muted sound, clips after the end, media only in the bin. Greenlit keeps these links
+itself: every export replaces them, so nothing is linked twice and a shot taken out of the edit loses its link on
+the next export; links people add by hand are never touched. For an item exported before exports did this,
+`POST /api/compositions/{id}/source-links` links it from the edit as it is now.

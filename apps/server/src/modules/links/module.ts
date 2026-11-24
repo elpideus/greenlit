@@ -22,6 +22,8 @@ export interface LinksService {
   change: (id: string, relation: LinkRelation, reverse: boolean) => Promise<void>
   /** Replace every automatic link of one relation from an entity (e.g. the media an editing project uses). */
   syncAuto: (from: EntityRef, relation: LinkRelation, to: EntityRef[]) => Promise<void>
+  /** The same, into an entity: replace every automatic link of one relation to it (e.g. the media a render is made from). */
+  syncAutoInto: (to: EntityRef, relation: LinkRelation, from: EntityRef[]) => Promise<void>
   list: (ref: EntityRef, actor: Actor) => Promise<Link[]>
 }
 declare module '../../core/services.ts' {
@@ -161,11 +163,53 @@ export default defineModule({
   },
 })
 
+/** Of an entity's automatic links (`otherId`: the far end), those a sync to `want` removes: to anything else. */
+export function staleLinks<T extends { type: string; otherId: string }>(
+  existing: T[],
+  want: EntityRef[],
+): T[] {
+  const keep = new Set(want.map((t) => `${t.type}:${t.id}`))
+  return existing.filter((e) => !keep.has(`${e.type}:${e.otherId}`))
+}
+
 function build(ctx: ModuleContext) {
   const { db } = ctx
   const publish = (r: { fromType: string; fromId: string; toType: string; toId: string }) => {
     ctx.realtime.publish(`${r.fromType}:${r.fromId}`, 'links.updated', {})
     ctx.realtime.publish(`${r.toType}:${r.toId}`, 'links.updated', {})
+  }
+  /**
+   * Makes the automatic links of one relation between `end` (on its `side`) and `others` exactly these: missing ones
+   * are added, ones to anything else removed. Links people made, and other relations, stay as they are.
+   */
+  const syncAuto = async (
+    side: 'from' | 'to',
+    end: EntityRef,
+    relation: LinkRelation,
+    others: EntityRef[],
+  ) => {
+    const [endType, endId, otherType, otherId] =
+      side === 'from'
+        ? [links.fromType, links.fromId, links.toType, links.toId]
+        : [links.toType, links.toId, links.fromType, links.fromId]
+    const existing = await db
+      .select({ id: links.id, type: otherType, otherId })
+      .from(links)
+      .where(
+        and(eq(endType, end.type), eq(endId, end.id), eq(links.relation, relation), eq(links.auto, true)),
+      )
+    const gone = staleLinks(existing, others)
+    for (const e of gone) await db.delete(links).where(eq(links.id, e.id))
+    for (const o of others) {
+      const [from, to] = side === 'from' ? [end, o] : [o, end]
+      await db
+        .insert(links)
+        .values({ fromType: from.type, fromId: from.id, relation, toType: to.type, toId: to.id, auto: true })
+        .onConflictDoNothing()
+    }
+    if (existing.length || others.length) ctx.realtime.publish(`${end.type}:${end.id}`, 'links.updated', {})
+    for (const o of [...others, ...gone.map((e) => ({ type: e.type, id: e.otherId }))])
+      ctx.realtime.publish(`${o.type}:${o.id}`, 'links.updated', {})
   }
   return {
     publish,
@@ -230,28 +274,11 @@ function build(ctx: ModuleContext) {
       })
       publish(row)
     },
-    async syncAuto(from: EntityRef, relation: LinkRelation, to: EntityRef[]) {
-      const existing = await db
-        .select()
-        .from(links)
-        .where(
-          and(
-            eq(links.fromType, from.type),
-            eq(links.fromId, from.id),
-            eq(links.relation, relation),
-            eq(links.auto, true),
-          ),
-        )
-      const want = new Set(to.map((t) => `${t.type}:${t.id}`))
-      for (const e of existing)
-        if (!want.has(`${e.toType}:${e.toId}`)) await db.delete(links).where(eq(links.id, e.id))
-      for (const t of to)
-        await db
-          .insert(links)
-          .values({ fromType: from.type, fromId: from.id, relation, toType: t.type, toId: t.id, auto: true })
-          .onConflictDoNothing()
-      if (existing.length || to.length) ctx.realtime.publish(`${from.type}:${from.id}`, 'links.updated', {})
-      for (const t of to) ctx.realtime.publish(`${t.type}:${t.id}`, 'links.updated', {})
+    syncAuto(from: EntityRef, relation: LinkRelation, to: EntityRef[]) {
+      return syncAuto('from', from, relation, to)
+    },
+    syncAutoInto(to: EntityRef, relation: LinkRelation, from: EntityRef[]) {
+      return syncAuto('to', to, relation, from)
     },
     async list(ref: EntityRef, actor: Actor): Promise<Link[]> {
       if (!(await ctx.entities.canView(ref.type, ref.id, actor))) throw notFound()

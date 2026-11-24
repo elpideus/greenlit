@@ -15,6 +15,7 @@ import { autoReframe } from './reframe.ts'
 import { Renderer } from './render.ts'
 import { compositions } from './schema.ts'
 import { CompositionsService } from './service.ts'
+import { linkSources, outsideBrandKits } from './sources.ts'
 
 declare module '../../core/services.ts' {
   interface Services {
@@ -149,6 +150,12 @@ export default defineModule({
     })
 
     // ── render jobs ─────────────────────────────────────────────────────
+    /** "Made from" links on the exported item to the media the edit uses (not its brand kit files). */
+    const relinkSources = async (mediaId: string, doc: Composition) => {
+      const links = ctx.services.links
+      if (!links) return []
+      return linkSources({ links, material: (ids) => outsideBrandKits(ctx.db, ids) }, mediaId, doc)
+    }
     ctx.jobs.define<{ compositionId: string; formats: string[]; userId: string | null }>(
       'compositions.render',
       {
@@ -200,6 +207,11 @@ export default defineModule({
               'rendered_to',
               { type: 'media', id: mediaId },
               { auto: true },
+            )
+          // The export itself is done: a link that fails must not fail it.
+          if (mediaId)
+            await relinkSources(mediaId, doc).catch((err) =>
+              ctx.log.warn({ err, mediaId }, 'linking an export to its sources failed'),
             )
           ctx.realtime.publish(`composition:${compositionId}`, 'rendered', { mediaId })
           return { mediaId }
@@ -402,6 +414,23 @@ export default defineModule({
       response: z.object({ taskId: z.string().nullable() }),
       status: 202,
       handler: ({ actor, params, body }) => startRender(params.id, body.formats, actor),
+    })
+    route(ctx.api, {
+      method: 'post',
+      path: '/compositions/{id}/source-links',
+      summary:
+        'Link the exported item to the media the edit uses now, as on every export (for items exported before exports did this)',
+      tags,
+      access: 'compositions.render',
+      params: IdParams,
+      response: z.object({ mediaId: z.string().nullable(), sources: z.array(z.string()) }),
+      handler: async ({ actor, params }) => {
+        const c = await svc.get(params.id, actor)
+        const mediaId = c.outputMediaId
+        if (!mediaId || !(await ctx.services.media.canView(mediaId, actor)))
+          return { mediaId: null, sources: [] }
+        return { mediaId, sources: await relinkSources(mediaId, c.document) }
+      },
     })
     route(ctx.api, {
       method: 'get',
