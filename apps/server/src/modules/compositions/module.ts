@@ -646,7 +646,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'editor_auto_reframe',
       description:
-        'Make a video clip follow its subject in one format (typically "vertical" from 16:9 footage): samples the clip, finds the person/most important region and writes smoothed focusX (or focusY) keyframes. Check the result with editor_frames on that format; refine keyframes by hand with editor_apply if needed.',
+        'Make a video clip follow its subject in one format (typically "vertical" from 16:9 footage): samples the clip, finds the person/most important region and writes smoothed focusX (or focusY) keyframes. For the design format (the first) they go on the clip itself, which every format without its own also uses; for any other format, into clip.formats[formatId]. Check the result with editor_frames on that format; refine keyframes by hand with editor_apply if needed.',
       input: {
         id: z.uuid(),
         clipId: z.string(),
