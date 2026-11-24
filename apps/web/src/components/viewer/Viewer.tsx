@@ -2,6 +2,7 @@ import { type Media, type MediaFormat, versionFormats } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   Copy,
   Download,
@@ -28,6 +29,7 @@ import { can, useConfig, useSession } from '@/lib/session'
 import { EmptyState, IconButton, InlineEdit, Menu, Signal, Skeleton, Tally, toast, toneFor } from '@/ui'
 import { useViewer } from './store'
 import './locales'
+import { type Neighbors, useNeighbors } from './browse'
 import { FormatSwitcher } from './FormatSwitcher'
 import { SidePanel } from './SidePanel'
 import { Stage } from './Stage'
@@ -78,6 +80,8 @@ export function Viewer({
   const [fullscreen, setFullscreen] = useState(false)
   const set = useViewer((s) => s.set)
   const stageVars = useStageVars()
+  // Previous / next in the list the viewer was opened from (the review room has its own list beside it).
+  const nav = useNeighbors(mediaId, media, !embedded)
 
   // ?version=<key> (another version of the item), ?format=<key>, ?audio=<track key>
   const wantedVersion = params.get('version')
@@ -201,6 +205,18 @@ export function Viewer({
   })
   useHotkey(',', () => stepFrames(-1), { enabled: format?.kind === 'video' })
   useHotkey('.', () => stepFrames(1), { enabled: format?.kind === 'video' })
+  const step = (to: string | null | undefined, e: KeyboardEvent) => {
+    if (!to || !nav || e.repeat) return
+    if (document.querySelector('[role=dialog][data-open],[role=menu]')) return
+    nav.go(to)
+  }
+  // ← → walk the list where they don't move through time; Shift+P / Shift+N everywhere (designs keep their arrows).
+  useHotkey('arrowleft', (e) => step(nav?.prev, e), { enabled: !!nav && !timed && format?.kind !== 'design' })
+  useHotkey('arrowright', (e) => step(nav?.next, e), {
+    enabled: !!nav && !timed && format?.kind !== 'design',
+  })
+  useHotkey('shift+p', (e) => step(nav?.prev, e), { enabled: !!nav })
+  useHotkey('shift+n', (e) => step(nav?.next, e), { enabled: !!nav })
   useHotkey('f', toggleFullscreen)
   useHotkey('m', () => set({ muted: !useViewer.getState().muted }), { enabled: timed })
   useHotkey('mod+.', () => setPanelOpen((o) => !o))
@@ -278,6 +294,8 @@ export function Viewer({
             onFormat={selectFormat}
             embedded={embedded}
             onClose={onClose}
+            nav={nav}
+            walkKeys={!timed && format.kind !== 'design'}
             compact
           />
           <div className="relative max-h-[64dvh] w-full" style={{ aspectRatio: String(ratio) }}>
@@ -311,6 +329,8 @@ export function Viewer({
           onFormat={selectFormat}
           embedded={embedded}
           onClose={onClose}
+          nav={nav}
+          walkKeys={!timed && format.kind !== 'design'}
           panelOpen={panelOpen}
           onTogglePanel={() => setPanelOpen((o) => !o)}
         />
@@ -377,6 +397,8 @@ function ViewerBar({
   onFormat,
   embedded,
   onClose,
+  nav,
+  walkKeys,
   panelOpen,
   onTogglePanel,
   compact,
@@ -390,6 +412,9 @@ function ViewerBar({
   onFormat: (key: string) => void
   embedded?: boolean
   onClose?: () => void
+  nav?: Neighbors | null
+  /** Whether ← → step through the list (items without a timeline), for the buttons' tooltips. */
+  walkKeys?: boolean
   panelOpen?: boolean
   onTogglePanel?: () => void
   compact?: boolean
@@ -517,6 +542,7 @@ function ViewerBar({
         {!embedded && (
           <IconButton icon={ArrowLeft} label={t('back')} onClick={back} className="text-white/80" />
         )}
+        {nav && <Pager nav={nav} walkKeys={walkKeys} compact={compact} />}
         <div className={cn('flex min-w-0 flex-1 items-center gap-2', !compact && 'min-w-[140px]')}>
           {project && !compact && (
             <>
@@ -566,6 +592,39 @@ function ViewerBar({
         </div>
       )}
     </>
+  )
+}
+
+/** Previous / next in the list the viewer was opened from, with the place in it between them. */
+function Pager({ nav, walkKeys, compact }: { nav: Neighbors; walkKeys?: boolean; compact?: boolean }) {
+  const t = useT('viewer')
+  const place =
+    nav.position && nav.total ? t('place', { position: nav.position, total: nav.total }) : undefined
+  return (
+    <div className="-ml-1.5 flex shrink-0 items-center">
+      <IconButton
+        icon={ChevronLeft}
+        label={place ? `${t('previous')} · ${place}` : t('previous')}
+        shortcut={walkKeys ? 'arrowleft' : 'shift+p'}
+        disabled={!nav.prev}
+        onClick={() => nav.prev && nav.go(nav.prev)}
+        className="text-white/80"
+      />
+      {!compact && nav.position && (
+        <span className="min-w-[3ch] text-center t-meta tabular-nums text-white/45" aria-hidden>
+          {nav.position}
+          {nav.total ? <span className="text-white/25"> / {nav.total}</span> : null}
+        </span>
+      )}
+      <IconButton
+        icon={ChevronRight}
+        label={place ? `${t('next')} · ${place}` : t('next')}
+        shortcut={walkKeys ? 'arrowright' : 'shift+n'}
+        disabled={!nav.next}
+        onClick={() => nav.next && nav.go(nav.next)}
+        className="text-white/80"
+      />
+    </div>
   )
 }
 

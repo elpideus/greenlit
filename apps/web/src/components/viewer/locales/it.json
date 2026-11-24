@@ -1,5 +1,8 @@
 {
   "back": "Indietro",
+  "previous": "Precedente",
+  "next": "Successivo",
+  "place": "{{position}} di {{total}}",
   "library": "Libreria",
   "formats": "Formati",
   "addFormat": "Aggiungi un formato",

@@ -9,6 +9,7 @@ import { Download, FileText, FolderInput, MoreHorizontal, Palette, Sparkles, Sta
 import { useNavigate } from 'react-router'
 import { useMediaActions } from '@/components/library'
 import { MediaThumb } from '@/components/MediaThumb'
+import { browseState } from '@/components/viewer/browse'
 import { cn } from '@/lib/cn'
 import { withViewTransition } from '@/lib/dom'
 import { useT } from '@/lib/i18n'
@@ -34,7 +35,10 @@ export function useAssetActions(
   const t = useT('brands')
   const navigate = useNavigate()
   const media = useMediaActions({})
-  const open = (a: BrandAsset) => withViewTransition(() => navigate(`/media/${a.media.id}`))
+  // The viewer steps through the kit's files in the kit's order.
+  const ids = kit.sections.flatMap((s) => s.groups.flatMap((g) => g.assets.map((x) => x.media.id)))
+  const open = (a: BrandAsset) =>
+    withViewTransition(() => navigate(`/media/${a.media.id}`, { state: browseState({ ids }) }))
   const menu = (assets: BrandAsset[]): MenuEntry[] => {
     const one = assets.length === 1 ? assets[0]! : null
     const own: MenuEntry[] = []

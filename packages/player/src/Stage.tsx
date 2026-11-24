@@ -76,7 +76,9 @@ export function Stage({
     [comp, format, time, playing, mode, assets, volume],
   )
   const layers = visibleClips(comp, time, format)
-  // Preload videos that start soon so they don't flash when they begin.
+  // Preload videos that start soon so they don't flash when they begin. They share one keyed list with the visible
+  // layers under the same key, so at the cut the warmed-up <video> (already seeked to the clip's first frame) is the
+  // one that shows: a fresh element would show its poster or the file's frame 0 until it had seeked.
   const upcoming =
     mode === 'preview'
       ? comp.tracks.flatMap((t) =>
@@ -130,12 +132,10 @@ export function Stage({
           ...style,
         }}
       >
-        {layers.map((s, i) => (
-          <Layer key={s.clip.id} state={s} z={i} />
-        ))}
-        {upcoming.map((s) => (
-          <Layer key={`pre-${s.clip.id}`} state={s} z={-1} hidden />
-        ))}
+        {[
+          ...layers.map((s, i) => <Layer key={s.clip.id} state={s} z={i} />),
+          ...upcoming.map((s) => <Layer key={s.clip.id} state={s} z={-1} hidden />),
+        ]}
         {audio.map(({ s, vol }) => (
           <AudioLayer key={s.clip.id} state={s} trackVolume={vol} />
         ))}

@@ -10,7 +10,14 @@ import { useAudioTrack, usePlayer } from './usePlayer'
 
 const CHECKER = 'repeating-conic-gradient(#5f605f 0% 25%, #4b4c4b 0% 50%) 0 0 / 20px 20px'
 
-const BROWSER_IMAGES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml']
+export const BROWSER_IMAGES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/svg+xml',
+]
 
 function fitRect(
   box: { width: number; height: number },

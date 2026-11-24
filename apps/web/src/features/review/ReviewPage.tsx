@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { MediaThumb } from '@/components/MediaThumb'
+import { browseState } from '@/components/viewer/browse'
 import { Viewer } from '@/components/viewer/Viewer'
 import { useMediaList } from '@/data/media'
 import { api } from '@/lib/api'
@@ -185,7 +186,13 @@ export default function ReviewPage() {
               <QueueRow
                 row={row}
                 active={row.mediaId === selected}
-                onOpen={() => (phone ? navigate(`/media/${row.mediaId}`) : select(row.mediaId))}
+                onOpen={() =>
+                  phone
+                    ? navigate(`/media/${row.mediaId}`, {
+                        state: browseState({ ids: rows.map((r) => r.mediaId) }),
+                      })
+                    : select(row.mediaId)
+                }
                 tz={tz}
               />
             </motion.div>

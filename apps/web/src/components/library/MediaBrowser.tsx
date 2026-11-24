@@ -16,6 +16,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { flushSync } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Slot } from '@/app/Slot'
+import { browseState, takeSteppedTo } from '@/components/viewer/browse'
 import { uploadMedia, useMediaList } from '@/data/media'
 import { useProjects } from '@/data/projects'
 import { useTags } from '@/data/tags'
@@ -113,13 +114,17 @@ export function MediaBrowser({
     return () => clearTimeout(id)
   }, [q])
 
-  const list = useMediaList({
-    q: debounced || undefined,
-    sort,
-    projectId,
-    // The library is the work: brand kits' files stay in their kit (a `project:` token still finds them).
-    ...(inTrash ? { trash: true } : projectId ? {} : { projectKind: 'project' as const }),
-  })
+  const query = useMemo(
+    () => ({
+      q: debounced || undefined,
+      sort,
+      projectId,
+      // The library is the work: brand kits' files stay in their kit (a `project:` token still finds them).
+      ...(inTrash ? { trash: true } : projectId ? {} : { projectKind: 'project' as const }),
+    }),
+    [debounced, sort, projectId, inTrash],
+  )
+  const list = useMediaList(query)
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data])
   const total = list.data?.pages[0]?.total ?? null
   const order = useMemo(() => items.map((m) => m.id), [items])
@@ -187,10 +192,21 @@ export function MediaBrowser({
   const open = useCallback(
     (m: Media) => {
       flushSync(() => setTransitionId(m.id))
-      withViewTransition(() => navigate(`/media/${m.id}`))
+      // The viewer steps through this same view (search, sort, trash) with its previous / next buttons.
+      withViewTransition(() => navigate(`/media/${m.id}`, { state: browseState({ query }) }))
     },
-    [navigate],
+    [navigate, query],
   )
+
+  // Back from the viewer after stepping through items: focus the last one shown and bring it into view.
+  const steppedTo = useRef(takeSteppedTo())
+  useEffect(() => {
+    const id = steppedTo.current
+    if (!id || !order.includes(id)) return
+    steppedTo.current = null
+    setFocusedId(id)
+    requestAnimationFrame(() => grid.current?.reveal(id))
+  }, [order])
   const handlers = useMemo<TileHandlers>(
     () => ({
       onClick: (m, e) => {
