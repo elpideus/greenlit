@@ -12,7 +12,10 @@ import type { MediaService } from '../media/service.ts'
  * The key of the version `wanted` names: a version's key or its name (any case); '' or `main` = the main version.
  * null when the item has no such version.
  */
-export function versionKeyOf(m: Pick<Media, 'versions'>, wanted: string | null | undefined): string | null {
+export function versionKeyOf(
+  m: { versions: Pick<Media['versions'][number], 'key' | 'label'>[] },
+  wanted: string | null | undefined,
+): string | null {
   const w = (wanted ?? '').trim()
   if (!w || w.toLowerCase() === 'main') return ''
   const byKey = m.versions.find((v) => v.key === w)
