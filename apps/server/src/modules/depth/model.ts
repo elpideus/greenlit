@@ -76,6 +76,8 @@ export class OnnxModel {
   backend: Backend | null = null
   private download: Promise<void> | null = null
   private idle: ReturnType<typeof setTimeout> | null = null
+  /** How many times the model was closed: a run that fails because it was closed isn't the card's fault. */
+  private closes = 0
   /** The card failed it once (out of memory, a driver error): the processor from then on, until a restart. */
   private cardFailed = false
 
@@ -138,9 +140,12 @@ export class OnnxModel {
    */
   async run(feeds: (names: Opened) => Record<string, WorkerTensor>, fetches?: string[]) {
     const names = await this.open()
+    const closes = this.closes
     try {
       return await this.worker.run(feeds(names), fetches)
     } catch (err) {
+      // Closed meanwhile (its work was stopped): not to be done again, and the card did nothing wrong.
+      if (this.closes !== closes) throw err
       if (this.backend === 'cpu' || this.backend === null) throw err
       this.log.warn(
         { model: this.spec.id, backend: this.backend, err },
@@ -190,6 +195,7 @@ export class OnnxModel {
     if (this.idle) clearTimeout(this.idle)
     this.idle = null
     this.opened = null
+    if (this.worker.running) this.closes++
     this.worker.stop()
   }
 }

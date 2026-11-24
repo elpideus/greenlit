@@ -1,5 +1,5 @@
 import type { Job } from 'pg-boss'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createDb, runMigrations } from './db.ts'
 import { type JobDefinition, JobQueue, settleTask } from './jobs.ts'
 import { createLogger } from './logger.ts'
@@ -18,6 +18,10 @@ const until = async (ok: () => boolean | Promise<boolean>, ms = 15_000) => {
 /** Tasks in memory, with the rule of the real ones: a finished task never changes again. */
 class MemoryTasks {
   rows = new Map<string, Partial<TaskView> & { state: TaskView['state'] }>()
+  async get(id: string) {
+    const row = this.rows.get(id)
+    return row ? { id, kind: 'depth.generate', ...row } : null
+  }
   async update(id: string, patch: Partial<TaskPatch>) {
     const row = this.rows.get(id)
     if (!row || !isActive(row.state)) return false
@@ -28,12 +32,33 @@ class MemoryTasks {
 
 type Run = (name: string, def: JobDefinition<never>, job: Job<Record<string, unknown>>) => Promise<void>
 
+/** pg-boss's jobs, in memory: what `cancel` looks up and cancels. */
+type FakeJob = { id: string; name: string; state: string; data: Record<string, unknown> }
+
 /** A queue that is never started (pg-boss connects on start), to call its runner on hand-made jobs. */
 function runner() {
   const tasks = new MemoryTasks()
   const queue = new JobQueue('postgres://nowhere/none', log, tasks as unknown as TaskService, true)
   const run = (queue as unknown as { run: Run }).run.bind(queue)
-  return { tasks, run }
+  const jobs: FakeJob[] = []
+  const boss = {
+    findJobs: vi.fn(async (name: string, opts: { data: { __taskId: string } }) =>
+      jobs.filter((j) => j.name === name && j.data.__taskId === opts.data.__taskId),
+    ),
+    cancel: vi.fn(async (name: string, id: string) => {
+      for (const j of jobs) if (j.name === name && j.id === id) j.state = 'cancelled'
+    }),
+  }
+  ;(queue as unknown as { boss: unknown }).boss = boss
+  return { tasks, run, queue, jobs, boss }
+}
+
+/** A handler that never reports progress: it ends only when its signal says so. */
+const waiting = (seen: { signal?: AbortSignal }) => async (_: unknown, ctx: { signal: AbortSignal }) => {
+  seen.signal = ctx.signal
+  await new Promise((_, reject) =>
+    ctx.signal.addEventListener('abort', () => reject(new Error('Cancelled')), { once: true }),
+  )
 }
 
 const jobOf = (taskId: string, signal: AbortSignal, retryCount = 0) =>
@@ -120,6 +145,53 @@ describe('background jobs and their tasks', () => {
     await run('x', def as never, jobOf('t', new AbortController().signal, 1))
     expect(ran).toBe(false)
     expect(tasks.rows.get('t')).toEqual({ state: 'done', progress: 1 })
+  })
+
+  it('stops work it runs at once when its task is stopped, cancels its job and does not try it again', async () => {
+    const { tasks, run, queue, jobs, boss } = runner()
+    tasks.rows.set('t', { state: 'queued' })
+    jobs.push({ id: 'j1', name: 'depth.generate', state: 'active', data: { __taskId: 't', formatId: 'f' } })
+    const seen: { signal?: AbortSignal } = {}
+    const onCancel = vi.fn()
+    const def = { retryLimit: 2, handler: waiting(seen), onCancel }
+    queue.define('depth.generate', def as never)
+    const ran = run('depth.generate', def as never, jobOf('t', new AbortController().signal))
+    await until(() => tasks.rows.get('t')?.state === 'running')
+
+    expect(await queue.cancel('t', 'Stopped by Ada')).toBe(true)
+    // Not thrown (pg-boss must not try it again), and without waiting for a progress report.
+    await ran
+    expect(seen.signal?.aborted).toBe(true)
+    expect(boss.cancel).toHaveBeenCalledWith('depth.generate', 'j1')
+    expect(jobs[0]!.state).toBe('cancelled')
+    expect(tasks.rows.get('t')).toMatchObject({ state: 'cancelled', message: 'Stopped by Ada' })
+    // Its module hears of it, with the job's own data.
+    expect(onCancel).toHaveBeenCalledWith({ formatId: 'f' })
+  })
+
+  it('cancels a job that is waiting, and tells its module', async () => {
+    const { tasks, queue, jobs, boss } = runner()
+    tasks.rows.set('t', { state: 'queued' })
+    jobs.push({ id: 'j1', name: 'depth.generate', state: 'created', data: { __taskId: 't', formatId: 'f' } })
+    const onCancel = vi.fn()
+    queue.define('depth.generate', { handler: async () => {}, onCancel })
+    expect(await queue.cancel('t')).toBe(true)
+    expect(boss.cancel).toHaveBeenCalledWith('depth.generate', 'j1')
+    expect(tasks.rows.get('t')).toMatchObject({ state: 'cancelled', message: 'Stopped' })
+    expect(onCancel).toHaveBeenCalledWith({ formatId: 'f' })
+  })
+
+  it('leaves a task that has finished as it is', async () => {
+    const { tasks, queue, jobs, boss } = runner()
+    tasks.rows.set('t', { state: 'done', progress: 1 })
+    jobs.push({ id: 'j1', name: 'depth.generate', state: 'completed', data: { __taskId: 't' } })
+    const onCancel = vi.fn()
+    queue.define('depth.generate', { handler: async () => {}, onCancel })
+    expect(await queue.cancel('t')).toBe(false)
+    expect(await queue.cancel('missing')).toBe(false)
+    expect(boss.cancel).not.toHaveBeenCalled()
+    expect(tasks.rows.get('t')).toEqual({ state: 'done', progress: 1 })
+    expect(onCancel).not.toHaveBeenCalled()
   })
 
   it('settles an unfinished task from the state of its job', () => {
@@ -235,6 +307,114 @@ describe.skipIf(!url)('background jobs on a database', () => {
     await after.stop()
   }, 40_000)
 
+  it('stops a running job: at once, cancelled in pg-boss, never tried again', async () => {
+    const seen: { signal?: AbortSignal } = {}
+    let runs = 0
+    const q = queue()
+    q.define<object>('test.stop', {
+      retryLimit: 2,
+      retryDelaySeconds: 1,
+      handler: async (d, ctx) => {
+        runs++
+        return waiting(seen)(d, ctx)
+      },
+    })
+    await q.start()
+    const { taskId, jobId } = await q.send('test.stop', {}, { task: { kind: 'test.stop', title: 'Slow' } })
+    await until(async () => (await task(taskId!)).state === 'running')
+    const at = Date.now()
+    expect(await q.cancel(taskId!, 'Stopped from Activity')).toBe(true)
+    await until(() => !!seen.signal?.aborted, 2000)
+    expect(Date.now() - at).toBeLessThan(1000)
+    // Longer than its retry delay: nothing runs it again, and pg-boss keeps it cancelled.
+    await new Promise((r) => setTimeout(r, 2500))
+    expect(runs).toBe(1)
+    const [job] = await client`select state from jobs.job where id = ${jobId!}`
+    expect(job!.state).toBe('cancelled')
+    expect(await task(taskId!)).toMatchObject({ state: 'cancelled', message: 'Stopped from Activity' })
+    expect(await q.cancel(taskId!)).toBe(false)
+    await q.stop()
+  }, 30_000)
+
+  it('stops work running in another process at its next progress report', async () => {
+    const seen: { signal?: AbortSignal } = {}
+    const worker = queue()
+    worker.define('test.elsewhere', slow(seen))
+    await worker.start()
+    // The API process: the same jobs, no workers.
+    const api = queue(false)
+    api.define('test.elsewhere', slow())
+    await api.start()
+    const { taskId, jobId } = await api.send(
+      'test.elsewhere',
+      {},
+      { task: { kind: 'test.elsewhere', title: 'Slow' } },
+    )
+    await until(async () => (await task(taskId!)).progress > 0.01)
+    expect(await api.cancel(taskId!)).toBe(true)
+    await until(() => !!seen.signal?.aborted, 3000)
+    await worker.stop()
+    const [job] = await client`select state from jobs.job where id = ${jobId!}`
+    expect(job!.state).toBe('cancelled')
+    expect(await task(taskId!)).toMatchObject({ state: 'cancelled' })
+    await api.stop()
+  }, 30_000)
+
+  it('cancels a waiting job, and its module hears of it', async () => {
+    const onCancel = vi.fn()
+    const q = queue(false)
+    q.define<{ formatId: string }>('test.waiting', { handler: async () => {}, onCancel })
+    await q.start()
+    const { taskId, jobId } = await q.send(
+      'test.waiting',
+      { formatId: 'f1' },
+      { task: { kind: 'test.waiting', title: 'Waiting' } },
+    )
+    expect(await q.cancel(taskId!)).toBe(true)
+    const [job] = await client`select state from jobs.job where id = ${jobId!}`
+    expect(job!.state).toBe('cancelled')
+    expect(await task(taskId!)).toMatchObject({ state: 'cancelled' })
+    expect(onCancel).toHaveBeenCalledWith({ formatId: 'f1' })
+    await q.stop()
+  }, 30_000)
+
+  it('lists every task a page at a time, by state, kind and title', async () => {
+    // Queued together, as queueMany does: several can share a millisecond.
+    const ids = await Promise.all(
+      [0, 1, 2, 3, 4, 5].map((i) => tasks.create({ kind: 'test.list', title: `Depth map ${i}_%` })),
+    )
+    await tasks.update(ids[0]!, { state: 'done' })
+    await tasks.update(ids[1]!, { state: 'failed', error: 'Out of memory' })
+    await tasks.update(ids[2]!, { state: 'cancelled' })
+    const seen: string[] = []
+    let before: string | undefined
+    for (let i = 0; i < 4; i++) {
+      const page = await tasks.list({ kind: 'test.list', limit: 2, before })
+      seen.push(...page.items.map((t) => t.id))
+      expect(page.counts).toEqual({ all: 6, active: 3, done: 1, failed: 1, cancelled: 1 })
+      if (!page.next) break
+      before = page.next
+    }
+    // Every task once, newest first.
+    expect(seen.toSorted()).toEqual(ids.toSorted())
+    const all = (await tasks.list({ kind: 'test.list' })).items
+    expect(all.map((t) => t.id)).toEqual(seen)
+    expect(all.map((t) => Date.parse(t.createdAt))).toEqual(
+      all.map((t) => Date.parse(t.createdAt)).toSorted((a, b) => b - a),
+    )
+    expect((await tasks.list({ kind: 'test.list', state: 'active' })).items).toHaveLength(3)
+    expect((await tasks.list({ kind: 'test.list', state: 'failed' })).items[0]).toMatchObject({
+      id: ids[1],
+      error: 'Out of memory',
+    })
+    // A search is plain text: % and _ are no wildcards.
+    expect((await tasks.list({ kind: 'test.list', q: 'map 4_%' })).items.map((t) => t.id)).toEqual([ids[4]])
+    expect((await tasks.list({ kind: 'test.list', q: 'map _' })).items).toHaveLength(0)
+    expect((await tasks.list()).kinds).toContainEqual({ kind: 'test.list', count: 6 })
+    // No job behind them: finished, so the tests below see only their own.
+    for (const id of ids) await tasks.update(id, { state: 'done' })
+  })
+
   it('settles the tasks a stopped or killed server left unfinished when it starts', async () => {
     const send = queue(false)
     for (const n of ['test.cancelled', 'test.retry', 'test.failed', 'test.gone']) send.define(n, slow())
@@ -257,9 +437,13 @@ describe.skipIf(!url)('background jobs on a database', () => {
     await client`delete from jobs.job where id = ${gone.jobId}`
 
     const restarted = queue()
-    for (const n of ['test.cancelled', 'test.retry', 'test.failed', 'test.gone']) restarted.define(n, slow())
+    const onCancel = vi.fn()
+    for (const n of ['test.cancelled', 'test.retry', 'test.failed', 'test.gone'])
+      restarted.define(n, { ...slow(), onCancel })
     await restarted.start()
     expect(await task(cancelled.taskId)).toMatchObject({ state: 'cancelled' })
+    // Cancelled by hand while it waited: its module forgets it too.
+    expect(onCancel).toHaveBeenCalledTimes(1)
     expect(await task(retry.taskId)).toMatchObject({ state: 'queued', progress: 0 })
     expect(await task(failed.taskId)).toMatchObject({ state: 'failed', error: 'Out of memory' })
     expect(await task(gone.taskId)).toMatchObject({ state: 'failed', error: 'Its background job is gone' })

@@ -39,6 +39,8 @@ export const qk = {
   links: (type: string, id: string) => ['links', type, id] as const,
   notifications: ['notifications'] as const,
   tasks: ['tasks'] as const,
+  /** The Activity page (its own root: the popup refetches `tasks` on every progress report). */
+  taskHistory: (q?: unknown) => ['taskHistory', q ?? 'all'] as const,
   places: ['places'] as const,
   mapPoints: ['places', 'map'] as const,
   compositions: (projectId?: string) => ['compositions', projectId ?? 'all'] as const,

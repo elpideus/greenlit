@@ -37,6 +37,8 @@ export default defineModule({
       // A long video takes a while (about 0.4 s a frame).
       expireInSeconds: 6 * 3600,
       handler: (data, job) => svc.run(data, job),
+      // Stopped from Activity (or by an agent) before it ran: the format is no longer waiting.
+      onCancel: (data) => svc.cancelled(data.formatId),
     })
     ctx.events.on('media.processed', ({ formatId }) => svc.onProcessed(formatId))
     // depth:<media id> carries the progress of that item's depth maps.

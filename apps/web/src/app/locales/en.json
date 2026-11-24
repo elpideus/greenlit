@@ -67,6 +67,8 @@
     "uploads": "Uploads",
     "running": "Running",
     "recent": "Recent",
+    "allActivity": "All activity",
+    "stop": "Stop",
     "goTo": "Go to",
     "actions": "Actions",
     "noResults": "No results for “{{q}}”"

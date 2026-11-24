@@ -63,8 +63,17 @@ was cancelled meanwhile; it should stop then. A failure with attempts left puts 
 ("Trying again: …"); the last one fails it. On a stop, tasks of work still winding down are handed back (queued, or
 failed without attempts left). On start, before the workers, and every 5 minutes, tasks still queued or running
 whose job nobody works on take its state (`settleTask`: a cancelled, failed or completed job; a job gone; one waiting
-to run again). Tests: `core/jobs.test.ts`; its database part runs with `GREENLIT_TEST_DATABASE_URL` set to an empty
-database of its own.
+to run again).
+
+To stop one: `ctx.jobs.cancel(taskId)` (`POST /api/tasks/{id}/cancel`, the MCP tool `task_cancel`, Stop in Activity;
+whoever started it or an admin). It cancels the job in pg-boss (never tried again), makes the task "cancelled" and
+aborts the handler's `ctx.signal` at once when it runs in this process, elsewhere at its next progress report (its task
+write is refused). Then the job's `onCancel(data)` runs, for modules that keep their own record of what waits (depth
+maps: an item's "queued" mark); the sweep calls it too for a job found cancelled. A handler that holds something big
+should let it go when its signal aborts (the depth module ends its model's process, so the graphics card is free in
+seconds). The Activity page (`/activity`, web feature `activity`) lists every task a page at a time
+(`GET /api/tasks/history`). Tests: `core/jobs.test.ts`; its database part runs with `GREENLIT_TEST_DATABASE_URL` set
+to an empty database of its own.
 
 ## Web app
 

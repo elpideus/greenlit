@@ -67,6 +67,8 @@
     "uploads": "Caricamenti",
     "running": "In corso",
     "recent": "Recenti",
+    "allActivity": "Tutta l'attività",
+    "stop": "Ferma",
     "goTo": "Vai a",
     "actions": "Azioni",
     "noResults": "Nessun risultato per “{{q}}”"

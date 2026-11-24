@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { once } from 'node:events'
+import type { Writable } from 'node:stream'
 import sharp from 'sharp'
 import { ffmpegBin, type ProbeResult } from '../../lib/ffmpeg.ts'
 import { type DepthAnything, inferenceSize, MOGE_LONG_SIDE, type MoGe } from './model.ts'
@@ -90,6 +90,9 @@ export async function depthOfVideo(
     { stdio: ['pipe', 'ignore', 'pipe'] },
   )
   const errors = [collect(decoder), collect(encoder)]
+  // A write the encoder can't take any more (it was stopped, or it crashed) fails here, not the server: the exit
+  // code says what happened.
+  encoder.stdin!.on('error', () => {})
   const stop = () => {
     decoder.kill('SIGKILL')
     encoder.kill('SIGKILL')
@@ -100,9 +103,10 @@ export async function depthOfVideo(
     const steady = new Steadier(size.width * size.height)
     let done = 0
     const write = async (level: Float32Array) => {
+      if (opts.signal?.aborted) throw new Error('Cancelled')
       const px = new Uint16Array(level.length)
       for (let i = 0; i < px.length; i++) px[i] = Math.round(level[i]! * 65535)
-      if (!encoder.stdin!.write(Buffer.from(px.buffer))) await once(encoder.stdin!, 'drain')
+      if (!encoder.stdin!.write(Buffer.from(px.buffer))) await drained(encoder.stdin!, opts.signal)
       done++
       opts.onProgress?.(Math.min(0.999, done / total))
     }
@@ -262,6 +266,28 @@ function collect(proc: ChildProcess) {
     err = (err + d.toString()).slice(-4000)
   })
   return { text: () => err.trim().split('\n').slice(-4).join(' ') }
+}
+
+/**
+ * Until the encoder takes more. Never forever: a stopped or crashed encoder's input is closed (it may be already),
+ * and that would send no "drain" (nor an error once it is closed); a stop ends the wait too.
+ */
+export function drained(input: Writable, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const done = (err?: Error) => {
+      input.off('drain', drain).off('close', closed).off('error', done)
+      signal?.removeEventListener('abort', aborted)
+      if (err) reject(err)
+      else resolve()
+    }
+    const drain = () => done()
+    const closed = () => done(new Error('The depth video encoder stopped'))
+    const aborted = () => done(new Error('Cancelled'))
+    if (signal?.aborted) return aborted()
+    if (input.destroyed || input.writableEnded) return closed()
+    input.on('drain', drain).on('close', closed).on('error', done)
+    signal?.addEventListener('abort', aborted, { once: true })
+  })
 }
 
 function exitOf(proc: ChildProcess) {

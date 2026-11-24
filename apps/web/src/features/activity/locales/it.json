@@ -1,0 +1,68 @@
+{
+  "title": "Attività",
+  "palette": {
+    "open": "Attività: tutto ciò che è in corso o finito in background"
+  },
+  "meta_one": "{{count}} attività",
+  "meta_other": "{{count}} attività",
+  "running_one": "{{count}} in corso",
+  "running_other": "{{count}} in corso",
+  "search": "Trova un'attività",
+  "tab": {
+    "all": "Tutte",
+    "active": "In corso",
+    "done": "Finite",
+    "failed": "Non riuscite",
+    "cancelled": "Fermate"
+  },
+  "state": {
+    "queued": "In attesa",
+    "running": "In corso",
+    "done": "Finita",
+    "failed": "Non riuscita",
+    "cancelled": "Fermata"
+  },
+  "kinds": "Ogni tipo",
+  "kind": {
+    "media": {
+      "process": "Elaborazione"
+    },
+    "depth": {
+      "generate": "Mappe di profondità"
+    },
+    "compositions": {
+      "render": "Esportazioni"
+    },
+    "posts": {
+      "publish": "Pubblicazione"
+    },
+    "brands": {
+      "unpack": "Brand kit"
+    },
+    "storage": {
+      "archive": "Archiviazione",
+      "restore": "Ripristino",
+      "gc": "Pulizia"
+    }
+  },
+  "by": "da {{name}}",
+  "byGreenlit": "da Greenlit",
+  "took": "in {{time}}",
+  "for": "da {{time}}",
+  "stop": "Ferma",
+  "open": "Apri",
+  "more": "Mostra altre",
+  "details": "Dettagli",
+  "started": "Iniziata",
+  "updated": "Ultimo aggiornamento",
+  "id": "Attività",
+  "result": "Risultato",
+  "error": "Errore",
+  "empty": "Niente qui",
+  "emptyBody": "Elaborazioni, mappe di profondità, esportazioni e pubblicazioni compaiono qui quando partono.",
+  "emptyRunning": "Niente in corso",
+  "emptyRunningBody": "Mappe di profondità, esportazioni e pubblicazioni compaiono qui mentre sono in corso.",
+  "emptyFiltered": "Nessuna attività corrisponde",
+  "emptyFilteredBody": "Prova un altro tipo o un'altra ricerca, o togli i filtri.",
+  "clear": "Togli i filtri"
+}

@@ -127,6 +127,7 @@ sends usage instructions on connect and exposes the editor guide as the resource
 
 ## task
 
+- **`task_cancel`** _(careful)_ — Stop a background task that is waiting or running (a depth map, a render, processing...): its job is cancelled and never tried again, and work in progress stops within seconds (a graphics card it used is freed). Only tasks you started, unless you are an admin. Returns the task, now cancelled.
 - **`task_status`** _(read-only)_ — Progress of a background task (render, processing, publishing). Poll it after starting long work.
 
 ## users

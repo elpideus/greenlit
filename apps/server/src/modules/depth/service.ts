@@ -233,8 +233,29 @@ export class DepthService {
     await this.queue(f.id, { auto: true })
   }
 
+  /**
+   * Its job was stopped (from Activity, or by an agent). A format that was waiting would stay "queued" until a
+   * restart, and couldn't be queued again: it is no longer waiting. One being made stops through its job's signal.
+   */
+  cancelled(formatId: string) {
+    const entry = this.jobs.get(formatId)
+    if (!entry) return
+    this.jobs.delete(formatId)
+    this.announce(entry.mediaId, formatId, true)
+  }
+
   async run(data: DepthJobData, job: JobContext) {
     const entry = this.jobs.get(data.formatId)
+    // What this run puts in `jobs`: a stop and a new request meanwhile put another there, which stays.
+    let mine: typeof entry
+    // Stopped (its task, or a restart): the model's process ends at once, not when its idle timer fires, so the
+    // graphics card is free within seconds (a frame in the works fails, and the work stops).
+    const release = () => {
+      this.small.close()
+      this.moge.close()
+    }
+    if (job.signal.aborted) release()
+    else job.signal.addEventListener('abort', release, { once: true })
     const f = await this.formatRow(data.formatId).catch(() => null)
     try {
       if (!f) return { skipped: 'The format no longer exists' }
@@ -245,7 +266,8 @@ export class DepthService {
         return { skipped: 'It has an uploaded depth map' }
       if (existing && this.isGenerated(existing) && !this.isStale(existing, f) && !data.force)
         return { skipped: 'Its depth map is up to date' }
-      this.jobs.set(f.id, { mediaId: f.mediaId, state: 'running', progress: 0 })
+      mine = { mediaId: f.mediaId, state: 'running', progress: 0 }
+      this.jobs.set(f.id, mine)
       const progress = this.progressFor(f, job)
       const files = this.ctx.services.files
       const dir = join(files.dir('tmp'), `depth-${f.id}`)
@@ -285,6 +307,8 @@ export class DepthService {
               onProgress: (x) => void progress(start + x * (1 - start)),
             })
           }
+          // Stopped while the model worked (a picture's single pass doesn't look at the signal): nothing is attached.
+          if (job.signal.aborted) throw new Error('Cancelled')
           const now = await this.formatRow(cur.id).catch(() => null)
           if (!now) return { skipped: 'The format no longer exists' }
           if (now.fileRevision !== cur.fileRevision) {
@@ -320,8 +344,12 @@ export class DepthService {
         }
       }
     } finally {
-      this.jobs.delete(data.formatId)
-      if (f ?? entry) this.announce((f?.mediaId ?? entry?.mediaId)!, data.formatId, true)
+      job.signal.removeEventListener('abort', release)
+      const now = this.jobs.get(data.formatId)
+      if (now === undefined || now === entry || now === mine) {
+        this.jobs.delete(data.formatId)
+        if (f ?? entry) this.announce((f?.mediaId ?? entry?.mediaId)!, data.formatId, true)
+      }
     }
   }
 
@@ -329,6 +357,8 @@ export class DepthService {
   private progressFor(f: FormatRow, job: JobContext) {
     let last = 0
     return async (x: number, downloading: string | false = false) => {
+      // Stopped: what is in `jobs` now may be a new request for the format.
+      if (job.signal.aborted) return
       const entry = this.jobs.get(f.id)
       if (entry) entry.progress = x
       const now = Date.now()

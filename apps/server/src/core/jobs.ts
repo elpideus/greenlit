@@ -1,6 +1,6 @@
 import { type Job, type JobWithMetadata, PgBoss } from 'pg-boss'
 import type { Logger } from './logger.ts'
-import type { TaskPatch, TaskService, TaskView } from './tasks.ts'
+import { isActive, type TaskPatch, type TaskService, type TaskView } from './tasks.ts'
 
 export interface JobContext {
   job: Job<unknown>
@@ -20,6 +20,12 @@ export interface JobDefinition<T> {
   retryLimit?: number
   retryDelaySeconds?: number
   expireInSeconds?: number
+  /**
+   * Its job was stopped before it could finish (`JobQueue.cancel`, or found cancelled by `sweep`): forget what waits
+   * for it (an item's "queued" mark). Runs in the process that stopped it, whether the job was waiting or running; a
+   * running handler is told through its signal too.
+   */
+  onCancel?: (data: T) => void | Promise<void>
 }
 
 export interface SendOptions {
@@ -41,6 +47,15 @@ const JOB_STORED_MS = 60_000
 
 /** A job as findJobs returns it: its output is null until it finishes (and when the handler returned nothing). */
 type JobRecord = { state: JobWithMetadata['state']; output?: unknown }
+
+/** States of a job that pg-boss may still run (cancel changes only these). */
+const UNFINISHED: JobWithMetadata['state'][] = ['created', 'retry', 'active']
+
+/** A job's data as its handler gets it (without the task id Greenlit adds). */
+const dataOf = (job: { data?: unknown }) => {
+  const { __taskId: _, ...data } = (job.data ?? {}) as Record<string, unknown>
+  return data
+}
 
 /** pg-boss keeps a failure as the error (`message`) or as `{ value }` (its own reasons, like a shutdown). */
 function errorOf(output: unknown): string | null {
@@ -81,8 +96,11 @@ export class JobQueue {
   private stopping = false
   private sweeper: ReturnType<typeof setInterval> | null = null
   private sweeping = false
-  /** Jobs with a task this process is working on: the task, and whether pg-boss tries the job again if it fails. */
-  private readonly running = new Map<string, { taskId: string; again: boolean }>()
+  /**
+   * Jobs with a task this process is working on: the task, whether pg-boss tries the job again if it fails, and how
+   * to stop the work at once when its task is stopped here (`cancel`).
+   */
+  private readonly running = new Map<string, { taskId: string; again: boolean; stop: () => void }>()
 
   private log: Logger
   private tasks: TaskService
@@ -184,6 +202,11 @@ export class JobQueue {
     // The same test as pg-boss's when the job fails: another attempt follows.
     const again = (job.retryCount ?? 0) < (job.retryLimit ?? def.retryLimit ?? 2)
     let taskStopped = false
+    // Its task was stopped: the work ends, and isn't tried again.
+    const stop = () => {
+      taskStopped = true
+      controller.abort(new Error('Its task was stopped'))
+    }
     const progress = async (fraction: number, message?: string) => {
       // Work that was stopped may still report progress while it winds down: its task has moved on.
       if (!taskId || signal.aborted) return
@@ -191,8 +214,7 @@ export class JobQueue {
         await this.tasks.update(taskId, { state: 'running', progress: fraction, message }, { throttle: true })
       )
         return
-      taskStopped = true
-      controller.abort(new Error('Its task was stopped'))
+      stop()
     }
     if (taskId) {
       // A retry starts from the beginning; a task that is finished (stopped, or done before a restart) stays so.
@@ -200,12 +222,11 @@ export class JobQueue {
         log.info('its task is finished: skipped')
         return
       }
-      this.running.set(job.id, { taskId, again })
+      this.running.set(job.id, { taskId, again, stop })
     }
     const started = performance.now()
     try {
-      const { __taskId: _, ...data } = job.data ?? {}
-      const result = await def.handler(data as never, { job, log, progress, signal })
+      const result = await def.handler(dataOf(job) as never, { job, log, progress, signal })
       if (taskId) await this.tasks.update(taskId, { state: 'done', progress: 1, result: result ?? null })
       log.debug({ ms: Math.round(performance.now() - started) }, 'job done')
     } catch (err) {
@@ -227,6 +248,35 @@ export class JobQueue {
   }
 
   /**
+   * Stops a task and its job. The job is cancelled in pg-boss (never tried again) and the task becomes "cancelled";
+   * work on it in this process is aborted at once, elsewhere at its next progress report (its task write is then
+   * refused). Then its definition's `onCancel` runs. False when the task had finished already, or is gone.
+   */
+  async cancel(taskId: string, message = 'Stopped'): Promise<boolean> {
+    const task = await this.tasks.get(taskId)
+    if (!task || !isActive(task.state)) return false
+    // A task's kind is its job's name. The job first: no worker takes it up while the task is being stopped.
+    const def = this.defs.get(task.kind)
+    const [job] = def ? await this.boss.findJobs(task.kind, { data: { __taskId: taskId }, limit: 1 }) : []
+    if (job && UNFINISHED.includes(job.state)) await this.boss.cancel(task.kind, job.id)
+    const stopped = await this.tasks.update(taskId, { state: 'cancelled', message })
+    for (const r of this.running.values()) if (r.taskId === taskId) r.stop()
+    if (!stopped) return false
+    this.log.info({ task: taskId, kind: task.kind, job: job?.id ?? null }, 'task stopped')
+    if (job) await this.cancelled(task.kind, job)
+    return true
+  }
+
+  /** Its definition's `onCancel`, never failing the caller. */
+  private async cancelled(name: string, job: { data?: unknown }) {
+    try {
+      await this.defs.get(name)?.onCancel?.(dataOf(job) as never)
+    } catch (err) {
+      this.log.warn({ err, job: name }, 'onCancel failed')
+    }
+  }
+
+  /**
    * Tasks still queued or running whose job nobody works on: a server stopped or killed in the middle of one, a job
    * cancelled or failed outside its handler, or one that is gone. Each takes the state of its job (`settleTask`).
    * Runs on start, before the workers, then every few minutes; a task updated meanwhile is left to its worker.
@@ -242,11 +292,13 @@ export class JobQueue {
         const [job] = await this.boss.findJobs(task.kind, { data: { __taskId: task.id }, limit: 1 })
         if (!job && since.getTime() - Date.parse(task.createdAt) < JOB_STORED_MS) continue
         const patch = settleTask(task, job ?? null)
-        if (patch && (await this.tasks.update(task.id, patch, { notUpdatedSince: since })))
-          this.log.info(
-            { task: task.id, kind: task.kind, job: job?.state ?? 'gone', ...patch },
-            'unfinished task settled',
-          )
+        if (!patch || !(await this.tasks.update(task.id, patch, { notUpdatedSince: since }))) continue
+        this.log.info(
+          { task: task.id, kind: task.kind, job: job?.state ?? 'gone', ...patch },
+          'unfinished task settled',
+        )
+        // Cancelled somewhere else (by hand, or by a server that stopped before telling its module).
+        if (job?.state === 'cancelled') await this.cancelled(task.kind, job)
       }
     } catch (err) {
       this.log.warn({ err }, 'could not check unfinished tasks')

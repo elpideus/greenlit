@@ -1,0 +1,68 @@
+{
+  "title": "Activity",
+  "palette": {
+    "open": "Activity: everything running and done in the background"
+  },
+  "meta_one": "{{count}} task",
+  "meta_other": "{{count}} tasks",
+  "running_one": "{{count}} running",
+  "running_other": "{{count}} running",
+  "search": "Find a task",
+  "tab": {
+    "all": "All",
+    "active": "Running",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Stopped"
+  },
+  "state": {
+    "queued": "Waiting",
+    "running": "Running",
+    "done": "Done",
+    "failed": "Failed",
+    "cancelled": "Stopped"
+  },
+  "kinds": "Every kind",
+  "kind": {
+    "media": {
+      "process": "Processing"
+    },
+    "depth": {
+      "generate": "Depth maps"
+    },
+    "compositions": {
+      "render": "Exports"
+    },
+    "posts": {
+      "publish": "Publishing"
+    },
+    "brands": {
+      "unpack": "Brand kits"
+    },
+    "storage": {
+      "archive": "Archiving",
+      "restore": "Restoring",
+      "gc": "Clean-up"
+    }
+  },
+  "by": "by {{name}}",
+  "byGreenlit": "by Greenlit",
+  "took": "took {{time}}",
+  "for": "for {{time}}",
+  "stop": "Stop",
+  "open": "Open",
+  "more": "Show more",
+  "details": "Details",
+  "started": "Started",
+  "updated": "Last update",
+  "id": "Task",
+  "result": "Result",
+  "error": "Error",
+  "empty": "Nothing here",
+  "emptyBody": "Processing, depth maps, exports and publishing show here once they start.",
+  "emptyRunning": "Nothing running",
+  "emptyRunningBody": "Depth maps, exports and publishing show here while they run.",
+  "emptyFiltered": "No task matches",
+  "emptyFilteredBody": "Try another kind or search, or clear the filters.",
+  "clear": "Clear filters"
+}
