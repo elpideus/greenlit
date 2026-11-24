@@ -53,7 +53,7 @@ sends usage instructions on connect and exposes the editor guide as the resource
 - **`editor_get`** _(read-only)_ — Read an editing project: a readable outline, and the full JSON document when full=true.
 - **`editor_guide`** _(read-only)_ — The full reference for editing projects: document model, clip types, keyframes, transitions, code (HTML) layers for motion graphics, and every op. Read it before editing.
 - **`editor_list`** _(read-only)_ — Editing projects (optionally of one project): id, name, formats, duration, revision.
-- **`editor_render`** — Export an editing project. Each format (default: all) becomes a format of one media item in the same project, linked as "rendered to". Returns a taskId; check it with task_status.
+- **`editor_render`** — Export an editing project. Each format (default: all) becomes a format of one media item in the same project, linked as "rendered to": the format with id main (or, without one, the first) as its main format, every other one under its own id. Returns a taskId; check it with task_status.
 - **`editor_state`** _(read-only)_ — What the people with this editor open are looking at: playhead time, playing, selected clips, format. Use it to understand what the user means by 'this' or 'here'.
 
 ## history

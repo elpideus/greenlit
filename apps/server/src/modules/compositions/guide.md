@@ -3,7 +3,8 @@
 An **editing project** (composition) is a JSON document. You edit it with small **ops**; every open editor
 shows the change instantly and plays it live — nothing is rendered until someone asks for an export. Look at
 your work with `editor_frame` / `editor_frames` (they draw exactly what the export will contain) and export
-with `editor_render`, which turns each output format into a format of one media item linked to the project.
+with `editor_render`, which turns each output format into a format of one media item linked to the project:
+the format with id `main` (or, without one, the first) becomes its `main` format, every other one keeps its id.
 
 ## Document
 

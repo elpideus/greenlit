@@ -11,6 +11,7 @@ import { IdParams, Ok, route } from '../../core/http.ts'
 import { McpContent } from '../../core/mcp.ts'
 import { defineModule } from '../../core/module.ts'
 import type { RealtimeClient } from '../../core/realtime.ts'
+import { exportFormats } from './export.ts'
 import { autoReframe } from './reframe.ts'
 import { Renderer } from './render.ts'
 import { compositions } from './schema.ts'
@@ -168,39 +169,23 @@ export default defineModule({
           const actor: Actor = userId
             ? ctx.services.users.actorFor(await ctx.services.users.get(userId), 'web')
             : { kind: 'system', source: 'system' }
-          const targets = doc.formats.filter((f) => !formats.length || formats.includes(f.id))
           let mediaId = r.outputMediaId
           if (mediaId && !(await ctx.services.media.canView(mediaId, { kind: 'system', source: 'system' })))
             mediaId = null
-          for (const [i, format] of targets.entries()) {
-            const sub = {
-              ...job,
-              progress: (p: number, m?: string) =>
-                job.progress((i + p) / targets.length, `${format.name}: ${m ?? ''}`),
-            }
-            const file = await renderer.render(compositionId, doc, format, actor, sub)
-            const blob = await ctx.services.files.ingest(file, {
-              filename: `${r.name} (${format.name}).mp4`,
-              mime: 'video/mp4',
-              createdBy: actorUserId(actor),
-              usage: 'media',
-            })
-            const key = format.id === doc.formats[0]!.id ? 'main' : format.id
-            if (!mediaId) {
-              mediaId = await ctx.services.media.createFromBlob(
-                blob,
-                { projectId: r.projectId, title: r.name, formatKey: key, origin: 'render' },
-                actor,
-              )
-              await svc.setOutputMedia(compositionId, mediaId)
-            } else
-              await ctx.services.media.attachFile(
-                mediaId,
-                blob,
-                { formatKey: key, label: format.name, note: `Rendered from revision ${r.revision}` },
-                actor,
-              )
-          }
+          mediaId = await exportFormats(
+            {
+              render: (format, sub) => renderer.render(compositionId, doc, format, actor, sub),
+              files: ctx.services.files,
+              media: ctx.services.media,
+              setOutputMedia: (id) => svc.setOutputMedia(compositionId, id),
+            },
+            r,
+            doc,
+            formats,
+            mediaId,
+            actor,
+            job,
+          )
           if (mediaId)
             await ctx.services.links?.link(
               { type: 'composition', id: compositionId },
@@ -748,7 +733,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'editor_render',
       description:
-        'Export an editing project. Each format (default: all) becomes a format of one media item in the same project, linked as "rendered to". Returns a taskId; check it with task_status.',
+        'Export an editing project. Each format (default: all) becomes a format of one media item in the same project, linked as "rendered to": the format with id main (or, without one, the first) as its main format, every other one under its own id. Returns a taskId; check it with task_status.',
       input: { id: z.uuid(), formats: z.array(z.string()).optional() },
       access: 'compositions.render',
       handler: ({ id, formats }, { actor }) => startRender(id, formats ?? [], actor),
