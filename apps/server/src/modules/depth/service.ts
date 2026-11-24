@@ -247,64 +247,77 @@ export class DepthService {
         return { skipped: 'Its depth map is up to date' }
       this.jobs.set(f.id, { mediaId: f.mediaId, state: 'running', progress: 0 })
       const progress = this.progressFor(f, job)
-
-      // The model, once (MoGe-2 1.3 GB, Small 99 MB): the first tenth of the bar.
-      const model = f.kind === 'image' ? this.moge : this.small
-      // One model in memory at a time (jobs run one by one): the other kind's goes.
-      await (model === this.moge ? this.small : this.moge).close()
-      const downloading = !model.installed()
-      const size = `${Math.round(model.spec.size / 1e8) / 10} GB`
-      if (downloading) await job.progress(0, `Downloading ${model.spec.name} (${size})`).catch(() => {})
-      await model.ensure((x) => void progress(x * 0.1, downloading && model.spec.name), job.signal)
       const files = this.ctx.services.files
-      const blob = await files.get(f.blobId)
-      const src = await files.readablePath(blob)
       const dir = join(files.dir('tmp'), `depth-${f.id}`)
-      await mkdir(dir, { recursive: true })
-      const stem = f.filename.replace(/\.[^.]+$/, '') || 'depth'
-      try {
-        const start = downloading ? 0.1 : 0
-        let out: string
-        let mime: string
-        let metric: { near: number; far: number } | null = null
-        if (f.kind === 'image') {
-          out = join(dir, `${stem}_depth.png`)
-          mime = 'image/png'
-          await progress(start + 0.2)
-          metric = (await depthOfPicture(this.moge, src, out)).metric
-        } else {
-          out = join(dir, `${stem}_depth.mp4`)
-          mime = 'video/mp4'
-          await depthOfVideo(this.small, src, out, await probe(src), {
-            signal: job.signal,
-            onProgress: (x) => void progress(start + x * (1 - start)),
+      // The format can get a new file while its map is being made (an export writing it again). Its new file can't
+      // queue a map of its own meanwhile (this one is in the way), so the map of the old file is never attached:
+      // it is made again, from the file the format has now.
+      for (let cur = f; ; ) {
+        if (cur.kind !== 'image' && cur.kind !== 'video')
+          return { skipped: 'It is no longer a picture or a video' }
+        // The model, once (MoGe-2 1.3 GB, Small 99 MB): the first tenth of the bar.
+        const model = cur.kind === 'image' ? this.moge : this.small
+        // One model in memory at a time (jobs run one by one): the other kind's goes.
+        await (model === this.moge ? this.small : this.moge).close()
+        const downloading = !model.installed()
+        const size = `${Math.round(model.spec.size / 1e8) / 10} GB`
+        if (downloading) await job.progress(0, `Downloading ${model.spec.name} (${size})`).catch(() => {})
+        await model.ensure((x) => void progress(x * 0.1, downloading && model.spec.name), job.signal)
+        const blob = await files.get(cur.blobId)
+        const src = await files.readablePath(blob)
+        await mkdir(dir, { recursive: true })
+        const stem = cur.filename.replace(/\.[^.]+$/, '') || 'depth'
+        try {
+          const start = downloading ? 0.1 : 0
+          let out: string
+          let mime: string
+          let metric: { near: number; far: number } | null = null
+          if (cur.kind === 'image') {
+            out = join(dir, `${stem}_depth.png`)
+            mime = 'image/png'
+            await progress(start + 0.2)
+            metric = (await depthOfPicture(this.moge, src, out)).metric
+          } else {
+            out = join(dir, `${stem}_depth.mp4`)
+            mime = 'video/mp4'
+            await depthOfVideo(this.small, src, out, await probe(src), {
+              signal: job.signal,
+              onProgress: (x) => void progress(start + x * (1 - start)),
+            })
+          }
+          const now = await this.formatRow(cur.id).catch(() => null)
+          if (!now) return { skipped: 'The format no longer exists' }
+          if (now.fileRevision !== cur.fileRevision) {
+            cur = now
+            continue
+          }
+          const made = await files.ingest(out, {
+            filename: out.split('/').pop()!,
+            mime,
+            createdBy: null,
+            move: true,
           })
-        }
-        const made = await files.ingest(out, {
-          filename: out.split('/').pop()!,
-          mime,
-          createdBy: null,
-          move: true,
-        })
-        await this.ctx.services.media.attachFile(
-          f.mediaId,
-          made,
-          {
-            formatKey: f.key,
-            version: f.version,
-            depth: true,
-            note: `Made by Greenlit (${model.spec.name})`,
-            // Disparity: near is light, whatever the map it replaces said.
-            meta: {
-              near: 'light',
-              generated: { model: model.spec.id, fromRevision: f.fileRevision, metric },
+          await this.ctx.services.media.attachFile(
+            cur.mediaId,
+            made,
+            {
+              // As it is now (it may have been renamed meanwhile).
+              formatKey: now.key,
+              version: now.version,
+              depth: true,
+              note: `Made by Greenlit (${model.spec.name})`,
+              // Disparity: near is light, whatever the map it replaces said.
+              meta: {
+                near: 'light',
+                generated: { model: model.spec.id, fromRevision: cur.fileRevision, metric },
+              },
             },
-          },
-          systemActor('depth maps'),
-        )
-        return { made: made.filename }
-      } finally {
-        await rm(dir, { recursive: true, force: true })
+            systemActor('depth maps'),
+          )
+          return { made: made.filename }
+        } finally {
+          await rm(dir, { recursive: true, force: true })
+        }
       }
     } finally {
       this.jobs.delete(data.formatId)
