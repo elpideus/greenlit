@@ -69,6 +69,14 @@
     "trashTitle": "Il cestino è vuoto",
     "trashBody": "Gli elementi spostati nel cestino restano qui finché non li elimini definitivamente."
   },
+  "picker": {
+    "pick": "Scegli",
+    "unpick": "Togli",
+    "picked": "Scelto",
+    "preview": "Anteprima",
+    "openProject": "Apri {{name}}",
+    "newTab": "Apri in una nuova scheda"
+  },
   "selection": {
     "selected_one": "{{count}} selezionato",
     "selected_other": "{{count}} selezionati",

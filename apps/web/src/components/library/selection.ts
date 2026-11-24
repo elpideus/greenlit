@@ -4,8 +4,8 @@ import { useCallback, useMemo, useRef, useState } from 'react'
  * Finder-style selection over an ordered list of ids: click selects one, mod-click toggles, shift-click extends from
  * the anchor, a marquee adds a set. `order` must be the visible order.
  */
-export function useSelection(order: string[]) {
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+export function useSelection(order: string[], initial?: Iterable<string>) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initial))
   const anchor = useRef<string | null>(null)
   const orderRef = useRef(order)
   orderRef.current = order

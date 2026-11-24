@@ -7,8 +7,11 @@ import {
 } from '@greenlit/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowLeft,
   Check,
+  ChevronRight,
   Clapperboard,
+  ExternalLink,
   File as FileIcon,
   FolderOpen,
   LayoutGrid,
@@ -21,8 +24,9 @@ import {
 import { motion } from 'motion/react'
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { MediaBrowser } from '@/components/library'
 import { MediaThumb } from '@/components/MediaThumb'
-import { useMediaList } from '@/data/media'
+import { useProjects } from '@/data/projects'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
 import { useStoredState } from '@/lib/dom'
@@ -35,11 +39,11 @@ import {
   Button,
   Dialog,
   IconButton,
+  openContextMenu,
   SearchInput,
   Segmented,
   Select,
   Skeleton,
-  Spinner,
   toast,
   useContextMenu,
 } from '@/ui'
@@ -215,9 +219,10 @@ type Candidate = {
 const keyOf = (c: { type: string; id: string }) => `${c.type}:${c.id}`
 
 /**
- * Pick what to link, almost full window: media (the library's own list, so brand kits' files stay in their kit,
- * loaded as you scroll), projects, posts or edits, in a grid or a list. Several at once (click to add or take out,
- * Shift-click for a run), across the tabs; what is linked already is marked and left out.
+ * Pick what to link, almost full window. Media are the library's own browser (search with filters, sort, sections,
+ * grid or list, marquee, previews; brand kits' files stay in their kit), and a project opens to its media alone.
+ * Projects, posts and edits are searched by name. Several things at once, across the tabs; what is linked already is
+ * marked and left out.
  */
 function AddLink({
   open,
@@ -235,18 +240,18 @@ function AddLink({
 }) {
   const t = useT('links')
   const [kind, setKind] = useState<LinkableType>('media')
+  const [openProject, setOpenProject] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const query = useDeferredValue(q)
   const [relation, setRelation] = useState<LinkRelation>('related')
   const [view, setView] = useStoredState<'grid' | 'list'>('links.view', 'grid')
   const [picked, setPicked] = useState<Map<string, Candidate>>(new Map())
   const [busy, setBusy] = useState(false)
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null)
   const anchor = useRef<number | null>(null)
+  const { data: projects } = useProjects()
+  const projectName = openProject ? projects?.find((p) => p.id === openProject)?.name : undefined
 
-  const media = useMediaList(
-    { q: query || undefined, sort: 'recent', projectKind: 'project' },
-    { enabled: open && kind === 'media' },
-  )
   const others = useQuery({
     queryKey: ['links', 'search', kind, query],
     enabled: open && kind !== 'media',
@@ -278,21 +283,10 @@ function AddLink({
         .map((c) => ({ type: 'composition', id: c.id, title: c.name, thumbnailUrl: c.posterUrl ?? null }))
     },
   })
-  const list = useMemo<Candidate[]>(() => {
-    const all: Candidate[] =
-      kind === 'media'
-        ? (media.data?.pages.flatMap((p) => p.items) ?? []).map((m) => ({
-            type: 'media',
-            id: m.id,
-            title: m.title,
-            thumbnailUrl: m.thumbnailUrl,
-            meta: m.kind,
-            media: m,
-          }))
-        : (others.data ?? [])
-    return all.filter((c) => !(c.type === from.type && c.id === from.id))
-  }, [kind, media.data, others.data, from.type, from.id])
-  const loading = kind === 'media' ? media.isLoading : others.isLoading
+  const list = useMemo(
+    () => (others.data ?? []).filter((c) => !(c.type === from.type && c.id === from.id)),
+    [others.data, from.type, from.id],
+  )
 
   // A new tab or search starts a new Shift-click run (the picks themselves stay).
   // biome-ignore lint/correctness/useExhaustiveDependencies: the listed values are the triggers
@@ -300,37 +294,78 @@ function AddLink({
     anchor.current = null
   }, [kind, query])
 
-  // More media as the end of the list comes into view.
-  const end = useRef<HTMLDivElement>(null)
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = media
-  useEffect(() => {
-    const el = end.current
-    if (!el || kind !== 'media' || !hasNextPage) return
-    const io = new IntersectionObserver(
-      ([e]) => e?.isIntersecting && !isFetchingNextPage && void fetchNextPage(),
-      { rootMargin: '400px' },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [kind, hasNextPage, isFetchingNextPage, fetchNextPage])
+  // The media browser's picks are the media entries of `picked`.
+  const pickedMedia = useMemo(
+    () =>
+      new Map(
+        [...picked.values()].flatMap((c) =>
+          c.type === 'media' && c.media ? [[c.id, c.media] as const] : [],
+        ),
+      ),
+    [picked],
+  )
+  const setPickedMedia = (next: Map<string, Media>) =>
+    setPicked((prev) => {
+      const out = new Map([...prev].filter(([, c]) => c.type !== 'media'))
+      for (const [id, m] of next)
+        out.set(keyOf({ type: 'media', id }), {
+          type: 'media',
+          id,
+          title: m.title,
+          thumbnailUrl: m.thumbnailUrl,
+          meta: m.kind,
+          media: m,
+        })
+      return out
+    })
+  const linkedMedia = useMemo(
+    () => ({
+      ids: new Set([...linked].flatMap((k) => (k.startsWith('media:') ? [k.slice(6)] : []))),
+      label: t('already'),
+    }),
+    [linked, t],
+  )
 
-  const toggle = (c: Candidate, i: number, e: React.MouseEvent) => {
+  const toggle = (c: Candidate, i: number, e?: React.MouseEvent) => {
     setPicked((prev) => {
       const next = new Map(prev)
-      if (e.shiftKey && anchor.current !== null) {
+      if (e?.shiftKey && anchor.current !== null) {
         const [a, b] = anchor.current < i ? [anchor.current, i] : [i, anchor.current]
         for (const x of list.slice(a, b + 1)) if (!linked.has(keyOf(x))) next.set(keyOf(x), x)
       } else if (next.has(keyOf(c))) next.delete(keyOf(c))
       else next.set(keyOf(c), c)
       return next
     })
-    if (!e.shiftKey) anchor.current = i
+    if (!e?.shiftKey) anchor.current = i
+  }
+  const browse = (projectId: string) => {
+    setOpenProject(projectId)
+    setKind('media')
+  }
+  const menuFor = (c: Candidate, i: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    const on = picked.has(keyOf(c))
+    openContextMenu(e.clientX, e.clientY, [
+      c.type === 'project' && { label: t('openProject'), icon: FolderOpen, onSelect: () => browse(c.id) },
+      !linked.has(keyOf(c)) && {
+        label: on ? t('unpick') : t('pick'),
+        icon: on ? X : Check,
+        onSelect: () => toggle(c, i),
+      },
+      'separator',
+      {
+        label: t('newTab'),
+        icon: ExternalLink,
+        onSelect: () => window.open(hrefFor(c.type, c.id), '_blank', 'noopener'),
+      },
+    ])
   }
 
   const close = () => {
     onOpenChange(false)
     setPicked(new Map())
     setQ('')
+    setOpenProject(null)
   }
   const add = async () => {
     const chosen = [...picked.values()]
@@ -400,75 +435,97 @@ function AddLink({
               label: t(`types.${k}`),
             }))}
           />
-          <SearchInput
-            value={q}
-            onChange={setQ}
-            size="sm"
-            className="min-w-[200px] flex-1"
-            autoFocus
-            placeholder={t('search')}
-          />
-          <Segmented
-            size="sm"
-            value={view}
-            onChange={setView}
-            options={[
-              { value: 'grid', icon: LayoutGrid, title: t('view.grid') },
-              { value: 'list', icon: List, title: t('view.list') },
-            ]}
-          />
+          {kind === 'media' && openProject && (
+            <nav className="flex min-w-0 items-center gap-1">
+              <Button size="sm" variant="ghost" icon={ArrowLeft} onClick={() => setOpenProject(null)}>
+                {t('allMedia')}
+              </Button>
+              <ChevronRight size={13} className="shrink-0 text-ink-4" />
+              <span className="truncate px-1 t-callout font-[550] text-ink">{projectName}</span>
+            </nav>
+          )}
+          {kind !== 'media' && (
+            <>
+              <SearchInput
+                value={q}
+                onChange={setQ}
+                size="sm"
+                className="min-w-[200px] flex-1"
+                autoFocus
+                placeholder={t('search')}
+              />
+              <Segmented
+                size="sm"
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'grid', icon: LayoutGrid, title: t('view.grid') },
+                  { value: 'list', icon: List, title: t('view.list') },
+                ]}
+              />
+            </>
+          )}
         </div>
-        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
-          {loading ? (
-            view === 'grid' ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4">
-                {Array.from({ length: 18 }, (_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
-                  <Skeleton key={i} className="aspect-video rounded-tile" />
-                ))}
-              </div>
+        {kind === 'media' ? (
+          <div ref={setScroller} className="-mx-6 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 [--gutter:24px]">
+            <MediaBrowser
+              key={openProject ?? 'all'}
+              projectId={openProject ?? undefined}
+              projectName={projectName}
+              allowTrash={false}
+              picker={{
+                scroller,
+                picked: pickedMedia,
+                onPickedChange: setPickedMedia,
+                dimmed: linkedMedia,
+                exclude: from.type === 'media' ? from.id : undefined,
+                onOpenProject: setOpenProject,
+              }}
+            />
+          </div>
+        ) : (
+          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+            {others.isLoading ? (
+              view === 'grid' ? (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4">
+                  {Array.from({ length: 12 }, (_, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
+                    <Skeleton key={i} className="aspect-video rounded-tile" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-12" />
+                  ))}
+                </div>
+              )
+            ) : list.length === 0 ? (
+              <div className="py-12 text-center t-callout text-ink-3">{t('noResults')}</div>
             ) : (
-              <div className="flex flex-col gap-2">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-12" />
+              <div
+                className={
+                  view === 'grid'
+                    ? 'grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4 p-0.5'
+                    : 'flex flex-col'
+                }
+              >
+                {list.map((c, i) => (
+                  <Pick
+                    key={keyOf(c)}
+                    c={c}
+                    grid={view === 'grid'}
+                    on={picked.has(keyOf(c))}
+                    done={linked.has(keyOf(c))}
+                    onClick={(e) => toggle(c, i, e)}
+                    onDoubleClick={c.type === 'project' ? () => browse(c.id) : undefined}
+                    onContextMenu={(e) => menuFor(c, i, e)}
+                  />
                 ))}
               </div>
-            )
-          ) : list.length === 0 ? (
-            <div className="py-12 text-center t-callout text-ink-3">{t('noResults')}</div>
-          ) : view === 'grid' ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4 p-0.5">
-              {list.map((c, i) => (
-                <Pick
-                  key={keyOf(c)}
-                  c={c}
-                  grid
-                  on={picked.has(keyOf(c))}
-                  done={linked.has(keyOf(c))}
-                  onClick={(e) => toggle(c, i, e)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              {list.map((c, i) => (
-                <Pick
-                  key={keyOf(c)}
-                  c={c}
-                  on={picked.has(keyOf(c))}
-                  done={linked.has(keyOf(c))}
-                  onClick={(e) => toggle(c, i, e)}
-                />
-              ))}
-            </div>
-          )}
-          <div ref={end} className="h-px" />
-          {isFetchingNextPage && (
-            <div className="grid place-items-center py-4">
-              <Spinner />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </Dialog>
   )
@@ -481,12 +538,16 @@ function Pick({
   on,
   done,
   onClick,
+  onDoubleClick,
+  onContextMenu,
 }: {
   c: Candidate
   grid?: boolean
   on: boolean
   done: boolean
   onClick: (e: React.MouseEvent) => void
+  onDoubleClick?: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }) {
   const t = useT('links')
   const Icon = ICON[c.type]
@@ -523,10 +584,12 @@ function Pick({
     return (
       <button
         type="button"
-        disabled={done}
+        aria-disabled={done || undefined}
         aria-pressed={on}
-        onClick={onClick}
-        className="press group min-w-0 text-left disabled:cursor-default disabled:opacity-45"
+        onClick={(e) => !done && onClick(e)}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+        className={cn('press group min-w-0 text-left', done && 'cursor-default opacity-45')}
       >
         <div
           className={cn(
@@ -546,12 +609,14 @@ function Pick({
   return (
     <button
       type="button"
-      disabled={done}
+      aria-disabled={done || undefined}
       aria-pressed={on}
-      onClick={onClick}
+      onClick={(e) => !done && onClick(e)}
+      onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       className={cn(
-        'press flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left disabled:cursor-default disabled:opacity-45',
-        on ? 'bg-signal-soft' : 'hover:bg-hover',
+        'press flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left',
+        done ? 'cursor-default opacity-45' : on ? 'bg-signal-soft' : 'hover:bg-hover',
       )}
     >
       {done ? <span className="size-5 shrink-0" /> : tick}

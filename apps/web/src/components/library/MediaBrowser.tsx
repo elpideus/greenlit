@@ -1,6 +1,10 @@
 import type { Media, MediaListQuery } from '@greenlit/shared'
 import {
   ArrowDownUp,
+  Check,
+  ExternalLink,
+  Eye,
+  FolderOpen,
   ImagePlus,
   LayoutGrid,
   List,
@@ -11,6 +15,7 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
+  X,
 } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
@@ -48,6 +53,7 @@ import { BulkBar } from './BulkBar'
 import { DropOverlay } from './DropOverlay'
 import { type GridHandle, MediaGrid } from './MediaGrid'
 import { MediaList } from './MediaList'
+import { MediaPreview } from './MediaPreview'
 import type { TileHandlers } from './MediaTile'
 import { SearchField } from './SearchField'
 import { groupMedia } from './sections'
@@ -66,20 +72,46 @@ export interface BrowserHeaderContext {
 }
 
 /**
+ * Picking media with the full browser inside a dialog ("Link to…"): its state is its own (not the URL), it scrolls in
+ * `scroller`, a click picks or unpicks, and the picks are the caller's, kept across searches, filters and projects.
+ */
+export interface MediaPicking {
+  /** The element the browser scrolls in (null until it is mounted). */
+  scroller: HTMLElement | null
+  /** What is picked, by id. */
+  picked: Map<string, Media>
+  onPickedChange: (next: Map<string, Media>) => void
+  /** Faded and not pickable (linked already), with what they say. */
+  dimmed?: { ids: Set<string>; label: string }
+  /** Left out (the item being linked). */
+  exclude?: string
+  /** "Open project" on an item's menu: browse that project's media. */
+  onOpenProject?: (projectId: string) => void
+}
+
+const sameSet = (a: Set<string>, b: Iterable<string>) => {
+  const list = [...b]
+  return list.length === a.size && list.every((x) => a.has(x))
+}
+
+/**
  * The media browser shared by the library and project pages: token search, filters, sort, grid or list, selection
  * with a marquee and a bulk bar, right-click menus, rename in place, drop / paste to upload, trash.
- * State lives in the URL (`q`, `sort`, `view`, `trash`) so a filtered view can be linked.
+ * State lives in the URL (`q`, `sort`, `view`, `trash`) so a filtered view can be linked; with `picker` it is a media
+ * picker instead (see MediaPicking): no uploads, renames, trash or bulk bar.
  */
 export function MediaBrowser({
   projectId,
   projectName,
   header,
   allowTrash = true,
+  picker,
 }: {
   projectId?: string
   projectName?: string
   header?: (ctx: BrowserHeaderContext) => ReactNode
   allowTrash?: boolean
+  picker?: MediaPicking
 }) {
   const t = useT('browser')
   const tc = useT()
@@ -88,24 +120,31 @@ export function MediaBrowser({
   const phone = useIsPhone()
   const coarse = useMediaQuery('(hover: none)')
   const navigate = useNavigate()
-  const [params, setParams] = useSearchParams()
+  const picking = !!picker
+  // The library keeps its state in the URL; a picker keeps its own.
+  const [urlParams, setUrlParams] = useSearchParams()
+  const [ownParams, setOwnParams] = useState(() => new URLSearchParams())
+  const params = picking ? ownParams : urlParams
   const q = params.get('q') ?? ''
   const sort = (SORTS.includes(params.get('sort') as Sort) ? params.get('sort') : 'recent') as Sort
-  const view = params.get('view') === 'list' ? 'list' : 'grid'
-  const inTrash = allowTrash && params.get('trash') === '1'
+  const [pickerView, setPickerView] = useStoredState<'grid' | 'list'>('picker.view', 'grid')
+  const view = picking ? pickerView : params.get('view') === 'list' ? 'list' : 'grid'
+  const inTrash = !picking && allowTrash && params.get('trash') === '1'
   const setParam = useCallback(
-    (key: string, value: string | null) =>
-      setParams(
-        (p) => {
-          const next = new URLSearchParams(p)
-          if (value === null || value === '') next.delete(key)
-          else next.set(key, value)
-          return next
-        },
-        { replace: true },
-      ),
-    [setParams],
+    (key: string, value: string | null) => {
+      const update = (p: URLSearchParams) => {
+        const next = new URLSearchParams(p)
+        if (value === null || value === '') next.delete(key)
+        else next.set(key, value)
+        return next
+      }
+      if (picking) setOwnParams(update)
+      else setUrlParams(update, { replace: true })
+    },
+    [picking, setUrlParams],
   )
+  const setView = (v: 'grid' | 'list') =>
+    picking ? setPickerView(v) : setParam('view', v === 'grid' ? null : v)
 
   // The query follows the field after a short pause, so typing stays smooth.
   const [debounced, setDebounced] = useState(q)
@@ -125,14 +164,42 @@ export function MediaBrowser({
     [debounced, sort, projectId, inTrash],
   )
   const list = useMediaList(query)
-  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data])
+  const exclude = picker?.exclude
+  const items = useMemo(
+    () => (list.data?.pages.flatMap((p) => p.items) ?? []).filter((m) => m.id !== exclude),
+    [list.data, exclude],
+  )
   const total = list.data?.pages[0]?.total ?? null
   const order = useMemo(() => items.map((m) => m.id), [items])
-  const selection = useSelection(order)
+  const selection = useSelection(order, picker?.picked.keys())
   const selectedItems = useMemo(
     () => items.filter((m) => selection.selected.has(m.id)),
     [items, selection.selected],
   )
+  const [previewing, setPreviewing] = useState<Media | null>(null)
+
+  // A picker's picks belong to the caller and outlive this list: mirror them in, report changes out (every item seen
+  // is remembered, so a pick from another search keeps its media).
+  const known = useRef(new Map<string, Media>())
+  for (const m of items) known.current.set(m.id, m)
+  const pickedKey = picker ? [...picker.picked.keys()].sort().join(',') : ''
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the picked ids
+  useEffect(() => {
+    if (picker && !sameSet(selection.selected, picker.picked.keys())) selection.replace(picker.picked.keys())
+  }, [pickedKey])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reacts to the selection only
+  useEffect(() => {
+    if (!picker) return
+    const pickable = [...selection.selected].filter((id) => !picker.dimmed?.ids.has(id))
+    if (pickable.length !== selection.selected.size) return selection.replace(pickable)
+    if (sameSet(selection.selected, picker.picked.keys())) return
+    const next = new Map<string, Media>()
+    for (const id of selection.selected) {
+      const m = known.current.get(id) ?? picker.picked.get(id)
+      if (m) next.set(id, m)
+    }
+    picker.onPickedChange(next)
+  }, [selection.selected])
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [transitionId, setTransitionId] = useState<string | null>(null)
@@ -150,17 +217,20 @@ export function MediaBrowser({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  const stickyTop = 52 + toolbarHeight
+  // Under the app's top bar on a page; at the top of what scrolls in a picker.
+  const stickyTop = (picking ? 0 : 52) + toolbarHeight
 
   const actions = useMediaActions({ onRename: setRenamingId, inTrash })
-  const canUpload = can(me, 'media.upload') && !me.viaShareLink && !inTrash
-  const canRename = can(me, 'media.edit') && !me.viaShareLink && !inTrash
+  const canUpload = can(me, 'media.upload') && !me.viaShareLink && !inTrash && !picking
+  const canRename = can(me, 'media.edit') && !me.viaShareLink && !inTrash && !picking
   const { data: projects } = useProjects()
   const { data: tags } = useTags()
 
-  // A new search, sort or view starts with nothing selected.
+  // A new search, sort or view starts with nothing selected (a picker keeps its picks).
   // biome-ignore lint/correctness/useExhaustiveDependencies: the listed values are the triggers
-  useEffect(() => selection.clear(), [debounced, sort, inTrash, projectId, selection.clear])
+  useEffect(() => {
+    if (!picking) selection.clear()
+  }, [debounced, sort, inTrash, projectId, selection.clear])
 
   // ── uploads ─────────────────────────────────────────────────────────
   const place = projectName ?? t('drop.library')
@@ -199,7 +269,7 @@ export function MediaBrowser({
   )
 
   // Back from the viewer after stepping through items: focus the last one shown and bring it into view.
-  const steppedTo = useRef(takeSteppedTo())
+  const steppedTo = useRef(picking ? null : takeSteppedTo())
   useEffect(() => {
     const id = steppedTo.current
     if (!id || !order.includes(id)) return
@@ -207,36 +277,81 @@ export function MediaBrowser({
     setFocusedId(id)
     requestAnimationFrame(() => grid.current?.reveal(id))
   }, [order])
+  const onOpenProject = picker?.onOpenProject
   const handlers = useMemo<TileHandlers>(
-    () => ({
-      onClick: (m, e) => {
-        setFocusedId(m.id)
-        if (coarse && !selection.selected.size) return open(m)
-        if (coarse) return selection.toggle(m.id)
-        selection.click(m.id, e)
-      },
-      onOpen: open,
-      onToggle: (m, e) => {
-        setFocusedId(m.id)
-        selection.toggle(m.id, e)
-      },
-      onContextMenu: (m, e) => {
-        e.preventDefault()
-        const ids = new Set(selection.ensure(m.id))
-        setFocusedId(m.id)
-        openContextMenu(e.clientX, e.clientY, actions.menu(items.filter((x) => ids.has(x.id))))
-      },
-      onStartRename: (m) => setRenamingId(m.id),
-      onRename: (m, title) => {
-        setRenamingId(null)
-        if (title && title !== m.title) void actions.rename(m, title)
-      },
-    }),
-    [coarse, selection, open, actions, items],
+    () =>
+      picking
+        ? {
+            // A picker: a click picks or unpicks (Shift-click a run), a double-click previews.
+            onClick: (m, e) => {
+              setFocusedId(m.id)
+              selection.toggle(m.id, e)
+            },
+            onOpen: setPreviewing,
+            onToggle: (m, e) => {
+              setFocusedId(m.id)
+              selection.toggle(m.id, e)
+            },
+            onContextMenu: (m, e) => {
+              e.preventDefault()
+              setFocusedId(m.id)
+              const on = selection.selected.has(m.id)
+              const project = m.projectId ? projects?.find((p) => p.id === m.projectId) : undefined
+              openContextMenu(e.clientX, e.clientY, [
+                { label: t('picker.preview'), icon: Eye, onSelect: () => setPreviewing(m) },
+                {
+                  label: on ? t('picker.unpick') : t('picker.pick'),
+                  icon: on ? X : Check,
+                  onSelect: () => selection.toggle(m.id),
+                },
+                'separator',
+                !!project &&
+                  !!onOpenProject &&
+                  project.id !== projectId && {
+                    label: t('picker.openProject', { name: project.name }),
+                    icon: FolderOpen,
+                    onSelect: () => onOpenProject(project.id),
+                  },
+                {
+                  label: t('picker.newTab'),
+                  icon: ExternalLink,
+                  onSelect: () => window.open(`/media/${m.id}`, '_blank', 'noopener'),
+                },
+              ])
+            },
+            onStartRename: () => {},
+            onRename: () => {},
+          }
+        : {
+            onClick: (m, e) => {
+              setFocusedId(m.id)
+              if (coarse && !selection.selected.size) return open(m)
+              if (coarse) return selection.toggle(m.id)
+              selection.click(m.id, e)
+            },
+            onOpen: open,
+            onToggle: (m, e) => {
+              setFocusedId(m.id)
+              selection.toggle(m.id, e)
+            },
+            onContextMenu: (m, e) => {
+              e.preventDefault()
+              const ids = new Set(selection.ensure(m.id))
+              setFocusedId(m.id)
+              openContextMenu(e.clientX, e.clientY, actions.menu(items.filter((x) => ids.has(x.id))))
+            },
+            onStartRename: (m) => setRenamingId(m.id),
+            onRename: (m, title) => {
+              setRenamingId(null)
+              if (title && title !== m.title) void actions.rename(m, title)
+            },
+          },
+    [picking, coarse, selection, open, actions, items, projects, projectId, onOpenProject, t],
   )
 
   // ── keyboard ────────────────────────────────────────────────────────
   useEffect(() => {
+    if (picking) return
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
       if ((e.target as HTMLElement).closest?.('[role=dialog],[role=menu],[role=listbox][data-cmdk-list]'))
@@ -295,7 +410,20 @@ export function MediaBrowser({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focusedId, selectedItems, selection, items, order, open, canRename, inTrash, actions, me, view])
+  }, [
+    picking,
+    focusedId,
+    selectedItems,
+    selection,
+    items,
+    order,
+    open,
+    canRename,
+    inTrash,
+    actions,
+    me,
+    view,
+  ])
 
   const endReached = useCallback(() => {
     if (list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage()
@@ -452,6 +580,9 @@ export function MediaBrowser({
         onEndReached={endReached}
         stickyTop={stickyTop}
         footer={footer}
+        scroller={picker?.scroller}
+        additive={picking}
+        dimmed={picker?.dimmed}
       />
     ) : (
       <MediaList
@@ -466,6 +597,8 @@ export function MediaBrowser({
         sort={sort}
         onSort={(s) => setParam('sort', s === 'recent' ? null : s)}
         footer={footer}
+        scroller={picker?.scroller}
+        dimmed={picker?.dimmed}
       />
     )
   }
@@ -493,7 +626,10 @@ export function MediaBrowser({
 
       <div
         ref={toolbar}
-        className="material-bar sticky top-[var(--bar-h)] z-30 -mx-[var(--gutter)] mb-4 px-[var(--gutter)] py-2.5"
+        className={cn(
+          'material-bar sticky z-30 -mx-[var(--gutter)] mb-4 px-[var(--gutter)] py-2.5',
+          picking ? 'top-0' : 'top-[var(--bar-h)]',
+        )}
       >
         <div className="flex flex-wrap items-center gap-2">
           <SearchField
@@ -533,7 +669,7 @@ export function MediaBrowser({
             }))}
           />
           <span className="flex-1" />
-          <Slot name="library.toolbar" props={{ projectId: projectId ?? null }} />
+          {!picking && <Slot name="library.toolbar" props={{ projectId: projectId ?? null }} />}
           {!phone && view === 'grid' && (
             <Popover
               align="end"
@@ -570,7 +706,7 @@ export function MediaBrowser({
           )}
           <Segmented
             value={view}
-            onChange={(v) => setParam('view', v === 'grid' ? null : v)}
+            onChange={setView}
             options={[
               { value: 'grid', icon: LayoutGrid, title: t('view.grid') },
               { value: 'list', icon: List, title: t('view.list') },
@@ -589,16 +725,28 @@ export function MediaBrowser({
 
       {body()}
 
-      <BulkBar
-        items={selectedItems}
-        total={items.length}
-        onSelectAll={selection.all}
-        onClear={selection.clear}
-        actions={actions}
-        inTrash={inTrash}
-      />
-      {actions.tagDialog}
-      <DropOverlay visible={dragging} place={place} />
+      {picking ? (
+        <MediaPreview
+          media={previewing}
+          onClose={() => setPreviewing(null)}
+          picked={!!previewing && selection.selected.has(previewing.id)}
+          pickable={!!previewing && !picker?.dimmed?.ids.has(previewing.id)}
+          onTogglePick={() => previewing && selection.toggle(previewing.id)}
+        />
+      ) : (
+        <>
+          <BulkBar
+            items={selectedItems}
+            total={items.length}
+            onSelectAll={selection.all}
+            onClear={selection.clear}
+            actions={actions}
+            inTrash={inTrash}
+          />
+          {actions.tagDialog}
+          <DropOverlay visible={dragging} place={place} />
+        </>
+      )}
     </>
   )
 }

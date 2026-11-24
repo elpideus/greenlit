@@ -30,6 +30,7 @@ export const MediaTile = memo(function MediaTile({
   canRename,
   transitionName,
   handlers,
+  dimmed,
 }: {
   media: Media
   selected: boolean
@@ -40,6 +41,8 @@ export const MediaTile = memo(function MediaTile({
   canRename: boolean
   transitionName?: string
   handlers: TileHandlers
+  /** Faded and not clickable (linked already); the text says why. */
+  dimmed?: string
 }) {
   const t = useT('browser')
   const tc = useT()
@@ -51,7 +54,8 @@ export const MediaTile = memo(function MediaTile({
       tabIndex={-1}
       aria-selected={selected}
       data-media-id={media.id}
-      className="group relative min-w-0 select-none"
+      aria-disabled={dimmed ? true : undefined}
+      className={cn('group relative min-w-0 select-none', dimmed && 'pointer-events-none opacity-45')}
       onContextMenu={(e) => handlers.onContextMenu(media, e)}
       {...press}
     >
@@ -160,6 +164,7 @@ export const MediaTile = memo(function MediaTile({
           className="t-callout text-ink"
         />
         <span className="flex-1" />
+        {dimmed && <span className="shrink-0 t-meta text-ink-3">{dimmed}</span>}
         {media.openCommentCount > 0 && (
           <Tooltip label={t('notes', { count: media.openCommentCount })}>
             <span className="flex shrink-0 items-center gap-1 t-meta text-review">

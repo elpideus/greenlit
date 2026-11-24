@@ -1,5 +1,6 @@
 import type { Media } from '@greenlit/shared'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { GroupedVirtuoso, type GroupedVirtuosoHandle, Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { useElementSize, useIsPhone } from '@/lib/dom'
 import { useT } from '@/lib/i18n'
@@ -24,16 +25,23 @@ interface Props {
   transitionId: string | null
   handlers: TileHandlers
   onEndReached: () => void
-  /** Where sticky section headers stop (below the top bar and the toolbar). */
+  /** Where sticky section headers stop (below the top bar and the toolbar), from the top of what scrolls. */
   stickyTop: number
   footer?: React.ReactNode
+  /** The element that scrolls (a dialog's body); undefined = the window, null = not mounted yet. */
+  scroller?: HTMLElement | null
+  /** The marquee adds to the selection without a modifier (a picker keeps what was picked). */
+  additive?: boolean
+  /** Shown faded and left out of the marquee (linked already), with what the meta row says on them. */
+  dimmed?: { ids: Set<string>; label: string }
 }
 
 const GAP_X = 18
 const GAP_Y = 26
 
 /**
- * The media grid: rows of tiles, virtualised against the window scroll, with sticky date headers. Drag on empty space
+ * The media grid: rows of tiles, virtualised against the window scroll (or a scrolling element), with sticky date
+ * headers. Drag on empty space
  * draws a marquee that selects what it touches (shift / ⌘ adds to the selection).
  */
 export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
@@ -50,6 +58,9 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
     onEndReached,
     stickyTop,
     footer,
+    scroller,
+    additive,
+    dimmed,
   },
   ref,
 ) {
@@ -80,6 +91,13 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
     return { rows, groupCounts, rowOf }
   }, [sections, cols])
 
+  // What scrolls, and the visible band of it below the sticky bars (window or a scrolling element).
+  const scrollTop = useCallback(() => (scroller ? scroller.scrollTop : scrollY), [scroller])
+  const band = useCallback(() => {
+    const r = scroller?.getBoundingClientRect()
+    return { top: (r?.top ?? 0) + stickyTop, bottom: r?.bottom ?? innerHeight }
+  }, [scroller, stickyTop])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -88,7 +106,8 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
         const el = box.current?.querySelector<HTMLElement>(`[data-media-id="${id}"]`)
         if (el) {
           const r = el.getBoundingClientRect()
-          if (r.top < stickyTop + 40 || r.bottom > innerHeight - 20)
+          const b = band()
+          if (r.top < b.top + 40 || r.bottom > b.bottom - 20)
             el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
           return
         }
@@ -97,7 +116,7 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
           virt.current?.scrollToIndex({ index: row, align: 'center', behavior: 'smooth' })
       },
     }),
-    [cols, rowOf, stickyTop, box],
+    [cols, rowOf, band, box],
   )
 
   // ── marquee ─────────────────────────────────────────────────────────
@@ -115,7 +134,7 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
   const updateMarquee = useCallback(() => {
     const d = drag.current
     if (!d) return
-    const y0 = d.y - scrollY
+    const y0 = d.y - scrollTop()
     const x = Math.min(d.x, d.px)
     const y = Math.min(y0, d.py)
     const w = Math.abs(d.px - d.x)
@@ -124,10 +143,17 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
     const hit = new Set(d.base)
     for (const el of box.current?.querySelectorAll<HTMLElement>('[data-media-id]') ?? []) {
       const r = el.getBoundingClientRect()
-      if (r.right > x && r.left < x + w && r.bottom > y && r.top < y + h) hit.add(el.dataset.mediaId!)
+      if (
+        r.right > x &&
+        r.left < x + w &&
+        r.bottom > y &&
+        r.top < y + h &&
+        !dimmed?.ids.has(el.dataset.mediaId!)
+      )
+        hit.add(el.dataset.mediaId!)
     }
     selection.replace(hit)
-  }, [selection, box])
+  }, [selection, box, scrollTop, dimmed])
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 || e.pointerType === 'touch') return
@@ -136,11 +162,11 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
     e.preventDefault()
     drag.current = {
       x: e.clientX,
-      y: e.clientY + scrollY,
+      y: e.clientY + scrollTop(),
       px: e.clientX,
       py: e.clientY,
       moved: false,
-      base: e.shiftKey || e.metaKey || e.ctrlKey ? new Set(selection.selected) : new Set(),
+      base: additive || e.shiftKey || e.metaKey || e.ctrlKey ? new Set(selection.selected) : new Set(),
     }
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
@@ -149,14 +175,15 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
     if (!d) return
     d.px = e.clientX
     d.py = e.clientY
-    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY + scrollY - d.y) < 5) return
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY + scrollTop() - d.y) < 5) return
     d.moved = true
     updateMarquee()
     // scroll while dragging near the edges
-    const edge = e.clientY > innerHeight - 48 ? 14 : e.clientY < stickyTop + 24 ? -14 : 0
+    const b = band()
+    const edge = e.clientY > b.bottom - 48 ? 14 : e.clientY < b.top + 24 ? -14 : 0
     if (edge && !scrollTimer.current)
       scrollTimer.current = setInterval(() => {
-        scrollBy(0, edge)
+        ;(scroller ?? window).scrollBy(0, edge)
         updateMarquee()
       }, 16)
     if (!edge && scrollTimer.current) {
@@ -198,6 +225,7 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
             canRename={canRename}
             transitionName={transitionId === m.id ? 'gl-frame' : undefined}
             handlers={handlers}
+            dimmed={dimmed?.ids.has(m.id) ? dimmed.label : undefined}
           />
         ))}
       </div>
@@ -205,6 +233,7 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
   }
 
   const Footer = useCallback(() => <>{footer}</>, [footer])
+  const scrolling = scroller ? { customScrollParent: scroller } : { useWindowScroll: true }
 
   return (
     <div
@@ -219,10 +248,11 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
       onPointerCancel={endDrag}
     >
       {size.width > 0 &&
+        scroller !== null &&
         (grouped ? (
           <GroupedVirtuoso
             ref={virt}
-            useWindowScroll
+            {...scrolling}
             increaseViewportBy={800}
             groupCounts={groupCounts}
             endReached={onEndReached}
@@ -243,7 +273,7 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
         ) : (
           <Virtuoso
             ref={virt}
-            useWindowScroll
+            {...scrolling}
             increaseViewportBy={800}
             totalCount={rows.length}
             endReached={onEndReached}
@@ -251,12 +281,15 @@ export const MediaGrid = forwardRef<GridHandle, Props>(function MediaGrid(
             itemContent={(index) => renderRow(index)}
           />
         ))}
-      {marquee && (
-        <div
-          className="pointer-events-none fixed z-30 rounded-[4px] bg-signal-soft shadow-[inset_0_0_0_1px_var(--signal)]"
-          style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
-        />
-      )}
+      {marquee &&
+        // On the page itself: inside a dialog, its transform would move a fixed box off the pointer.
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[75] rounded-[4px] bg-signal-soft shadow-[inset_0_0_0_1px_var(--signal)]"
+            style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }}
+          />,
+          document.body,
+        )}
     </div>
   )
 })

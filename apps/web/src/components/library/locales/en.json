@@ -69,6 +69,14 @@
     "trashTitle": "Trash is empty",
     "trashBody": "Items you move to the trash wait here until you delete them for good."
   },
+  "picker": {
+    "pick": "Pick",
+    "unpick": "Take out",
+    "picked": "Picked",
+    "preview": "Preview",
+    "openProject": "Open {{name}}",
+    "newTab": "Open in a new tab"
+  },
   "selection": {
     "selected_one": "{{count}} selected",
     "selected_other": "{{count}} selected",

@@ -49,6 +49,8 @@ export function MediaList({
   sort,
   onSort,
   footer,
+  scroller,
+  dimmed,
 }: {
   items: Media[]
   selection: Selection
@@ -61,6 +63,10 @@ export function MediaList({
   sort: string
   onSort: (s: string) => void
   footer?: React.ReactNode
+  /** The element that scrolls (a dialog's body); undefined = the window, null = not mounted yet. */
+  scroller?: HTMLElement | null
+  /** Shown faded and not clickable (linked already), with what the row says on them. */
+  dimmed?: { ids: Set<string>; label: string }
 }) {
   const t = useT('browser')
   const tc = useT()
@@ -115,86 +121,94 @@ export function MediaList({
           {has('project') && head(t('list.project'))}
           {has('updated') && head(t('list.updated'), 'recent', 'oldest')}
         </div>
-        <Virtuoso
-          useWindowScroll
-          increaseViewportBy={600}
-          data={items}
-          endReached={onEndReached}
-          components={{ Footer }}
-          itemContent={(_, m) => {
-            const selected = selection.selected.has(m.id)
-            const size = m.formats.reduce((s, f) => s + f.size, 0)
-            const duration = m.formats.find((f) => f.isPrimary)?.duration ?? m.formats[0]?.duration
-            return (
-              <Pressable onLongPress={(x, y) => handlers.onContextMenu(m, pressEvent(x, y))}>
-                {(press) => (
-                  // biome-ignore lint/a11y/useKeyWithClickEvents: the list handles keys (arrows, Enter, F2)
-                  <div
-                    {...press}
-                    role="option"
-                    tabIndex={-1}
-                    aria-selected={selected}
-                    data-media-id={m.id}
-                    onClick={(e) => {
-                      // the checkbox toggles on its own
-                      if (!(e.target as HTMLElement).closest('[role=checkbox]')) handlers.onClick(m, e)
-                    }}
-                    onDoubleClick={(e) => {
-                      if (!(e.target as HTMLElement).closest('[role=checkbox]')) handlers.onOpen(m)
-                    }}
-                    onContextMenu={(e) => handlers.onContextMenu(m, e)}
-                    style={{ gridTemplateColumns: template }}
-                    className={cn(
-                      'grid h-[52px] items-center gap-3 rounded-[8px] px-2 select-none',
-                      selected ? 'bg-signal-soft' : 'hover-device:hover:bg-hover',
-                      focusedId === m.id && !selected && 'shadow-[inset_0_0_0_1px_var(--line-strong)]',
-                    )}
-                  >
-                    <Checkbox checked={selected} onChange={() => selection.toggle(m.id)} label={m.title} />
-                    <MediaThumb media={m} className="h-10 w-[64px]" showDuration={false} />
-                    <span className="flex min-w-0 items-center gap-2">
-                      <InlineEdit
-                        value={m.title}
-                        placeholder={tc('untitled')}
-                        editing={renamingId === m.id}
-                        disabled={!canRename}
-                        tooltip={null}
-                        onEditingChange={(e) => (e ? handlers.onStartRename(m) : handlers.onRename(m, null))}
-                        onSave={(v) => handlers.onRename(m, v)}
-                        className="t-callout font-[500] text-ink"
-                      />
-                      {m.openCommentCount > 0 && (
-                        <span className="flex shrink-0 items-center gap-1 t-meta text-review">
-                          <MessageSquare size={11} strokeWidth={2} />
-                          {m.openCommentCount}
+        {scroller !== null && (
+          <Virtuoso
+            {...(scroller ? { customScrollParent: scroller } : { useWindowScroll: true })}
+            increaseViewportBy={600}
+            data={items}
+            endReached={onEndReached}
+            components={{ Footer }}
+            itemContent={(_, m) => {
+              const selected = selection.selected.has(m.id)
+              const off = dimmed?.ids.has(m.id)
+              const size = m.formats.reduce((s, f) => s + f.size, 0)
+              const duration = m.formats.find((f) => f.isPrimary)?.duration ?? m.formats[0]?.duration
+              return (
+                <Pressable onLongPress={(x, y) => handlers.onContextMenu(m, pressEvent(x, y))}>
+                  {(press) => (
+                    // biome-ignore lint/a11y/useKeyWithClickEvents: the list handles keys (arrows, Enter, F2)
+                    <div
+                      {...press}
+                      role="option"
+                      tabIndex={-1}
+                      aria-selected={selected}
+                      data-media-id={m.id}
+                      onClick={(e) => {
+                        // the checkbox toggles on its own
+                        if (!(e.target as HTMLElement).closest('[role=checkbox]')) handlers.onClick(m, e)
+                      }}
+                      onDoubleClick={(e) => {
+                        if (!(e.target as HTMLElement).closest('[role=checkbox]')) handlers.onOpen(m)
+                      }}
+                      onContextMenu={(e) => handlers.onContextMenu(m, e)}
+                      style={{ gridTemplateColumns: template }}
+                      aria-disabled={off || undefined}
+                      className={cn(
+                        'grid h-[52px] items-center gap-3 rounded-[8px] px-2 select-none',
+                        off && 'pointer-events-none opacity-45',
+                        selected ? 'bg-signal-soft' : 'hover-device:hover:bg-hover',
+                        focusedId === m.id && !selected && 'shadow-[inset_0_0_0_1px_var(--line-strong)]',
+                      )}
+                    >
+                      <Checkbox checked={selected} onChange={() => selection.toggle(m.id)} label={m.title} />
+                      <MediaThumb media={m} className="h-10 w-[64px]" showDuration={false} />
+                      <span className="flex min-w-0 items-center gap-2">
+                        <InlineEdit
+                          value={m.title}
+                          placeholder={tc('untitled')}
+                          editing={renamingId === m.id}
+                          disabled={!canRename}
+                          tooltip={null}
+                          onEditingChange={(e) =>
+                            e ? handlers.onStartRename(m) : handlers.onRename(m, null)
+                          }
+                          onSave={(v) => handlers.onRename(m, v)}
+                          className="t-callout font-[500] text-ink"
+                        />
+                        {off && <span className="shrink-0 t-meta text-ink-3">{dimmed?.label}</span>}
+                        {m.openCommentCount > 0 && (
+                          <span className="flex shrink-0 items-center gap-1 t-meta text-review">
+                            <MessageSquare size={11} strokeWidth={2} />
+                            {m.openCommentCount}
+                          </span>
+                        )}
+                      </span>
+                      {has('kind') && <span className="t-caption text-ink-2">{tc(`kind.${m.kind}`)}</span>}
+                      <StatusLabel status={m.status} label={tc(`status.${m.status}`)} />
+                      {has('formats') && (
+                        <span className="t-caption tabular text-ink-3">{m.formats.length}</span>
+                      )}
+                      {has('duration') && (
+                        <span className="t-meta text-ink-3">{duration ? formatDuration(duration) : '—'}</span>
+                      )}
+                      {has('size') && (
+                        <span className="t-caption tabular text-ink-3">{size ? formatBytes(size) : '—'}</span>
+                      )}
+                      {has('project') && (
+                        <span className="truncate t-caption text-ink-2">
+                          {m.projectId ? (projectName.get(m.projectId) ?? '—') : '—'}
                         </span>
                       )}
-                    </span>
-                    {has('kind') && <span className="t-caption text-ink-2">{tc(`kind.${m.kind}`)}</span>}
-                    <StatusLabel status={m.status} label={tc(`status.${m.status}`)} />
-                    {has('formats') && (
-                      <span className="t-caption tabular text-ink-3">{m.formats.length}</span>
-                    )}
-                    {has('duration') && (
-                      <span className="t-meta text-ink-3">{duration ? formatDuration(duration) : '—'}</span>
-                    )}
-                    {has('size') && (
-                      <span className="t-caption tabular text-ink-3">{size ? formatBytes(size) : '—'}</span>
-                    )}
-                    {has('project') && (
-                      <span className="truncate t-caption text-ink-2">
-                        {m.projectId ? (projectName.get(m.projectId) ?? '—') : '—'}
-                      </span>
-                    )}
-                    {has('updated') && (
-                      <span className="t-caption text-ink-3">{formatRelative(m.createdAt, tz)}</span>
-                    )}
-                  </div>
-                )}
-              </Pressable>
-            )
-          }}
-        />
+                      {has('updated') && (
+                        <span className="t-caption text-ink-3">{formatRelative(m.createdAt, tz)}</span>
+                      )}
+                    </div>
+                  )}
+                </Pressable>
+              )
+            }}
+          />
+        )}
       </div>
     </div>
   )
