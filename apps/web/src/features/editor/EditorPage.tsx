@@ -85,20 +85,21 @@ export default function EditorPage() {
       const s = get()
       const d = s.doc
       if (!d) return
-      const dt = ((now - last) / 1000) * s.rate
+      // The first frame can be stamped a moment before `last` (play pressed in the same frame): never step against the
+      // direction of play, and only stop at 0:00 when playing backwards, or playing from 0:00 would stop at once.
+      const dt = (Math.max(0, now - last) / 1000) * s.rate
       last = now
       const end = Math.max(d.duration, contentEnd(d))
-      let next = s.time + dt
+      const next = s.time + dt
       if (next >= end) {
         set({ time: end - 1 / d.fps, playing: false })
         return
       }
-      if (next <= 0) {
-        next = 0
+      if (next <= 0 && s.rate < 0) {
         set({ time: 0, playing: false })
         return
       }
-      set({ time: next })
+      set({ time: Math.max(0, next) })
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)

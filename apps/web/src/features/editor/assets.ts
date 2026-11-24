@@ -44,7 +44,9 @@ export function useAssetResolver(doc: Composition | null): AssetResolver & { med
         if (!f) return null
         if (a.kind === 'video') return f.urls.preview ?? f.urls.original
         if (a.kind === 'image') return f.urls.poster ?? f.urls.original
-        return f.urls.original
+        // Sound too plays from its preview (AAC), as in the viewer: an original WAV can be large and 24-bit, which not
+        // every browser plays.
+        return f.urls.preview ?? f.urls.original
       },
       poster: (a) => fmt(a)?.urls.poster ?? fmt(a)?.urls.thumbnail ?? null,
     }
