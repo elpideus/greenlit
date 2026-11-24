@@ -99,6 +99,30 @@ describe('ops', () => {
     expect(Composition.parse(JSON.parse(JSON.stringify(c)))).toEqual(c)
     expect(outline(c)).toContain('txt text "Hello" @1s for 3s')
   })
+
+  it('keeps the version an asset plays, and adds none to assets that use the main one', () => {
+    const c = applyOps(base(), [
+      {
+        op: 'add_asset',
+        asset: {
+          id: 'm2',
+          mediaId: '00000000-0000-0000-0000-000000000002',
+          version: 'social-master',
+          kind: 'audio',
+          name: 'Hopeful Dreams',
+          duration: 120,
+          width: null,
+          height: null,
+          hasAudio: true,
+        },
+      },
+    ])
+    const back = Composition.parse(JSON.parse(JSON.stringify(c)))
+    expect(back.assets.m2!.version).toBe('social-master')
+    expect(back.assets.m1).not.toHaveProperty('version')
+    expect(outline(c)).toContain('m2=audio "Hopeful Dreams" (media 00000000-0000-0000-0000-000000000002, version social-master, 120s)')
+    expect(outline(c)).toContain('m1=video "Clip" (media 00000000-0000-0000-0000-000000000001, 20s)')
+  })
 })
 
 describe('evaluation', () => {

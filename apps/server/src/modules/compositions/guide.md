@@ -11,8 +11,18 @@ with `editor_render`, which turns each output format into a format of one media 
 - `formats`: the output shapes, e.g. `{id:"main",1920×1080}`, `{id:"vertical",1080×1920}`, `{id:"square",1080×1080}`.
   Positions and sizes are pixels of the format being drawn. The first format is the design format; others reuse
   it and can override per clip under `clip.formats[<formatId>]` (transform, keyframes, text, hidden, crop).
-- `assets`: media from the library used in the edit `{id, mediaId, formatKey, kind, duration, width, height, hasAudio}`.
+- `assets`: media from the library used in the edit
+  `{id, mediaId, version?, formatKey, kind, duration, width, height, hasAudio}`.
   Use `editor_add_media` to add a library item as an asset (and optionally a clip) in one step.
+- **Versions**: a library item can have versions (another language, without the watermark, another pitch or a
+  mastered mix: `media_get` lists them under `versions`, each with a `key` and a `label`). An asset plays its
+  `version` (absent = the item's main version), in the format `formatKey` of that version (or its main format).
+  Pass `version` (the key or the label) to `editor_add_media`. Keep one item per piece of content with its variants
+  as versions, and make the cuts here, in the edit. To make a clip play another version, add that version with
+  `asClip: false` and set the clip's `assetId` to the new asset (`update_clip`); `add_asset` with an existing `id`
+  replaces that asset for every clip that uses it. When someone makes another version the item's main one, edits
+  keep playing the files they used (their assets are rewritten to name the version). A version the item no longer
+  has plays the main one.
 - `tracks`: listed **bottom → top**. `kind: visual | audio`. Each has `clips`.
 
 ## Clips

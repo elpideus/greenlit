@@ -257,7 +257,8 @@ export function describe(c: Composition): string {
     `assets: ${
       Object.values(c.assets)
         .map(
-          (a) => `${a.id}=${a.kind} "${a.name}" (media ${a.mediaId}${a.duration ? `, ${a.duration}s` : ''})`,
+          (a) =>
+            `${a.id}=${a.kind} "${a.name}" (media ${a.mediaId}${a.version ? `, version ${a.version}` : ''}${a.duration ? `, ${a.duration}s` : ''})`,
         )
         .join('; ') || 'none'
     }`,

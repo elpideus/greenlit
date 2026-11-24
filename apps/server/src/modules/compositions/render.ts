@@ -9,6 +9,7 @@ import type { Actor } from '../../core/actor.ts'
 import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import { ffmpeg } from '../../lib/ffmpeg.ts'
+import { assetFile } from './assets.ts'
 
 /**
  * Rendering = the same React stage the editor shows, opened in headless Chromium and captured frame by
@@ -125,12 +126,10 @@ export class Renderer {
       assets: {},
       createdAt: Date.now(),
     }
-    // Resolve every asset to its file.
+    // Resolve every asset to its file (of its version).
     const paths = new Map<string, string>()
     for (const asset of Object.values(doc.assets)) {
-      const formats = await media.formatsOf(asset.mediaId)
-      const f =
-        formats.find((x) => x.key === asset.formatKey) ?? formats.find((x) => x.isPrimary) ?? formats[0]
+      const f = await assetFile(media, asset)
       if (!f) continue
       const blob = await files.get(f.blobId)
       paths.set(asset.id, await files.readablePath(blob))
@@ -470,9 +469,7 @@ export class Renderer {
         if (c.hidden || (c.type !== 'audio' && c.type !== 'video') || !c.assetId) continue
         const asset = doc.assets[c.assetId]
         if (!asset || (c.type === 'video' && !asset.hasAudio) || c.audio?.muted) continue
-        const formats = await this.ctx.services.media.formatsOf(asset.mediaId)
-        const f =
-          formats.find((x) => x.key === asset.formatKey) ?? formats.find((x) => x.isPrimary) ?? formats[0]
+        const f = await assetFile(this.ctx.services.media, asset)
         if (!f) continue
         const path = await this.ctx.services.files.readablePath(await this.ctx.services.files.get(f.blobId))
         const speed = c.speed ?? 1

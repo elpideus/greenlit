@@ -79,14 +79,21 @@ export function useCompositionActions() {
   }
 }
 
+/** A library item to use in an edit: one of its versions (absent = the main one) and one of that version's formats. */
+export interface AssetSource {
+  mediaId: string
+  formatKey?: string
+  version?: string
+}
+
 export const compositionApi = {
   get: (id: string) => api.get<CompositionView>(`/compositions/${id}`),
   apply: (id: string, ops: Op[], baseRevision: number, clientId: string) =>
     api.post<{ revision: number }>(`/compositions/${id}/ops`, { ops, baseRevision, clientId }),
   since: (id: string, since: number) =>
     api.get<{ revision: number; ops: Op[]; clientId: string | null }[]>(`/compositions/${id}/ops`, { since }),
-  assets: (id: string, media: { mediaId: string; formatKey?: string }[]) =>
-    api.post<Asset[]>(`/compositions/${id}/assets`, { media }),
+  /** Library media as asset entries: `version` = one of an item's versions (absent = the main one). */
+  assets: (id: string, media: AssetSource[]) => api.post<Asset[]>(`/compositions/${id}/assets`, { media }),
   render: (id: string, formats: string[]) =>
     api.post<{ taskId: string | null }>(`/compositions/${id}/render`, { formats }),
   autoReframe: (id: string, clipId: string, formatId: string, axis: 'x' | 'y' | 'both' = 'x') =>

@@ -29,13 +29,16 @@ export function useAssetMedia(doc: Composition | null) {
   }, [key])
 }
 
-/** URLs the editor preview plays: the browser-friendly proxy for video, a large still for pictures. */
+/**
+ * URLs the editor preview plays: the browser-friendly proxy for video, a large still for pictures, each of the asset's
+ * version (the main one when it names none, or one the item no longer has), as the export does.
+ */
 export function useAssetResolver(doc: Composition | null): AssetResolver & { media: Map<string, Media> } {
   const media = useAssetMedia(doc)
   return useMemo(() => {
     const fmt = (a: Asset) => {
       const m = media.get(a.mediaId)
-      return m ? formatByKey(m, a.formatKey) : undefined
+      return m ? formatByKey(m, a.formatKey, a.version) : undefined
     }
     return {
       media,
@@ -53,7 +56,7 @@ export function useAssetResolver(doc: Composition | null): AssetResolver & { med
 
 export function assetThumb(a: Asset, media: Map<string, Media>) {
   const m = media.get(a.mediaId)
-  const f = m ? formatByKey(m, a.formatKey) : undefined
+  const f = m ? formatByKey(m, a.formatKey, a.version) : undefined
   return {
     thumb: f?.urls.thumbnail ?? null,
     sprite: f?.urls.sprite ?? null,

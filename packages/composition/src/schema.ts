@@ -271,8 +271,13 @@ export type Track = z.infer<typeof Track>
 
 export const Asset = z.object({
   id: z.string().min(1),
-  /** Greenlit media item and which of its formats (default: main). */
+  /** Greenlit media item, which of its versions and which of that version's formats (default: its main one). */
   mediaId: z.string(),
+  /**
+   * The item's version (another language, without the watermark, a mastered mix...); absent or '' = the main
+   * version. A version the item no longer has falls back to the main one.
+   */
+  version: z.string().optional(),
   formatKey: z.string().optional(),
   kind: z.enum(['video', 'image', 'audio']),
   name: z.string().default(''),
