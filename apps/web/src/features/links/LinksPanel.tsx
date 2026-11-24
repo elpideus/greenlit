@@ -2,15 +2,30 @@ import {
   type LinkableType,
   type LinkRelation,
   type Link as LinkT,
+  type Media,
   LinkRelation as Relations,
 } from '@greenlit/shared'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clapperboard, File as FileIcon, FolderOpen, Link2, Megaphone, Plus, X } from 'lucide-react'
+import {
+  Check,
+  Clapperboard,
+  File as FileIcon,
+  FolderOpen,
+  LayoutGrid,
+  Link2,
+  List,
+  Megaphone,
+  Plus,
+  X,
+} from 'lucide-react'
 import { motion } from 'motion/react'
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { MediaThumb } from '@/components/MediaThumb'
+import { useMediaList } from '@/data/media'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
+import { useStoredState } from '@/lib/dom'
 import { useT } from '@/lib/i18n'
 import { stagger } from '@/lib/motion'
 import { qk } from '@/lib/query'
@@ -24,6 +39,7 @@ import {
   Segmented,
   Select,
   Skeleton,
+  Spinner,
   toast,
   useContextMenu,
 } from '@/ui'
@@ -61,6 +77,11 @@ export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
     }
     return [...map.entries()]
   }, [data, type, id, t])
+
+  const linked = useMemo(
+    () => new Set((data ?? []).map((l) => keyOf(l.from.type === type && l.from.id === id ? l.to : l.from))),
+    [data, type, id],
+  )
 
   const remove = async (l: LinkT) => {
     try {
@@ -121,6 +142,7 @@ export function LinksPanel({ type, id }: { type: LinkableType; id: string }) {
         open={adding}
         onOpenChange={setAdding}
         from={{ type, id }}
+        linked={linked}
         onAdded={() => void qc.invalidateQueries({ queryKey: qk.links(type, id) })}
       />
     </div>
@@ -182,17 +204,33 @@ function LinkRow({
   )
 }
 
-type Candidate = { type: LinkableType; id: string; title: string; thumbnailUrl: string | null; meta?: string }
+type Candidate = {
+  type: LinkableType
+  id: string
+  title: string
+  thumbnailUrl: string | null
+  meta?: string
+  media?: Media
+}
+const keyOf = (c: { type: string; id: string }) => `${c.type}:${c.id}`
 
+/**
+ * Pick what to link, almost full window: media (the library's own list, so brand kits' files stay in their kit,
+ * loaded as you scroll), projects, posts or edits, in a grid or a list. Several at once (click to add or take out,
+ * Shift-click for a run), across the tabs; what is linked already is marked and left out.
+ */
 function AddLink({
   open,
   onOpenChange,
   from,
+  linked,
   onAdded,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   from: { type: LinkableType; id: string }
+  /** `type:id` of what this item is linked to already. */
+  linked: Set<string>
   onAdded: () => void
 }) {
   const t = useT('links')
@@ -200,24 +238,20 @@ function AddLink({
   const [q, setQ] = useState('')
   const query = useDeferredValue(q)
   const [relation, setRelation] = useState<LinkRelation>('related')
-  const [picked, setPicked] = useState<Candidate | null>(null)
-  const results = useQuery({
+  const [view, setView] = useStoredState<'grid' | 'list'>('links.view', 'grid')
+  const [picked, setPicked] = useState<Map<string, Candidate>>(new Map())
+  const [busy, setBusy] = useState(false)
+  const anchor = useRef<number | null>(null)
+
+  const media = useMediaList(
+    { q: query || undefined, sort: 'recent', projectKind: 'project' },
+    { enabled: open && kind === 'media' },
+  )
+  const others = useQuery({
     queryKey: ['links', 'search', kind, query],
-    enabled: open,
+    enabled: open && kind !== 'media',
     queryFn: async (): Promise<Candidate[]> => {
       const needle = query.toLowerCase()
-      if (kind === 'media') {
-        const r = await api.get<{
-          items: { id: string; title: string; thumbnailUrl: string | null; kind: string }[]
-        }>('/media', { q: query || undefined, limit: 30 })
-        return r.items.map((m) => ({
-          type: 'media',
-          id: m.id,
-          title: m.title,
-          thumbnailUrl: m.thumbnailUrl,
-          meta: m.kind,
-        }))
-      }
       if (kind === 'project') {
         const r = await api.get<{ id: string; name: string; coverUrl: string | null }[]>('/projects')
         return r
@@ -244,32 +278,93 @@ function AddLink({
         .map((c) => ({ type: 'composition', id: c.id, title: c.name, thumbnailUrl: c.posterUrl ?? null }))
     },
   })
-  const list = (results.data ?? []).filter((c) => !(c.type === from.type && c.id === from.id))
+  const list = useMemo<Candidate[]>(() => {
+    const all: Candidate[] =
+      kind === 'media'
+        ? (media.data?.pages.flatMap((p) => p.items) ?? []).map((m) => ({
+            type: 'media',
+            id: m.id,
+            title: m.title,
+            thumbnailUrl: m.thumbnailUrl,
+            meta: m.kind,
+            media: m,
+          }))
+        : (others.data ?? [])
+    return all.filter((c) => !(c.type === from.type && c.id === from.id))
+  }, [kind, media.data, others.data, from.type, from.id])
+  const loading = kind === 'media' ? media.isLoading : others.isLoading
 
+  // A new tab or search starts a new Shift-click run (the picks themselves stay).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the listed values are the triggers
+  useEffect(() => {
+    anchor.current = null
+  }, [kind, query])
+
+  // More media as the end of the list comes into view.
+  const end = useRef<HTMLDivElement>(null)
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = media
+  useEffect(() => {
+    const el = end.current
+    if (!el || kind !== 'media' || !hasNextPage) return
+    const io = new IntersectionObserver(
+      ([e]) => e?.isIntersecting && !isFetchingNextPage && void fetchNextPage(),
+      { rootMargin: '400px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [kind, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const toggle = (c: Candidate, i: number, e: React.MouseEvent) => {
+    setPicked((prev) => {
+      const next = new Map(prev)
+      if (e.shiftKey && anchor.current !== null) {
+        const [a, b] = anchor.current < i ? [anchor.current, i] : [i, anchor.current]
+        for (const x of list.slice(a, b + 1)) if (!linked.has(keyOf(x))) next.set(keyOf(x), x)
+      } else if (next.has(keyOf(c))) next.delete(keyOf(c))
+      else next.set(keyOf(c), c)
+      return next
+    })
+    if (!e.shiftKey) anchor.current = i
+  }
+
+  const close = () => {
+    onOpenChange(false)
+    setPicked(new Map())
+    setQ('')
+  }
   const add = async () => {
-    if (!picked) return
-    try {
-      await api.post('/links', { from, to: { type: picked.type, id: picked.id }, relation })
-      toast.done(t('linked', { title: picked.title || t('common:untitled') }))
-      onAdded()
-      onOpenChange(false)
-      setPicked(null)
-      setQ('')
-    } catch (err) {
-      toast.error(err)
+    const chosen = [...picked.values()]
+    if (!chosen.length || busy) return
+    setBusy(true)
+    const results = await Promise.allSettled(
+      chosen.map((c) => api.post('/links', { from, to: { type: c.type, id: c.id }, relation })),
+    )
+    setBusy(false)
+    const done = chosen.filter((_, i) => results[i]!.status === 'fulfilled')
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (done.length === 1) toast.done(t('linked', { title: done[0]!.title || t('common:untitled') }))
+    else if (done.length) toast.done(t('linkedMany', { count: done.length }))
+    if (done.length) onAdded()
+    if (failed) {
+      toast.error(failed.reason)
+      // keep what didn't link picked, to try again
+      setPicked(new Map(chosen.filter((_, i) => results[i]!.status === 'rejected').map((c) => [keyOf(c), c])))
+      return
     }
+    close()
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(o) => (o ? onOpenChange(true) : close())}
       title={t('addTitle')}
-      width={560}
+      width={1480}
+      className="h-[calc(100dvh-48px)] max-h-none"
       footer={
         <>
           <span className="mr-auto flex items-center gap-2">
-            <span className="t-label">{t('relation')}</span>
+            <span className="t-label max-sm:hidden">{t('relation')}</span>
             <Select<LinkRelation>
               size="sm"
               value={relation}
@@ -277,86 +372,195 @@ function AddLink({
               options={Relations.options.map((r) => ({ value: r, label: t(`relations.${r}.forward`) }))}
             />
           </span>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          {picked.size > 0 && (
+            <span className="flex items-center gap-1 t-callout text-ink-2">
+              {t('selected', { count: picked.size })}
+              <Button size="sm" variant="ghost" onClick={() => setPicked(new Map())}>
+                {t('clear')}
+              </Button>
+            </span>
+          )}
+          <Button variant="ghost" onClick={close}>
             {t('common:cancel')}
           </Button>
-          <Button variant="primary" disabled={!picked} onClick={() => void add()}>
-            {t('link')}
+          <Button variant="primary" disabled={!picked.size || busy} onClick={() => void add()}>
+            {picked.size > 1 ? t('linkCount', { count: picked.size }) : t('link')}
           </Button>
         </>
       }
     >
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Segmented<LinkableType>
-          size="sm"
-          value={kind}
-          onChange={(k) => {
-            setKind(k)
-            setPicked(null)
-          }}
-          options={(['media', 'project', 'post', 'composition'] as const).map((k) => ({
-            value: k,
-            label: t(`types.${k}`),
-          }))}
-        />
-        <SearchInput
-          value={q}
-          onChange={setQ}
-          size="sm"
-          className="min-w-0 flex-1"
-          autoFocus
-          placeholder={t('search')}
-        />
-      </div>
-      <div className="max-h-[46dvh] min-h-48 overflow-y-auto">
-        {results.isLoading ? (
-          <div className="flex flex-col gap-2">
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-12" />
-            ))}
-          </div>
-        ) : list.length === 0 ? (
-          <div className="py-12 text-center t-callout text-ink-3">{t('noResults')}</div>
-        ) : (
-          list.map((c) => {
-            const Icon = ICON[c.type]
-            const on = picked?.id === c.id
-            return (
-              <button
-                key={`${c.type}:${c.id}`}
-                type="button"
-                onClick={() => setPicked(c)}
-                onDoubleClick={() => {
-                  setPicked(c)
-                  void add()
-                }}
-                className={cn(
-                  'press flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left',
-                  on ? 'bg-signal-soft' : 'hover:bg-hover',
-                )}
-              >
-                <span className="grid aspect-video w-16 shrink-0 place-items-center overflow-hidden rounded-[6px] bg-stage text-white/40">
-                  {c.thumbnailUrl ? (
-                    <img src={c.thumbnailUrl} alt="" className="size-full object-cover" />
-                  ) : (
-                    <Icon size={16} strokeWidth={1.6} />
-                  )}
-                </span>
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate t-callout',
-                    on ? 'font-[550] text-signal' : 'text-ink',
-                  )}
-                >
-                  {c.title || t('common:untitled')}
-                </span>
-                {c.meta && <span className="t-caption text-ink-3">{t(`common:kind.${c.meta}`)}</span>}
-              </button>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Segmented<LinkableType>
+            size="sm"
+            value={kind}
+            onChange={setKind}
+            options={(['media', 'project', 'post', 'composition'] as const).map((k) => ({
+              value: k,
+              label: t(`types.${k}`),
+            }))}
+          />
+          <SearchInput
+            value={q}
+            onChange={setQ}
+            size="sm"
+            className="min-w-[200px] flex-1"
+            autoFocus
+            placeholder={t('search')}
+          />
+          <Segmented
+            size="sm"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'grid', icon: LayoutGrid, title: t('view.grid') },
+              { value: 'list', icon: List, title: t('view.list') },
+            ]}
+          />
+        </div>
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-1">
+          {loading ? (
+            view === 'grid' ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4">
+                {Array.from({ length: 18 }, (_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
+                  <Skeleton key={i} className="aspect-video rounded-tile" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
             )
-          })
-        )}
+          ) : list.length === 0 ? (
+            <div className="py-12 text-center t-callout text-ink-3">{t('noResults')}</div>
+          ) : view === 'grid' ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(180px,40%),1fr))] gap-x-3 gap-y-4 p-0.5">
+              {list.map((c, i) => (
+                <Pick
+                  key={keyOf(c)}
+                  c={c}
+                  grid
+                  on={picked.has(keyOf(c))}
+                  done={linked.has(keyOf(c))}
+                  onClick={(e) => toggle(c, i, e)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {list.map((c, i) => (
+                <Pick
+                  key={keyOf(c)}
+                  c={c}
+                  on={picked.has(keyOf(c))}
+                  done={linked.has(keyOf(c))}
+                  onClick={(e) => toggle(c, i, e)}
+                />
+              ))}
+            </div>
+          )}
+          <div ref={end} className="h-px" />
+          {isFetchingNextPage && (
+            <div className="grid place-items-center py-4">
+              <Spinner />
+            </div>
+          )}
+        </div>
       </div>
     </Dialog>
+  )
+}
+
+/** One thing to pick: a tile in the grid, a row in the list; ticked when picked, marked when linked already. */
+function Pick({
+  c,
+  grid,
+  on,
+  done,
+  onClick,
+}: {
+  c: Candidate
+  grid?: boolean
+  on: boolean
+  done: boolean
+  onClick: (e: React.MouseEvent) => void
+}) {
+  const t = useT('links')
+  const Icon = ICON[c.type]
+  const thumb = (cls: string) =>
+    c.media ? (
+      <MediaThumb media={c.media} className={cls} scrub={grid} showDuration={grid} />
+    ) : (
+      <span className={cn('grid place-items-center overflow-hidden bg-stage text-white/40', cls)}>
+        {c.thumbnailUrl ? (
+          <img src={c.thumbnailUrl} alt="" className="size-full object-cover" />
+        ) : (
+          <Icon size={grid ? 22 : 16} strokeWidth={1.6} />
+        )}
+      </span>
+    )
+  const tick = (
+    <span
+      className={cn(
+        'grid size-5 shrink-0 place-items-center rounded-full transition-all duration-150',
+        on
+          ? 'bg-signal text-signal-ink'
+          : grid
+            ? 'bg-black/40 text-transparent opacity-0 shadow-[inset_0_0_0_1.5px_rgba(255,255,255,.7)] group-hover:opacity-100'
+            : 'text-transparent shadow-[inset_0_0_0_1.5px_var(--line-strong)]',
+      )}
+    >
+      <Check size={12} strokeWidth={3} />
+    </span>
+  )
+  const meta = [c.meta ? t(`common:kind.${c.meta}`) : null, done ? t('already') : null]
+    .filter(Boolean)
+    .join(' · ')
+  if (grid)
+    return (
+      <button
+        type="button"
+        disabled={done}
+        aria-pressed={on}
+        onClick={onClick}
+        className="press group min-w-0 text-left disabled:cursor-default disabled:opacity-45"
+      >
+        <div
+          className={cn(
+            'relative rounded-tile transition-shadow duration-150',
+            on && 'shadow-[0_0_0_2px_var(--signal)]',
+          )}
+        >
+          {thumb('aspect-video rounded-tile')}
+          {!done && <span className="absolute top-1.5 left-1.5">{tick}</span>}
+        </div>
+        <div className={cn('mt-1.5 truncate t-caption', on ? 'font-[550] text-signal' : 'text-ink-2')}>
+          {c.title || t('common:untitled')}
+        </div>
+        {meta && <div className="truncate t-micro text-ink-3">{meta}</div>}
+      </button>
+    )
+  return (
+    <button
+      type="button"
+      disabled={done}
+      aria-pressed={on}
+      onClick={onClick}
+      className={cn(
+        'press flex w-full items-center gap-3 rounded-[10px] px-2 py-1.5 text-left disabled:cursor-default disabled:opacity-45',
+        on ? 'bg-signal-soft' : 'hover:bg-hover',
+      )}
+    >
+      {done ? <span className="size-5 shrink-0" /> : tick}
+      {thumb('aspect-video w-16 shrink-0 rounded-[6px]')}
+      <span className={cn('min-w-0 flex-1 truncate t-callout', on ? 'font-[550] text-signal' : 'text-ink')}>
+        {c.title || t('common:untitled')}
+      </span>
+      {meta && <span className="t-caption text-ink-3">{meta}</span>}
+    </button>
   )
 }
 
