@@ -232,7 +232,7 @@ export default function CalendarPage() {
               )
             })}
           </div>
-          {accounts.filter((a) => !a.mergedInto).length > 1 && !phone && (
+          {accounts.filter((a) => !a.mergedInto && a.state !== 'disabled').length > 1 && !phone && (
             <Select
               value={account}
               onChange={setAccount}
@@ -240,7 +240,7 @@ export default function CalendarPage() {
               options={[
                 { value: 'all', label: t('allAccounts') },
                 ...accounts
-                  .filter((a) => !a.mergedInto)
+                  .filter((a) => !a.mergedInto && a.state !== 'disabled')
                   .map((a) => ({
                     value: a.id,
                     label: a.name,
@@ -369,7 +369,7 @@ function useDrag(onDrop: (e: CalendarEntry, drop: Drop) => void) {
       className="floating pointer-events-none fixed z-[90] flex items-center gap-2 px-2.5 py-1.5 t-caption text-ink"
       style={{ left: state.x + 12, top: state.y + 10 }}
     >
-      <PlatformIcon platform={state.entry.platform} size={14} tile />
+      <EntryThumb entry={state.entry} small />
       <span className="max-w-[200px] truncate">{state.entry.name}</span>
     </div>
   ) : null
@@ -519,40 +519,55 @@ function EntryChip({
         onPointerDown={movable ? (e) => drag!.start(e, entry) : undefined}
         onClick={() => onOpen(entry)}
         className={cn(
-          'press group/chip relative flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-[7px] bg-raised pr-1.5 pl-1 text-left shadow-[inset_0_0_0_.5px_var(--line-strong)] hover:bg-[color-mix(in_oklab,var(--raised),var(--ink)_6%)]',
-          tall ? 'h-full flex-col items-stretch gap-1 p-1.5' : 'h-7',
+          'press group/chip relative flex w-full min-w-0 overflow-hidden rounded-[7px] bg-raised text-left shadow-[inset_0_0_0_.5px_var(--line-strong)] hover:bg-[color-mix(in_oklab,var(--raised),var(--ink)_6%)]',
+          tall ? 'h-full gap-2 p-1.5' : 'h-10 gap-2 p-1 pr-2',
           drag?.dragging === entry.targetId && 'opacity-40',
           movable && 'cursor-grab',
         )}
       >
-        <span className="flex min-w-0 items-center gap-1.5">
-          {entry.thumbnailUrl ? (
-            <span className="relative shrink-0">
-              <img
-                src={entry.thumbnailUrl}
-                alt=""
-                className="size-5 rounded-[4px] object-cover"
-                draggable={false}
-              />
-              <PlatformIcon
-                platform={entry.platform}
-                size={11}
-                tile
-                className="absolute -right-1 -bottom-1 shadow-[0_0_0_1.5px_var(--raised)]"
-              />
-            </span>
-          ) : (
-            <PlatformIcon platform={entry.platform} size={18} tile className="shrink-0" />
-          )}
-          <span className="t-meta ml-0.5 shrink-0 text-[11px] text-ink-3">{clock(entry.at, tz)}</span>
-          <span className="min-w-0 flex-1 truncate t-caption text-ink">{entry.name}</span>
-          <Tally tone={lamp} size={6} />
+        <EntryThumb entry={entry} />
+        <span className="flex min-w-0 flex-1 flex-col justify-center">
+          <span className="truncate t-caption text-ink">{entry.name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="t-meta shrink-0 text-[11px] text-ink-3">{clock(entry.at, tz)}</span>
+            {tall && entry.caption && !entry.caption.startsWith(entry.name) && (
+              <span className="min-w-0 flex-1 truncate t-caption text-ink-3">{entry.caption}</span>
+            )}
+            <Tally tone={lamp} size={6} className="ml-auto" />
+          </span>
         </span>
-        {tall && entry.caption && (
-          <span className="line-clamp-2 px-0.5 t-caption text-ink-3">{entry.caption}</span>
-        )}
       </button>
     </Tooltip>
+  )
+}
+
+/** The post's picture with its platform in the corner; the platform alone when there is no picture. */
+function EntryThumb({ entry, small }: { entry: CalendarEntry; small?: boolean }) {
+  const [broken, setBroken] = useState(false)
+  const box = small ? 'size-6' : 'aspect-square h-full'
+  if (!entry.thumbnailUrl || broken)
+    return (
+      <span className={cn('grid shrink-0 place-items-center rounded-[5px] bg-well', box)}>
+        <PlatformIcon platform={entry.platform} size={small ? 16 : 18} tile />
+      </span>
+    )
+  return (
+    <span className={cn('relative shrink-0', box)}>
+      <img
+        src={entry.thumbnailUrl}
+        alt=""
+        loading="lazy"
+        onError={() => setBroken(true)}
+        className="size-full rounded-[5px] bg-stage object-cover"
+        draggable={false}
+      />
+      <PlatformIcon
+        platform={entry.platform}
+        size={small ? 11 : 13}
+        tile
+        className="absolute -right-1 -bottom-1 shadow-[0_0_0_1.5px_var(--raised)]"
+      />
+    </span>
   )
 }
 

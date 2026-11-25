@@ -20,6 +20,22 @@ export function generatePassword() {
 
 type Role = 'admin' | 'reviewer'
 
+/** What can go in a username, as they type it: "Nicolò Rossi" becomes "nicolo.rossi". */
+export function usernameOf(v: string) {
+  return v
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/\s+/g, '.')
+    .replace(/[^a-z0-9._-]/g, '')
+    .slice(0, 32)
+}
+
+/** How someone signs in, for the line under their name: "giuseppe · giuseppe@studio.it". */
+export function signInNames(u: { username: string | null; email: string | null }) {
+  return [u.username, u.email].filter(Boolean).join(' · ')
+}
+
 export function PersonDialog({
   user,
   open,
@@ -40,6 +56,7 @@ export function PersonDialog({
   const [form, setForm] = useState({
     displayName: user?.displayName ?? '',
     email: user?.email ?? '',
+    username: user?.username ?? '',
     role: (user?.role ?? 'reviewer') as Role,
     locale: (user?.locale ?? 'it') as 'en' | 'it',
     disabled: user?.disabled ?? false,
@@ -61,19 +78,22 @@ export function PersonDialog({
     if (password && password.length < 8) return setError('Use at least 8 characters for the password.')
     setBusy(true)
     setError(null)
+    const email = form.email.trim() || null
+    const username = form.username || null
     try {
       let saved: User
       if (user) {
         const patch: Record<string, unknown> = {}
         if (form.displayName !== user.displayName) patch.displayName = form.displayName
-        if (form.email !== user.email) patch.email = form.email
+        if (email !== user.email) patch.email = email
+        if (username !== user.username) patch.username = username
         if (form.role !== user.role) patch.role = form.role
         if (form.locale !== user.locale) patch.locale = form.locale
         if (form.disabled !== user.disabled) patch.disabled = form.disabled
         if (password) patch.password = password
         saved = Object.keys(patch).length ? await api.patch<User>(`/users/${user.id}`, patch) : user
       } else {
-        saved = await api.post<User>('/users', { ...form, password })
+        saved = await api.post<User>('/users', { ...form, email, username, password })
       }
       void qc.invalidateQueries({ queryKey: qk.users })
       void qc.invalidateQueries({ queryKey: qk.directory })
@@ -117,7 +137,7 @@ export function PersonDialog({
             type="submit"
             form="person-form"
             loading={busy}
-            disabled={!form.displayName.trim() || !form.email.trim()}
+            disabled={!form.displayName.trim() || (!form.email.trim() && !form.username)}
           >
             {user ? t('form.save') : t('form.create')}
           </Button>
@@ -138,7 +158,7 @@ export function PersonDialog({
                 <Camera size={16} />
               </span>
             </button>
-            <div className="t-caption text-ink-3">{user.email}</div>
+            <div className="t-caption text-ink-3">{signInNames(user)}</div>
             <input
               ref={fileRef}
               type="file"
@@ -152,30 +172,47 @@ export function PersonDialog({
             />
           </div>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t('form.name')}>
-            {(id) => (
-              <Input
-                id={id}
-                value={form.displayName}
-                onChange={(e) => set('displayName', e.target.value)}
-                required
-                autoFocus={!user}
-                maxLength={80}
-              />
-            )}
-          </Field>
-          <Field label={t('form.email')}>
-            {(id) => (
-              <Input
-                id={id}
-                type="email"
-                value={form.email}
-                onChange={(e) => set('email', e.target.value)}
-                required
-              />
-            )}
-          </Field>
+        <Field label={t('form.name')}>
+          {(id) => (
+            <Input
+              id={id}
+              value={form.displayName}
+              onChange={(e) => set('displayName', e.target.value)}
+              required
+              autoFocus={!user}
+              maxLength={80}
+            />
+          )}
+        </Field>
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('form.username')}>
+              {(id) => (
+                <Input
+                  id={id}
+                  value={form.username}
+                  onChange={(e) => set('username', usernameOf(e.target.value))}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  minLength={2}
+                  maxLength={32}
+                />
+              )}
+            </Field>
+            <Field label={t('form.email')}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="email"
+                  autoComplete="off"
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+          <div className="t-caption text-ink-3">{t('form.signInHint')}</div>
         </div>
 
         <Field label={t('form.role')}>
@@ -314,20 +351,26 @@ export function PersonDialog({
 /** The sign-in details of a new person (or a new password), shown once, ready to send. */
 export function CredentialsDialog({
   name,
+  username,
   email,
   password,
   created,
   onClose,
 }: {
   name: string
-  email: string
+  username: string | null
+  email: string | null
   password: string
   created: boolean
   onClose: () => void
 }) {
   const t = useT('people')
   const address = location.origin
-  const all = `${address}\n${t('created.email')}: ${email}\n${t('created.password')}: ${password}`
+  // The name they type to sign in: the username when there is one (that's why it was given).
+  const login: [string, string] = username
+    ? [t('created.username'), username]
+    : [t('created.email'), email ?? '']
+  const all = `${address}\n${login[0]}: ${login[1]}\n${t('created.password')}: ${password}`
   return (
     <Dialog
       open
@@ -349,13 +392,9 @@ export function CredentialsDialog({
         </p>
       </div>
       <dl className="mt-4 overflow-hidden rounded-tile bg-well shadow-[inset_0_0_0_1px_var(--line)] [&>*+*]:border-t [&>*+*]:border-line">
-        {[
-          [t('created.address'), address],
-          [t('created.email'), email],
-          [t('created.password'), password],
-        ].map(([k, v]) => (
+        {[[t('created.address'), address], login, [t('created.password'), password]].map(([k, v]) => (
           <div key={k} className="flex items-center gap-4 px-3.5 py-2.5">
-            <dt className="w-20 shrink-0 t-caption text-ink-3">{k}</dt>
+            <dt className="w-24 shrink-0 t-caption text-ink-3">{k}</dt>
             <dd className="min-w-0 flex-1 truncate t-meta text-[12.5px] text-ink select-all">{v}</dd>
           </div>
         ))}

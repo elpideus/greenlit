@@ -89,6 +89,7 @@ src/
   components/   shared domain components, used by several features:
                 viewer/ (the media viewer + its store), library/ (the media browser: grid, search tokens, selection),
                 map/ (MapLibre setup, basemap, MiniMap), platform-preview/ (phone emulations of each app),
+                web-links/ (a project's or an item's web addresses: list, chips, add/edit dialog),
                 MediaThumb, MediaPicker, PeoplePicker, PlatformIcon, DateTimeField, SettingsSection
   features/<id> one folder per feature: feature.ts(x), pages, components, api.ts, locales/{en,it}.json
 ```
@@ -126,6 +127,7 @@ tabs). Entries may set `label`, `icon`, `order`, `permission`, `when(props)`.
 | `media.viewer.overlay`   | `{ media, format }`           | layers drawn exactly over the frame (`components/viewer/store` has the frame rect)     |
 | `media.viewer.stage`     | `{ media, format }`           | the whole stage, for files a feature shows itself (designs, text files); first wins    |
 | `media.scrubber.markers` | `{ media, format, duration }` | marks on the viewer's scrubber (note times)                                            |
+| `media.viewer.drawer`    | `{ media, format }`           | a strip under the viewer's picture and transport (the process strip); hidden in full screen |
 | `media.decision`         | `{ media }`                   | the decision area under the viewer's title (review)                                    |
 | `project.tabs`           | `{ project }`                 | tabs on a project page (`label`, `icon`); `order < 0` = before Media, the first opens  |
 | `project.about.sections` | `{ project }`                 | sections in a project's About tab                                                      |
@@ -168,6 +170,53 @@ make a kit more than a folder of files, without the files stopping being media i
   pictures/PDFs with real sizes in their headers, everything else deflated, ZIP64 when needed): each file at the path
   it was added with, under a folder named after the kit; files added on their own or moved go to their section's
   folder. Archived files are read through `files.source()` (the storage module's stream).
+
+## Web links
+
+Projects and media items keep web addresses (`webLinks`: `[{ url, title }]` in order, a jsonb column on both tables)
+next to their relations to other items (the **links** module). They are saved with the item's own PATCH (and MCP
+`projects_update` / `media_update`), versioned with it, and cleaned by `cleanWebLinks`
+(`packages/shared/src/areas/web-links.ts`): http and https only, `https://` added to a bare address, repeats dropped.
+`POST /api/web-links/preview` reads a pasted page's title (oEmbed for YouTube and TikTok, else `og:title` /
+`<title>`, sign-in and consent walls ignored); it resolves every host itself and never connects to private, loopback
+or link-local addresses, also after redirects.
+
+## Slides
+
+A carousel's pages (a post's photos) are grouped as one **Slides** item (media kind `slides`), so they don't fill
+the library one by one. The pages stay media items of their own (formats, versions, notes, history); the Slides item
+has no files.
+- `media_slides` (slides_id, media_id, position) in the media module: a page may be in several Slides items (a
+  closing "Key facts" page). `Media.slides` lists a Slides item's pages (`SlideRef`), `Media.inSlides` a page's Slides
+  items; the Slides item's thumbnail is its first page's and its note counts add up its pages'.
+- Listings leave pages out (`notASlide`; `withSlides=true` keeps them: pickers of pictures, the editor's bin); a
+  search finds a Slides item by its pages' words and tags (`orItsPages`); projects count it once. A trashed Slides
+  item keeps its pages hidden; emptying it from the trash deletes the pages no other Slides item has.
+- A Slides item's status and project are its pages': changing them changes theirs. Routes: `POST /media/slides`,
+  `GET|PUT|DELETE /media/{id}/slides` (pages in order / set them / ungroup); uploads take `slidesId`. MCP:
+  `slides_create`, `slides_update`, `slides_ungroup`; `media_view` takes `page`.
+- Posts given a Slides item get its pages in order (`expandSlides`, server and composer), so publishing, versions
+  and formats work per picture as before.
+- Web: the viewer shows one page at a time (`?slide=n`; ← → and [ ] step, `components/viewer/SlidesStrip` under the
+  stage to pick, reorder, add, upload, remove); the panel's tabs are the page's, the decision the Slides item's.
+  Feature `slides`: Group as Slides (bulk bar, menu), Add to Slides…, Ungroup, and "In Slides" in a page's Info.
+  `slidesOrder` orders grouped pages (numbered titles by number, else the order they were added, odd ones last).
+
+## Production graph
+
+How items were made from one another, read from the links (`packages/shared/src/areas/graph.ts`):
+- `flowOf(link)`: the work flows `source_of`, `reference_for`, `rendered_to`, `published_as` from → to, `uses` to → from
+  ("an edit uses a clip": the clip came first); `related` has no direction.
+- `processSteps(edges)`: one step per pair of items (the more telling relation wins: a post's "uses" + "published as"
+  is one step), and an export's own auto "made from" links are left out where its edit shows the way (clip → edit →
+  export). `lineageOf(steps, key)`: everything upstream and downstream of an item, not the other branches.
+- Server module `graph`: `GET /api/graph[?projectId&brandKits=true]` (every project's media, the edits and posts linked
+  to them, the links, and for `uses` links the spans where the item plays on the edit's timeline) and
+  `GET /api/graph/lineage?type&id` (one item's lineage with counts of the inputs and outputs it leaves out); MCP
+  `media_process`. Brand kit files stay out unless asked for.
+- Web feature `graph`: the Graph page (`/graph`, a d3-force map drawn on a canvas: projects gather in clouds, "By
+  process" lines them up one step per column, a click lights an item's chain; `?project`, `?focus=media:<id>`) and the
+  viewer's process strip (`media.viewer.drawer`, `G`), laid out with dagre.
 
 ## Depth maps
 

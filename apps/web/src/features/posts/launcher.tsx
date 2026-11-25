@@ -71,7 +71,7 @@ export function PostLauncherHost() {
       projectId={picker?.projectId ?? undefined}
       title={t('chooseMedia')}
       confirmLabel={t('createPost')}
-      kinds={['video', 'image']}
+      kinds={['video', 'image', 'slides']}
       onPick={(items: Media[]) => {
         if (!items.length) return
         launch(

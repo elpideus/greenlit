@@ -1,15 +1,16 @@
 import { createHash } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { ffmpegArgsFor, getPlacement, type PlacementKey, pickBestFormat } from '@greenlit/platforms'
 import type { Placement } from '@greenlit/shared'
-import { and, asc, between, eq, isNull, ne, or } from 'drizzle-orm'
+import { and, asc, between, eq, isNotNull, isNull, ne, or, sql } from 'drizzle-orm'
 import sharp from 'sharp'
 import type { Actor } from '../../core/actor.ts'
 import { badRequest } from '../../core/errors.ts'
 import type { JobContext } from '../../core/jobs.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import { ffmpeg, isHdr, probe } from '../../lib/ffmpeg.ts'
-import type { PublishRequest, ScheduleQuestion } from '../connectors/drivers/types.ts'
+import type { PublishRequest, RemotePost, ScheduleQuestion } from '../connectors/drivers/types.ts'
 
 type PublishRequestLocation = PublishRequest['location']
 
@@ -392,7 +393,11 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
           title,
           caption,
           tags: t.tags,
-          translations: t.translations as never,
+          // the post's translations with the version's own over them, as publishing sends them
+          translations: {
+            ...(p.translations as Record<string, { title: string; caption: string }>),
+            ...(t.translations as Record<string, { title: string; caption: string }>),
+          },
           // some platforms name what the post already has (Instagram's AI label) when they change its caption
           options: t.options as Record<string, unknown>,
           location: (t.location as PublishRequestLocation) ?? null,
@@ -453,6 +458,66 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
     },
   })
 
+  // Posts Greenlit found or published before it kept their covers: each account's posts are read once more (the
+  // regular sync only reads the last weeks). Targets of an account that cannot be read now wait for the next start.
+  ctx.jobs.define('posts.covers', {
+    concurrency: 1,
+    retryLimit: 0,
+    expireInSeconds: 3600,
+    handler: async () => {
+      const connectors = ctx.services.connectors
+      if (!connectors) return { saved: 0 }
+      const missing = await ctx.db
+        .select()
+        .from(postTargets)
+        .where(
+          and(
+            isNull(postTargets.remoteCover),
+            isNotNull(postTargets.remoteId),
+            ne(postTargets.state, 'removed'),
+          ),
+        )
+      if (!missing.length) return { saved: 0 }
+      const accounts = await connectors.accounts()
+      const byAccount = new Map<string, TargetRow[]>()
+      for (const t of missing) {
+        const k = t.viaAccountId ?? t.accountId
+        byAccount.set(k, [...(byAccount.get(k) ?? []), t])
+      }
+      let saved = 0
+      for (const [accountId, targets] of byAccount) {
+        // The account, then the other connectors of the same account, until one can list its posts.
+        const main = accounts.find((a) => a.id === accountId)
+        const root = main?.mergedInto ?? accountId
+        const group = [
+          ...(main ? [main] : []),
+          ...accounts.filter((a) => a.id !== accountId && (a.id === root || a.mergedInto === root)),
+        ].filter((a) => a.state === 'connected')
+        let remote: Map<string, RemotePost> | null = null
+        for (const a of group) {
+          try {
+            const list = await connectors.list(a.id)
+            // nothing listed: a connector that does not read posts
+            if (!list.length) continue
+            remote = new Map(list.map((r) => [r.remoteId, r]))
+            break
+          } catch (err) {
+            ctx.log.info({ err: (err as Error).message, account: a.id }, 'posts not listed for covers')
+          }
+        }
+        for (const t of targets) {
+          const url = remote?.get(t.remoteId!)?.thumbnailUrl ?? null
+          // not listed: only a picture the platform serves to anyone (YouTube's) can be read now
+          if (!remote && !coverSources(t.platform, t.remoteId, null).length) continue
+          const v = await saveCover(ctx, t, url)
+          await svc.setTargetState(t.id, { remoteCover: v })
+          if (v) saved++
+        }
+      }
+      return { saved, missing: missing.length }
+    },
+  })
+
   // Keep Greenlit in step with what happened on the platforms (edits, deletions, published schedules, stats).
   ctx.events.on('connectors.remotePosts', async ({ accountId, posts: remote }) => {
     // Posts this connector made for an account merged with it count as its own (they carry its remote ids).
@@ -491,6 +556,8 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
         publishedAt: r.publishedAt ? new Date(r.publishedAt) : t.publishedAt,
         scheduleAt: r.state === 'scheduled' && r.scheduledAt ? new Date(r.scheduledAt) : t.scheduleAt,
       }
+      // The cover the platform shows, kept once (and looked for again while there was none).
+      if (!t.remoteCover && r.thumbnailUrl) patch.remoteCover = await saveCover(ctx, t, r.thumbnailUrl)
       // Text changed on the platform (not by us): take it into Greenlit as the target's own text.
       if (r.caption && r.caption !== snap.caption) patch.caption = r.caption
       if (r.title && r.title !== snap.title) patch.title = r.title
@@ -562,8 +629,44 @@ async function importRemote(
   // Suite): it joins that post as one more target instead of becoming a second post.
   const twin = await findTwin(ctx, account.platform, accountId, r)
   if (twin) {
-    await ctx.db.insert(postTargets).values({
-      postId: twin,
+    const [tt] = await ctx.db
+      .insert(postTargets)
+      .values({
+        postId: twin,
+        accountId,
+        platform: account.platform,
+        placement: r.placement,
+        state: r.state,
+        remoteId: r.remoteId,
+        remoteUrl: r.url,
+        scheduleAt: r.scheduledAt ? new Date(r.scheduledAt) : null,
+        publishedAt: r.publishedAt ? new Date(r.publishedAt) : null,
+        syncedAt: new Date(),
+        stats: r.stats,
+        remoteSnapshot: { caption: r.caption, title: r.title },
+      })
+      .returning({ id: postTargets.id })
+    const cover = await saveCover(
+      ctx,
+      { id: tt!.id, platform: account.platform, remoteId: r.remoteId },
+      r.thumbnailUrl,
+    )
+    await svc.setTargetState(tt!.id, { remoteCover: cover })
+    return
+  }
+  const [p] = await ctx.db
+    .insert(posts)
+    .values({
+      name: r.title || r.caption.slice(0, 60),
+      caption: r.caption,
+      title: r.title,
+      origin: 'platform',
+    })
+    .returning()
+  const [t] = await ctx.db
+    .insert(postTargets)
+    .values({
+      postId: p!.id,
       accountId,
       platform: account.platform,
       placement: r.placement,
@@ -576,33 +679,18 @@ async function importRemote(
       stats: r.stats,
       remoteSnapshot: { caption: r.caption, title: r.title },
     })
-    svc.publishChange(twin, null)
-    return
-  }
-  const [p] = await ctx.db
-    .insert(posts)
-    .values({
-      name: r.title || r.caption.slice(0, 60),
-      caption: r.caption,
-      title: r.title,
-      origin: 'platform',
+    .returning({ id: postTargets.id })
+  await ctx.db
+    .update(postTargets)
+    .set({
+      remoteCover: await saveCover(
+        ctx,
+        { id: t!.id, platform: account.platform, remoteId: r.remoteId },
+        r.thumbnailUrl,
+      ),
     })
-    .returning()
-  await ctx.db.insert(postTargets).values({
-    postId: p!.id,
-    accountId,
-    platform: account.platform,
-    placement: r.placement,
-    state: r.state,
-    remoteId: r.remoteId,
-    remoteUrl: r.url,
-    scheduleAt: r.scheduledAt ? new Date(r.scheduledAt) : null,
-    publishedAt: r.publishedAt ? new Date(r.publishedAt) : null,
-    syncedAt: new Date(),
-    stats: r.stats,
-    remoteSnapshot: { caption: r.caption, title: r.title },
-  })
-  const match = r.thumbnailUrl ? await matchMedia(ctx, r.thumbnailUrl) : null
+    .where(eq(postTargets.id, t!.id))
+  const match = r.thumbnailUrl ? await matchMedia(ctx, r.thumbnailUrl, r.publishedAt) : null
   if (match) {
     await ctx.db.insert(postMedia).values({ postId: p!.id, mediaId: match, position: 0 })
     await ctx.services.links?.link(
@@ -616,31 +704,119 @@ async function importRemote(
   svc.publishChange(p!.id, null)
 }
 
-/** Finds the library item a platform thumbnail shows, by perceptual hash of posters (dHash, 64 bit). */
-async function matchMedia(ctx: ModuleContext, thumbnailUrl: string): Promise<string | null> {
+/** Where Greenlit keeps its copy of the cover a platform shows for a target. */
+export function coverPath(ctx: ModuleContext, targetId: string) {
+  return join(ctx.config.dataDir, 'posts', 'covers', `${targetId}.webp`)
+}
+
+/**
+ * Where a target's cover can be read, best first: YouTube's own 480×360 picture of a video before the one its
+ * listing gives (120×90), then the listing's.
+ */
+export function coverSources(platform: string, remoteId: string | null, url: string | null): string[] {
+  const out: string[] = []
+  if (platform === 'youtube' && remoteId && /^[\w-]{11}$/.test(remoteId))
+    out.push(`https://i.ytimg.com/vi/${remoteId}/hqdefault.jpg`)
+  if (url && !out.includes(url)) out.push(url)
+  return out
+}
+
+/**
+ * Keeps a copy of the cover a platform shows for a target (platform picture links expire and refuse other sites)
+ * and returns its short hash for `remoteCover`; '' when there is none or it could not be read.
+ */
+export async function saveCover(
+  ctx: ModuleContext,
+  t: { id: string; platform: string; remoteId: string | null },
+  url: string | null,
+): Promise<string> {
+  for (const src of coverSources(t.platform, t.remoteId, url)) {
+    try {
+      const res = await fetch(src, { signal: AbortSignal.timeout(20_000), referrerPolicy: 'no-referrer' })
+      if (!res.ok) throw new Error(`cover ${res.status}`)
+      let buf: Buffer = Buffer.from(await res.arrayBuffer())
+      // YouTube puts a frame of another shape in its 4:3 picture with black bars
+      if (t.platform === 'youtube')
+        buf = await sharp(buf)
+          .trim({ background: '#000000', threshold: 24 })
+          .toBuffer()
+          .catch(() => buf)
+      const out = await sharp(buf)
+        .rotate()
+        .resize(640, 640, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer()
+      const file = coverPath(ctx, t.id)
+      await mkdir(dirname(file), { recursive: true })
+      await writeFile(file, out)
+      return createHash('sha1').update(out).digest('hex').slice(0, 10)
+    } catch (err) {
+      ctx.log.info({ err: (err as Error).message, targetId: t.id, src }, 'post cover not read')
+    }
+  }
+  return ''
+}
+
+/**
+ * Finds the library item a platform thumbnail shows, by perceptual hash of posters (dHash, 64 bit). Only items that
+ * existed when the post went up are candidates (by when they were taken).
+ */
+async function matchMedia(
+  ctx: ModuleContext,
+  thumbnailUrl: string,
+  publishedAt: string | null,
+): Promise<string | null> {
   try {
-    const res = await fetch(thumbnailUrl)
+    const res = await fetch(thumbnailUrl, { signal: AbortSignal.timeout(20_000) })
     if (!res.ok) return null
     const target = await dhash(Buffer.from(await res.arrayBuffer()))
-    const rows = await ctx.db.execute<{ media_id: string; blob_id: string }>(
-      `select f.media_id, f.blob_id from media_formats f join media m on m.id = f.media_id where m.deleted_at is null and f.role = 'format' and 'poster.webp' = any(f.derived) order by m.created_at desc limit 2000` as never,
-    )
-    let best: { id: string; d: number } | null = null
+    // A day of slack for cameras with the wrong clock.
+    const before = publishedAt ? new Date(new Date(publishedAt).getTime() + 86_400_000).toISOString() : null
+    const rows = await ctx.db.execute<{ media_id: string; blob_id: string }>(sql`
+      select f.media_id, f.blob_id from media_formats f join media m on m.id = f.media_id
+      where m.deleted_at is null and f.role = 'format' and 'poster.webp' = any(f.derived)
+        and (${before}::timestamptz is null or m.taken_at is null or m.taken_at <= ${before}::timestamptz)
+      order by m.created_at desc limit 2000`)
+    const candidates: { id: string; hash: bigint }[] = []
     for (const row of rows) {
       const file = ctx.services.files.derivedPath(row.blob_id, 'poster.webp')
-      const h = await dhash(await readFile(file)).catch(() => null)
-      if (h === null) continue
-      const d = hamming(h, target)
-      if (!best || d < best.d) best = { id: row.media_id, d }
+      const hash = await dhash(await readFile(file)).catch(() => null)
+      if (hash !== null) candidates.push({ id: row.media_id, hash })
     }
-    return best && best.d <= 10 ? best.id : null
+    return bestMatch(target, candidates)
   } catch {
     return null
   }
 }
 
-async function dhash(buf: Buffer): Promise<bigint> {
-  const px = await sharp(buf).greyscale().resize(9, 8, { fit: 'fill' }).raw().toBuffer()
+/**
+ * The item whose picture is the same as the target: at most 6 bits apart (the same frame re-encoded is 0–4;
+ * unrelated pictures start around 11), and clearly closer than any other item (a set of near-identical pictures,
+ * like logo variants, says nothing about which one it is).
+ */
+export function bestMatch(target: bigint, candidates: { id: string; hash: bigint }[]): string | null {
+  const best = new Map<string, number>()
+  for (const c of candidates) {
+    const d = hamming(c.hash, target)
+    if (d < (best.get(c.id) ?? 65)) best.set(c.id, d)
+  }
+  const ranked = [...best].sort((a, b) => a[1] - b[1])
+  const [first, second] = ranked
+  if (!first || first[1] > 6) return null
+  if (second && second[1] - first[1] < 3) return null
+  return first[0]
+}
+
+/**
+ * Difference hash of a picture, after cutting the black bars a platform adds around a frame of another shape (a
+ * vertical video's thumbnail on YouTube is 4:3 with bars at the sides).
+ */
+export async function dhash(buf: Buffer): Promise<bigint> {
+  const trimmed = await sharp(buf)
+    .trim({ background: '#000000', threshold: 24 })
+    .toBuffer()
+    .catch(() => buf)
+  const px = await sharp(trimmed).greyscale().resize(9, 8, { fit: 'fill' }).raw().toBuffer()
   let h = 0n
   for (let y = 0; y < 8; y++)
     for (let x = 0; x < 8; x++) h = (h << 1n) | (px[y * 9 + x]! > px[y * 9 + x + 1]! ? 1n : 0n)

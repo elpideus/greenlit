@@ -1,12 +1,13 @@
+import { readFile } from 'node:fs/promises'
 import { getPlacement, validateForPlacement } from '@greenlit/platforms'
-import { CalendarEntry, CalendarQuery, Post, SavePostInput } from '@greenlit/shared'
+import { CalendarEntry, CalendarQuery, Post, postThumbnail, SavePostInput } from '@greenlit/shared'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { type Actor, actorUserId, assertCan } from '../../core/actor.ts'
-import { badRequest } from '../../core/errors.ts'
+import { type Actor, actorUserId, assertCan, can } from '../../core/actor.ts'
+import { badRequest, HttpError, notFound } from '../../core/errors.ts'
 import { IdParams, Ok, route } from '../../core/http.ts'
 import { defineModule } from '../../core/module.ts'
-import { prepareTarget, registerPostJobs, scheduleQuestion, timeToWaitFor } from './publish.ts'
+import { coverPath, prepareTarget, registerPostJobs, scheduleQuestion, timeToWaitFor } from './publish.ts'
 import { postMedia, posts, postTargets } from './schema.ts'
 import { PostsService } from './service.ts'
 
@@ -74,17 +75,19 @@ export default defineModule({
     })
     ctx.entities.register('post', {
       canView: (id, actor) => svc.canView(id, actor),
+      // Links, search and the graph: a post found on channels that are all turned off is left out like in the list.
       summarize: async (ids, actor) => {
         const out = []
+        const off = await svc.turnedOff()
         for (const id of ids) {
           if (!(await svc.canView(id, actor))) continue
           const p = await svc.get(id, actor).catch(() => null)
-          if (p)
+          if (p && !PostsService.hiddenBy(off, p))
             out.push({
               type: 'post',
               id,
               title: p.name || p.title || p.caption.slice(0, 60) || 'Post',
-              thumbnailUrl: p.media[0]?.thumbnailUrl ?? null,
+              thumbnailUrl: postThumbnail(p),
               kind: 'post',
               href: `/posts/${id}`,
               projectId: p.projectId,
@@ -397,6 +400,25 @@ export default defineModule({
         })
       },
     })
+    // The cover a platform shows for a target (Greenlit's copy): in lists and on the calendar.
+    ctx.api.get('/posts/:id/targets/:targetId/cover', async (c) => {
+      const actor = c.get('actor')
+      if (!actor || (!can(actor, 'posts.read') && !can(actor, 'calendar.read')))
+        throw new HttpError(actor ? 'forbidden' : 'unauthenticated')
+      const id = c.req.param('id')
+      const targetId = c.req.param('targetId')
+      const uuid = /^[0-9a-f-]{36}$/
+      if (!uuid.test(id) || !uuid.test(targetId) || !(await svc.canView(id, actor))) throw notFound()
+      const t = await svc.targetRow(targetId)
+      if (t.postId !== id || !t.remoteCover) throw notFound()
+      try {
+        return new Response(new Uint8Array(await readFile(coverPath(ctx, targetId))), {
+          headers: { 'content-type': 'image/webp', 'cache-control': 'private, max-age=604800, immutable' },
+        })
+      } catch {
+        throw notFound()
+      }
+    })
     route(ctx.api, {
       method: 'get',
       path: '/calendar',
@@ -519,6 +541,10 @@ export default defineModule({
       },
     })
     ctx.onStart(() => ctx.jobs.schedule('posts.due', '* * * * *'))
+    // Covers of posts found or published before Greenlit kept them (a while after start: accounts are checked first).
+    ctx.onStart(async () => {
+      await ctx.jobs.send('posts.covers', {}, { singletonKey: 'posts.covers', startAfter: 90 })
+    })
     void assertCan
     void inArray
   },

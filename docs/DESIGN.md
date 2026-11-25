@@ -81,7 +81,7 @@ Tracking and leading move with size:
 | `t-meta`     | 11.5 mono        | −0.01 em  | timecodes, sizes, counts                        |
 | `t-label`    | 12.5, 550        | —         | form labels                                     |
 
-A theme can change the display face (GEM: Cinzel, uppercase, +0.03 em) — `t-display` and `t-title-1` follow it, the
+A theme can change the display face (e.g. Cinzel, uppercase, +0.03 em) — `t-display` and `t-title-1` follow it, the
 UI face stays readable.
 
 ## Shape and depth
@@ -136,7 +136,7 @@ Motion explains where things come from and go; it never makes anyone wait.
 ## Copy
 
 Plain, short, specific, in English and Italian (`features/<id>/locales/{en,it}.json`, always both). Say what happens
-with the real nouns ("Sent to Giulia for review", "2 changes sent to Stefano"). Buttons are verbs, sentence case, no
+with the real nouns ("Sent to Giulia for review", "2 changes sent to Sam"). Buttons are verbs, sentence case, no
 trailing period. No exclamation marks, no emoji, no sparkles. Errors say what went wrong and what to do next.
 
 ## Themes for other brands
@@ -145,9 +145,3 @@ A theme pack is `themes/<id>/theme.json`: light and dark palettes (the roles abo
 display style (uppercase, tracking, weight), base radius and default mode. Logos, the mark, favicon and sign-in picture
 are set per instance in **Settings → Branding** and stored with the instance's data, so no trademark has to live in
 this repository.
-
-**Studio Associato GEM** (`themes/studio-associato-gem`) follows that studio's 2026 brand kit: GEM Dark Gray
-`#141414` and Clean White `#EBEBEB` with the supporting greys (Carbone `#1F1F1F`, Ardesia `#2E2E2E`, Fumo `#5C5C5C`,
-Cenere `#8C8C8C`, Nebbia `#C9C9C9`); **Pietra `#B49B74`** (Pietra Scura `#7D6849` on light) as the single accent, so
-the lit lamp is stone, not green; Terra Rossa `#9A5238` for changes; Ulivo `#7E8468` for done. Cinzel Bold for titles,
-always uppercase with +3% tracking; Jost for everything else. Small radii (6 px), dark by default.

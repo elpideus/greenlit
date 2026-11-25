@@ -42,7 +42,7 @@
     "kindBrand": "Brand kit",
     "brandTitle": "New brand kit",
     "createBrand": "Create brand kit",
-    "brandNamePlaceholder": "Studio Associato GEM",
+    "brandNamePlaceholder": "Acme Studio",
     "brandDescriptionPlaceholder": "Whose brand this is and what it covers.",
     "brandHint": "Then drop the kit’s folder or its .zip into it. Greenlit sorts the logos, colours, fonts, graphics, templates and guidelines, and reads the palette and the fonts."
   },

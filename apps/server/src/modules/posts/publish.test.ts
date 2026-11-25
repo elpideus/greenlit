@@ -1,5 +1,16 @@
+import { postThumbnail } from '@greenlit/shared'
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
-import { coverIndexOf, hasTextToSync, scheduleQuestion, thumbnailAtOf, timeToWaitFor } from './publish.ts'
+import {
+  bestMatch,
+  coverIndexOf,
+  coverSources,
+  dhash,
+  hasTextToSync,
+  scheduleQuestion,
+  thumbnailAtOf,
+  timeToWaitFor,
+} from './publish.ts'
 import { PostsService } from './service.ts'
 
 describe('a version with a time', () => {
@@ -95,5 +106,107 @@ describe('a photo post’s cover', () => {
     expect(coverIndexOf({ mode: 'media', mediaId: 'z' }, ['a', 'b'])).toBeNull()
     expect(coverIndexOf({ mode: 'frame', time: 2 }, ['a', 'b'])).toBeNull()
     expect(coverIndexOf({ mode: 'auto' }, ['a'])).toBeNull()
+  })
+})
+
+describe('a post found on a channel that is turned off', () => {
+  const off = new Set(['viral'])
+  it('is not listed when every account it is on is turned off', () => {
+    const found = (...accounts: string[]) => ({
+      origin: 'platform',
+      targets: accounts.map((accountId) => ({ accountId })),
+    })
+    expect(PostsService.hiddenBy(off, found('viral'))).toBe(true)
+    expect(PostsService.hiddenBy(off, found('viral', 'acme'))).toBe(false)
+    expect(PostsService.hiddenBy(off, found('acme'))).toBe(false)
+    expect(PostsService.hiddenBy(off, found())).toBe(false)
+  })
+  it('is still listed when it was made in Greenlit', () => {
+    expect(PostsService.hiddenBy(off, { origin: 'greenlit', targets: [{ accountId: 'viral' }] })).toBe(false)
+  })
+})
+
+describe('the cover a platform shows', () => {
+  it('is linked only once Greenlit keeps a copy', () => {
+    expect(PostsService.coverUrlOf({ id: 't', postId: 'p', remoteCover: 'abc123' })).toBe(
+      '/api/posts/p/targets/t/cover?v=abc123',
+    )
+    expect(PostsService.coverUrlOf({ id: 't', postId: 'p', remoteCover: '' })).toBeNull()
+    expect(PostsService.coverUrlOf({ id: 't', postId: 'p', remoteCover: null })).toBeNull()
+  })
+})
+
+describe('the library item a platform thumbnail shows', () => {
+  // A frame with some structure: a diagonal light-to-dark gradient with a bright block.
+  const frame = async (w: number, h: number) => {
+    const px = Buffer.alloc(w * h * 3)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const v = x > w * 0.6 && y < h * 0.4 ? 240 : Math.round(30 + (180 * (x + y)) / (w + h))
+        px.fill(v, (y * w + x) * 3, (y * w + x) * 3 + 3)
+      }
+    return sharp(px, { raw: { width: w, height: h, channels: 3 } })
+      .png()
+      .toBuffer()
+  }
+
+  it('is found through the black bars a platform puts around a vertical frame', async () => {
+    const poster = await frame(270, 480)
+    const thumb = await sharp(poster)
+      .resize(480, 360, { fit: 'contain', background: '#000' })
+      .jpeg({ quality: 70 })
+      .toBuffer()
+    const a = await dhash(poster)
+    expect(bestMatch(await dhash(thumb), [{ id: 'poster', hash: a }])).toBe('poster')
+  })
+
+  it('is only one that is clearly the same picture', () => {
+    const t = 0n
+    const bits = (n: number) => (1n << BigInt(n)) - 1n
+    expect(bestMatch(t, [{ id: 'same', hash: bits(2) }])).toBe('same')
+    // 11 bits apart: the cat short and the room photo
+    expect(bestMatch(t, [{ id: 'room', hash: bits(11) }])).toBeNull()
+    expect(bestMatch(t, [{ id: 'near', hash: bits(7) }])).toBeNull()
+    // two logo variants as close as each other: no way to tell which
+    expect(
+      bestMatch(t, [
+        { id: 'logo-black', hash: bits(3) },
+        { id: 'logo-white', hash: bits(4) },
+      ]),
+    ).toBeNull()
+    // the same item's other formats do not count as rivals
+    expect(
+      bestMatch(t, [
+        { id: 'film', hash: bits(1) },
+        { id: 'film', hash: bits(2) },
+        { id: 'other', hash: bits(9) },
+      ]),
+    ).toBe('film')
+  })
+})
+
+describe('a post’s picture', () => {
+  const media = [{ thumbnailUrl: '/media.webp', formats: [] }] as never
+  const targets = [{ coverUrl: '/cover.webp' }] as never
+  it('is what the platform shows for a post found there, the library item for one made here', () => {
+    expect(postThumbnail({ origin: 'platform', media, targets })).toBe('/cover.webp')
+    expect(postThumbnail({ origin: 'greenlit', media, targets })).toBe('/media.webp')
+    expect(postThumbnail({ origin: 'greenlit', media: [], targets })).toBe('/cover.webp')
+    expect(postThumbnail({ origin: 'platform', media: [], targets: [] })).toBeNull()
+  })
+})
+
+describe('where a cover is read', () => {
+  it('is YouTube’s larger picture of a video first, then what the listing gave', () => {
+    expect(coverSources('youtube', 'jLmdBq7uZMA', 'https://i9.ytimg.com/vi/jLmdBq7uZMA/default.jpg')).toEqual(
+      ['https://i.ytimg.com/vi/jLmdBq7uZMA/hqdefault.jpg', 'https://i9.ytimg.com/vi/jLmdBq7uZMA/default.jpg'],
+    )
+    expect(coverSources('youtube', 'jLmdBq7uZMA', null)).toEqual([
+      'https://i.ytimg.com/vi/jLmdBq7uZMA/hqdefault.jpg',
+    ])
+    expect(coverSources('instagram', '4036624653855278652_31505689963', 'https://cdn/x.jpg')).toEqual([
+      'https://cdn/x.jpg',
+    ])
+    expect(coverSources('instagram', '1', null)).toEqual([])
   })
 })

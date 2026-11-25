@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [params] = useSearchParams()
   const { data: config } = useConfig()
   const { data: me } = useMe()
-  const [email, setEmail] = useState('')
+  const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -32,7 +32,7 @@ export default function LoginPage() {
     setBusy(true)
     setError(null)
     try {
-      const user = await api.post<Me>('/auth/login', { email: email.trim(), password, remember })
+      const user = await api.post<Me>('/auth/login', { login: login.trim(), password, remember })
       // The lamp lights, then the door opens.
       setLit(true)
       setTimeout(() => {
@@ -52,16 +52,19 @@ export default function LoginPage() {
       </h1>
       {config?.branding.tagline && <p className="mt-2 t-body text-ink-3">{config.branding.tagline}</p>}
       <form onSubmit={submit} className="mt-8 flex flex-col gap-4">
-        <Field label={t('email')}>
+        <Field label={t('login')}>
           {(id) => (
             <Input
               id={id}
               size="lg"
-              type="email"
+              type="text"
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
               required
             />
           )}

@@ -25,34 +25,34 @@ const row = (over: Record<string, unknown>) =>
   }) as never
 
 describe('merging one account reached through two connectors', () => {
-  // As saved for the GEM accounts: facebook.com and Business Suite reach the same Page and Instagram account.
+  // As saved for the example accounts: facebook.com and Business Suite reach the same Page and Instagram account.
   const bsPage = row({
     driver: 'meta-business-suite',
     externalId: '108477347434387',
     platformIds: { pageId: '108477347434387' },
   })
   const fbPage = row({
-    externalId: '100063648724866',
-    platformIds: { kind: 'page', actorId: '100063648724866', pageId: '108477347434387' },
+    externalId: '100000000000001',
+    platformIds: { kind: 'page', actorId: '100000000000001', pageId: '108477347434387' },
   })
   const fbProfile = row({ externalId: '61596705001051', platformIds: { kind: 'profile' } })
   const bsIg = row({
     platform: 'instagram',
     driver: 'meta-business-suite',
     externalId: '17841431498898211',
-    handle: '@studio_associato_gem',
+    handle: '@acme_studio',
     platformIds: {
       igUserId: '17841431498898211',
       pageId: '108477347434387',
-      username: 'studio_associato_gem',
+      username: 'acme_studio',
     },
   })
   const ig = row({
     platform: 'instagram',
     driver: 'instagram',
-    externalId: '31505689963',
-    handle: '@studio_associato_gem',
-    platformIds: { userId: '31505689963', igUserId: '17841431498898211' },
+    externalId: '31000000001',
+    handle: '@acme_studio',
+    platformIds: { userId: '31000000001', igUserId: '17841431498898211' },
   })
 
   it('merges each into the platform’s own connector, and leaves the rest alone', () => {
@@ -149,12 +149,30 @@ describe('keeping a post’s time', () => {
 
   it('leaves to Greenlit a time too soon or too far for the platform', () => {
     expect(keeps(fbPage, 'feed', 5)).toBe(false)
-    expect(keeps(fbPage, 'feed', 30 * 24 * 60)).toBe(true)
+    expect(keeps(fbPage, 'feed', 10)).toBe(true)
+    expect(keeps(fbPage, 'feed', 28 * 24 * 60)).toBe(true)
+    expect(keeps(fbPage, 'feed', 28 * 24 * 60 + 1)).toBe(false)
+    expect(keeps(fbPage, 'feed', 30 * 24 * 60)).toBe(false)
     const tiktok = tiktokApi.capabilities('tiktok')
     expect(keeps(tiktok, 'video', 10)).toBe(false)
     expect(keeps(tiktok, 'video', 60)).toBe(true)
     expect(keeps(tiktok, 'video', 10 * 24 * 60 - 1)).toBe(true)
     expect(keeps(tiktok, 'video', 11 * 24 * 60)).toBe(false)
+  })
+
+  it('holds the Page posts Facebook refused on 25 Nov 2026, and schedules the ones it took', () => {
+    const sent = new Date('2026-11-25T10:00:00+01:00').getTime()
+    const at = (iso: string) => platformKeepsSchedule(fbPage, 'feed', new Date(iso), sent)
+    // Facebook took 23 Dec 13:00 (28 days 3 hours ahead) and refused 30 Dec 13:00 (35 days) with
+    // field_exception. Greenlit's line sits at 28 days, a little inside what Facebook took.
+    expect(at('2026-12-23T09:59:00+01:00')).toBe(true)
+    expect(at('2026-12-23T13:00:00+01:00')).toBe(false)
+    expect(at('2026-12-30T13:00:00+01:00')).toBe(false)
+    expect(at('2027-01-27T13:00:00+01:00')).toBe(false)
+    // Twenty days before its slot the same post is Facebook's to keep again.
+    expect(
+      platformKeepsSchedule(fbPage, 'feed', new Date('2026-12-30T13:00:00+01:00'), sent + 15 * 86_400_000),
+    ).toBe(true)
   })
 
   it('shows on a merged account what the connector that publishes keeps', () => {
@@ -167,7 +185,7 @@ describe('keeping a post’s time', () => {
     const c = mergeCapabilities([fb, bs])!
     expect(c.nativeSchedule).toBe(true)
     expect(c.scheduleOn).toEqual(['feed'])
-    expect(c.scheduleWindow).toEqual({ minMinutes: 10 })
+    expect(c.scheduleWindow).toEqual({ minMinutes: 10, maxDays: 28 })
     expect(keeps(c, 'reel', 60)).toBe(false)
     // Instagram's own requests publish everything and schedule nothing.
     const ig = row({ platform: 'instagram', capabilities: instagramApi.capabilities('instagram') })

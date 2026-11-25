@@ -6,7 +6,7 @@ import { Spinner } from './Feedback'
 import { Tooltip } from './Tooltip'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'quiet' | 'review' | 'danger' | 'danger-ghost'
-export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg'
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 
 const variants: Record<ButtonVariant, string> = {
   // The one commit action of a view: lit like the lamp.
@@ -27,8 +27,10 @@ const sizes: Record<ButtonSize, string> = {
   sm: 'h-7 px-2.5 gap-1.5 t-callout rounded-control',
   md: 'h-8 px-3 gap-1.5 t-callout font-[550] rounded-control',
   lg: 'h-10 px-4 gap-2 text-[14px] font-[550] tracking-[-0.01em] rounded-[calc(var(--r-control)*1.15)]',
+  // The one decision a non-technical person has to find at a glance (Accept in the review panel).
+  xl: 'h-14 px-6 gap-2.5 text-[17px] font-[600] tracking-[-0.015em] rounded-[calc(var(--r-control)*1.5)]',
 }
-const iconSize: Record<ButtonSize, number> = { xs: 13, sm: 14, md: 15, lg: 16 }
+const iconSize: Record<ButtonSize, number> = { xs: 13, sm: 14, md: 15, lg: 16, xl: 20 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
@@ -105,7 +107,13 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   badge?: ReactNode
 }
 
-const iconBtnSize: Record<ButtonSize, string> = { xs: 'size-6', sm: 'size-7', md: 'size-8', lg: 'size-10' }
+const iconBtnSize: Record<ButtonSize, string> = {
+  xs: 'size-6',
+  sm: 'size-7',
+  md: 'size-8',
+  lg: 'size-10',
+  xl: 'size-14',
+}
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
   {

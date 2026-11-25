@@ -84,14 +84,14 @@ export default defineModule({
     route(api, {
       method: 'post',
       path: '/auth/login',
-      summary: 'Sign in with email and password',
+      summary: 'Sign in with a username or email and a password',
       tags,
       access: 'public',
       body: LoginInput,
       response: Me,
       handler: async ({ c, body }) => {
-        throttle(`${clientIp(c)}:${body.email.toLowerCase()}`)
-        const row = await svc.login(body.email, body.password)
+        throttle(`${clientIp(c)}:${body.login.trim().toLowerCase()}`)
+        const row = await svc.login(body.login, body.password)
         const days = body.remember ? 60 : 1
         const token = await svc.createSession(row.id, {
           days,

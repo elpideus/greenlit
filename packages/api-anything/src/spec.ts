@@ -338,6 +338,13 @@ export const OperationSchema = z.object({
    * (Fetch Metadata) the app's own request is not under. Cookie refs in slots still read the session.
    */
   cookies: z.literal(false).optional(),
+  /**
+   * greenlit fork: false sends the request without the `sec-fetch-*` headers Node's fetch adds, as an app sends it,
+   * but with the session's cookies. For an endpoint that holds sec-fetch headers to a browser's rules ("SecFetch
+   * Policy violation") yet needs the cookies: Instagram's configure_sidecar ended the session when sent without
+   * them (25 Nov 2026).
+   */
+  secFetch: z.literal(false).optional(),
   /** run by `verify` beside the examples; `publish` refuses while one fails */
   checks: z.array(CheckSchema).optional(),
   /** a read's list pages: a call returns the next page's cursor (nextPage), and verify checks page 2 is not page 1 again */

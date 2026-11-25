@@ -55,6 +55,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg chromium libjxl-tools poppler-utils adb tini ca-certificates \
       fonts-noto-core fonts-noto-color-emoji fonts-liberation2 \
     && rm -rf /var/lib/apt/lists/*
+# The browser itself is never signed in to Google (Chrome's "BrowserSignin" policy, 0 = off). Otherwise a Google
+# sign-in on a web page also signs Chromium in (DICE); without Google API keys that half fails ("OAuth outage in
+# Dice"), and at its next start Chromium signs the broken account out, web sign-in included: YouTube asked to sign
+# in again after every restart (25 Nov 2026). The web sign-in stays an ordinary one, as in any browser.
+RUN mkdir -p /etc/chromium/policies/managed \
+    && printf '{ "BrowserSignin": 0 }\n' > /etc/chromium/policies/managed/greenlit.json
 COPY --from=figcraft /opt/figcraft /opt/figcraft
 ENV GREENLIT_FIGCRAFT_WEB_DIR=/opt/figcraft/web \
     GREENLIT_FIGCRAFT_CLI=/opt/figcraft/bin/figcraft-cli

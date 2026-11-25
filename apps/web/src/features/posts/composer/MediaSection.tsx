@@ -2,9 +2,10 @@ import { Image as ImageIcon, Plus, X } from 'lucide-react'
 import { Reorder } from 'motion/react'
 import { useState } from 'react'
 import { MediaPicker } from '@/components/MediaPicker'
+import { expandSlides } from '@/data/media'
 import { formatDuration } from '@/lib/format'
 import { useT } from '@/lib/i18n'
-import { Tooltip } from '@/ui'
+import { Tooltip, toast } from '@/ui'
 import { Panel } from './bits'
 import { useComposer } from './state'
 
@@ -101,8 +102,9 @@ export function MediaSection() {
         open={picking}
         onOpenChange={setPicking}
         projectId={c.draft.projectId ?? undefined}
-        kinds={['video', 'image']}
-        onPick={(items) => c.addMedia(items)}
+        kinds={['video', 'image', 'slides']}
+        // A Slides item adds its pages, in order.
+        onPick={(items) => void expandSlides(items).then(c.addMedia, toast.error)}
       />
     </Panel>
   )

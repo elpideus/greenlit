@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Id, IsoDate, MediaKind, UserRef } from '../common.ts'
 import { DepthInfo, DepthJob, DepthNear } from './depth.ts'
 import { PlaceRef } from './places.ts'
+import { WebLink, WebLinks } from './web-links.ts'
 
 export const MediaStatus = z.enum(['draft', 'in_review', 'changes_requested', 'approved'])
 export type MediaStatus = z.infer<typeof MediaStatus>
@@ -92,6 +93,21 @@ export type MediaVersion = z.infer<typeof MediaVersion>
 
 export const MediaOrigin = z.enum(['upload', 'render', 'import', 'platform', 'link'])
 
+/** One page of a Slides item: a picture or video that is a media item of its own. */
+export const SlideRef = z.object({
+  mediaId: Id,
+  title: z.string(),
+  kind: MediaKind,
+  status: MediaStatus,
+  thumbnailUrl: z.string().nullable(),
+  /** Its main format's size. */
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  duration: z.number().nullable(),
+  openCommentCount: z.number().int(),
+})
+export type SlideRef = z.infer<typeof SlideRef>
+
 export const Media = z.object({
   id: Id,
   projectId: Id.nullable(),
@@ -101,6 +117,8 @@ export const Media = z.object({
   status: MediaStatus,
   origin: MediaOrigin,
   tags: z.array(z.string()),
+  /** Web addresses kept with the item (where it is published, the page it belongs to...), in order. */
+  webLinks: z.array(WebLink),
   /** The main version's formats. */
   formats: z.array(MediaFormat),
   /** Every version, the main one first; empty while the item has only one. */
@@ -128,6 +146,13 @@ export const Media = z.object({
   deletedAt: IsoDate.nullable(),
   /** Admin only. */
   hiddenFrom: z.array(Id).optional(),
+  /**
+   * Slides items (kind `slides`): their pages in order. The item has no files of its own; its thumbnail is the first
+   * page's and its note counts add up its pages'.
+   */
+  slides: z.array(SlideRef).optional(),
+  /** Pictures and videos that are pages of Slides items: those items (the library lists them in their place). */
+  inSlides: z.array(z.object({ id: Id, title: z.string() })).optional(),
 })
 export type Media = z.infer<typeof Media>
 
@@ -143,6 +168,11 @@ export const MediaListQuery = z.object({
   status: MediaStatus.optional(),
   tag: z.string().optional(),
   trash: z.coerce.boolean().optional(),
+  /**
+   * Also list the pictures and videos that are pages of Slides items. Without it a listing shows the Slides item in
+   * their place (a search finds it by its pages' words and tags too).
+   */
+  withSlides: z.coerce.boolean().optional(),
   sort: z.enum(['recent', 'oldest', 'title', 'size', 'taken']).default('recent'),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(60),
@@ -153,6 +183,8 @@ export const UpdateMediaInput = z.object({
   title: z.string().max(300).optional(),
   description: z.string().max(50_000).optional(),
   tags: z.array(z.string().min(1).max(60)).max(200).optional(),
+  /** Replaces the whole list. */
+  webLinks: WebLinks.optional(),
   status: MediaStatus.optional(),
   projectId: Id.nullable().optional(),
   takenAt: IsoDate.nullable().optional(),
@@ -195,6 +227,77 @@ export const NewVersionInput = z.object({
   currentLabel: z.string().trim().max(60).optional(),
 })
 export type NewVersionInput = z.infer<typeof NewVersionInput>
+
+/** Most pages a Slides item holds (TikTok's photo posts take 35; Instagram and Facebook carousels 10–20). */
+export const SLIDES_MAX = 35
+/** Kinds a Slides item's pages can be. */
+export const SLIDE_KINDS: readonly MediaKind[] = ['image', 'video']
+
+export const CreateSlidesInput = z.object({
+  /** Its pages in order: pictures and videos of the library. */
+  mediaIds: z.array(Id).min(1).max(SLIDES_MAX),
+  /** Default: what the pages' titles have in common ("Trullo Today Post - 1", "- 2"… → "Trullo Today Post"). */
+  title: z.string().trim().max(300).optional(),
+  /** Default: the first page's project. Pages from elsewhere move into it. */
+  projectId: Id.nullable().optional(),
+})
+export type CreateSlidesInput = z.infer<typeof CreateSlidesInput>
+
+/** A Slides item's pages, in their new order: missing ones leave it (back to the library), new ones join it. */
+export const SetSlidesInput = z.object({ mediaIds: z.array(Id).max(SLIDES_MAX) })
+export type SetSlidesInput = z.infer<typeof SetSlidesInput>
+
+/**
+ * A name for pages grouped as Slides: what their titles start with, without the page numbers and separators
+ * ("Olive Grove Post - 1", "Olive Grove Post - 2" → "Olive Grove Post"). A last or first page named otherwise (a
+ * closing "Key Facts" page) doesn't count. '' when they have nothing in common.
+ */
+export function slidesTitle(titles: string[]): string {
+  const prefix = (list: string[]) => {
+    if (!list.length) return ''
+    let p = list[0]!
+    for (const t of list.slice(1)) while (p && !t.startsWith(p)) p = p.slice(0, -1)
+    return p
+  }
+  const clean = (p: string) =>
+    p
+      .replace(/[\s\-–—·:_#.,(|/]+$/u, '')
+      .replace(/(?:\s+(?:\d+|p(?:age)?|pag(?:ina)?|slide))+$/iu, '')
+      .replace(/[\s\-–—·:_#.,(|/]+$/u, '')
+      .trim()
+  const named = titles.map((t) => t.trim()).filter(Boolean)
+  if (named.length === 1) return named[0]!
+  const tries = [named, named.slice(0, -1), named.slice(1)].filter((l) => l.length >= 2 || named.length < 3)
+  for (const list of tries) {
+    const p = clean(prefix(list))
+    if (p.length >= 3) return p
+  }
+  return ''
+}
+
+/**
+ * The order pages grouped as Slides take: the ones sharing a name first, by their numbers when they are numbered
+ * ("… - 2" before "… - 10"), otherwise in the order they were added ("Cover", "Pool", "Porch"…); then the ones named
+ * otherwise (a closing "Key Facts" page) in the order they were added.
+ */
+export function slidesOrder<T extends { title: string; createdAt: string }>(items: T[]): T[] {
+  const added = [...items].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const name = slidesTitle(items.map((m) => m.title))
+  if (!name || items.length < 2) return added
+  const named = added.filter((m) => m.title.trim().startsWith(name))
+  const others = added.filter((m) => !m.title.trim().startsWith(name))
+  const numberOf = (m: T) => {
+    const rest = m.title
+      .trim()
+      .slice(name.length)
+      .replace(/^[\s\-–—·:_#.,(|/]+/u, '')
+    const n = /^(?:(?:p(?:age)?|pag(?:ina)?|slide)\s*)?(\d+)/iu.exec(rest)
+    return n ? Number(n[1]) : null
+  }
+  const numbered = named.every((m) => numberOf(m) !== null)
+  if (numbered) named.sort((a, b) => numberOf(a)! - numberOf(b)!)
+  return [...named, ...others]
+}
 
 /** The formats of one version of an item ('' or an unknown key = the main version). */
 export function versionFormats(m: Pick<Media, 'formats' | 'versions'>, version: string | null | undefined) {

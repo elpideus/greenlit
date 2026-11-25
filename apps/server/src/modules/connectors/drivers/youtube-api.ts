@@ -16,7 +16,7 @@ import {
   type PublishRequest,
   type RemotePost,
 } from './types.ts'
-import { cookie } from './util.ts'
+import { cookie, sleep } from './util.ts'
 import { youtube as studio } from './youtube.ts'
 
 /**
@@ -167,6 +167,65 @@ export async function inStudioAs<T>(
   })
 }
 
+/**
+ * Reads the upload back from YouTube (Studio's own list, drafts included): a video Studio left a draft never goes
+ * out, and Greenlit must not call it scheduled or published (25 Nov 2026: nine Shorts stayed private drafts while
+ * Greenlit showed them scheduled). Fails without a retry, which would upload a second copy.
+ */
+async function confirmUpload(
+  run: DriverRun,
+  account: DriverAccount,
+  videoId: string,
+  scheduleAt: Date | null,
+) {
+  const { pageId, channelId } = ids(account)
+  const final = (message: string) => Object.assign(new Error(message), { retriable: false })
+  let v: Video | undefined
+  for (let i = 0; i < 6; i++) {
+    const videos = await api(run)
+      .call<Video[]>('videos', { pageId, channelId }, { maxTier: 1 })
+      .catch(() => null)
+    v = videos?.find((x) => x.videoId === videoId)
+    const draft = !!v?.draft && v.draft !== 'DRAFT_STATUS_NONE'
+    if (v && !draft && (!scheduleAt || Number(v.scheduledAt ?? 0) > 0)) break
+    await sleep(5000)
+  }
+  if (!v) return run.warn(`YouTube's list does not show ${videoId} yet: check it in YouTube Studio`)
+  if (v.draft && v.draft !== 'DRAFT_STATUS_NONE')
+    throw final(
+      `YouTube kept ${videoId} as a private draft: open it in YouTube Studio and finish it, or remove it`,
+    )
+  if (!scheduleAt)
+    return run.step(`YouTube shows ${videoId} as ${String(v.privacy ?? 'published').toLowerCase()}`)
+  const at = Number(v.scheduledAt ?? 0) * 1000
+  if (!at) throw final(`YouTube shows ${videoId} without its schedule: set it in YouTube Studio`)
+  if (Math.abs(at - scheduleAt.getTime()) > 5 * 60_000)
+    throw final(
+      `YouTube scheduled ${videoId} for ${new Date(at).toISOString()}, not ${scheduleAt.toISOString()}`,
+    )
+  run.step(`YouTube shows ${videoId} scheduled for ${new Date(at).toISOString()}`)
+}
+
+/** Opens YouTube Studio as the channel in the browser profile; NeedsLogin when Google asks to sign in again. */
+async function studioSignedIn(run: DriverRun, account: DriverAccount) {
+  const { pageId } = ids(account)
+  await api(run).browser(async (r) => {
+    const tab = await r.page()
+    const next = encodeURIComponent('https://studio.youtube.com/')
+    await tab.goto(
+      `https://www.youtube.com/signin?action_handle_signin=true&authuser=0&pageid=${pageId}&next=${next}`,
+      { waitUntil: 'domcontentloaded', timeout: 60_000 },
+    )
+    for (let i = 0; i < 20; i++) {
+      const host = new URL(tab.url()).hostname
+      if (host === 'accounts.google.com')
+        throw new NeedsLogin('Google asks to sign in again. Reconnect YouTube.')
+      if (host === 'studio.youtube.com' && i >= 3) return
+      await sleep(1000)
+    }
+  })
+}
+
 export const youtubeApi: Driver = {
   id: 'youtube',
   kind: 'api',
@@ -224,6 +283,9 @@ export const youtubeApi: Driver = {
   async check(run, account) {
     try {
       const { pageId } = ids(account)
+      // Publishing happens in YouTube Studio in the browser profile, which holds the sign-in: Studio is opened, as a
+      // person would. Plain requests can still answer when Studio already asks to sign in again (25 Nov 2026).
+      await studioSignedIn(run, account)
       const channels = await api(run).call<Channel[]>('channels', {}, { maxTier: 1 })
       if (!(channels ?? []).some((c) => c.pageId === pageId))
         return { ok: false, reason: 'This Google sign-in no longer manages this channel.' }
@@ -273,6 +335,7 @@ export const youtubeApi: Driver = {
   async publish(run, account, req) {
     if (req.music && req.placement === 'short') return shortWithSound(run, account, req)
     const out = await inStudioAs(run, account, (page) => studio.publish(page, account, req))
+    if (!req.dryRun) await confirmUpload(run, account, out.remoteId, req.scheduleAt)
     // A sound left on a post that became a video: YouTube takes sounds on Shorts only.
     if (!req.music) return out
     return {

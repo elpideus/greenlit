@@ -96,6 +96,11 @@ export const postTargets = pgTable(
     stats: jsonb('stats'),
     /** What the platform last told us (to tell remote edits from ours). */
     remoteSnapshot: jsonb('remote_snapshot'),
+    /**
+     * Short hash of Greenlit's copy of the cover the platform shows (DATA_DIR/posts/covers/<id>.webp); '' when the
+     * platform gave none or it could not be read; null when not looked for yet.
+     */
+    remoteCover: text('remote_cover'),
     /** Optimised files made for this target, and the inputs they were made from. */
     preparedBlobIds: uuid('prepared_blob_ids').array().notNull().default(sql`'{}'::uuid[]`),
     preparedKey: text('prepared_key'),

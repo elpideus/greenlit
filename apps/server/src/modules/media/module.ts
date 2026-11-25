@@ -2,6 +2,8 @@ import { existsSync, readdirSync } from 'node:fs'
 import { copyFile, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, resolve } from 'node:path'
 import {
+  CreateSlidesInput,
+  cleanWebLinks,
   DepthMatch,
   DepthMatchInput,
   depthMapFor,
@@ -13,12 +15,16 @@ import {
   NewVersionInput,
   Paginated,
   RenameVersionPartInput,
+  SetSlidesInput,
+  SLIDES_MAX,
   type StoredVersion,
   UpdateFormatInput,
   UpdateMediaInput,
   UpdateVersionInput,
   type VersionGroupDef,
   versionFormats,
+  type WebLink,
+  WebLinks,
 } from '@greenlit/shared'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import sharp from 'sharp'
@@ -33,8 +39,9 @@ import { ffmpeg } from '../../lib/ffmpeg.ts'
 import { blobs } from '../files/schema.ts'
 import { projects } from '../projects/schema.ts'
 import { processFormat } from './processing.ts'
-import { media, mediaFiles, mediaFormats } from './schema.ts'
+import { media, mediaFiles, mediaFormats, mediaSlides } from './schema.ts'
 import { cleanTags, fold, MediaService } from './service.ts'
+import { notASlide } from './slides.ts'
 
 declare module '../../core/services.ts' {
   interface Services {
@@ -71,6 +78,8 @@ const UploadTarget = z.object({
   depth: z.boolean().optional(),
   /** New items: the file's path inside a folder dropped as a whole ("01 Logos/white.svg"). */
   path: z.string().max(1000).optional(),
+  /** New items: add it as the last page of this Slides item (it goes into its project). */
+  slidesId: z.uuid().optional(),
 })
 
 const BulkInput = z.object({
@@ -128,11 +137,13 @@ export default defineModule({
         title: 'title',
         description: 'notes',
         tags: 'tags',
+        webLinks: 'links',
         status: 'status',
         projectId: 'project',
         takenAt: 'date',
         hiddenFrom: 'visibility',
         formats: 'formats',
+        slides: 'slides',
         versions: 'versions',
         versionGroups: 'versions',
         deletedAt: 'trash',
@@ -149,11 +160,15 @@ export default defineModule({
           versionGroups: m.versionGroups,
           description: m.description,
           tags: m.tags,
+          // Only when there are some, so revisions from before links existed don't read as a change.
+          ...(m.webLinks.length ? { webLinks: m.webLinks } : {}),
           status: m.status,
           projectId: m.projectId,
           takenAt: m.takenAt?.toISOString() ?? null,
           hiddenFrom: m.hiddenFrom,
           deletedAt: m.deletedAt?.toISOString() ?? null,
+          // Slides items: their pages in order.
+          ...(m.kind === 'slides' ? { slides: await svc.pageIds(id) } : {}),
           formats: fs.map((f) => ({
             id: f.id,
             key: f.key,
@@ -180,6 +195,7 @@ export default defineModule({
             title: d.title as string,
             description: d.description as string,
             tags,
+            webLinks: cleanWebLinks((d.webLinks as WebLink[]) ?? []),
             status: d.status as string,
             projectId: (d.projectId as string) ?? null,
             takenAt: d.takenAt ? new Date(d.takenAt as string) : null,
@@ -191,6 +207,23 @@ export default defineModule({
             updatedAt: new Date(),
           })
           .where(eq(media.id, id))
+        // A Slides item's pages as they were (those that still exist).
+        if (Array.isArray(d.slides)) {
+          const wanted = d.slides as string[]
+          const alive = wanted.length
+            ? new Set(
+                (await ctx.db.select({ id: media.id }).from(media).where(inArray(media.id, wanted))).map(
+                  (r) => r.id,
+                ),
+              )
+            : new Set<string>()
+          const order = wanted.filter((p) => alive.has(p))
+          await ctx.db.delete(mediaSlides).where(eq(mediaSlides.slidesId, id))
+          if (order.length)
+            await ctx.db
+              .insert(mediaSlides)
+              .values(order.map((mediaId, position) => ({ slidesId: id, mediaId, position })))
+        }
         type Snap = {
           id: string
           key: string
@@ -289,7 +322,8 @@ export default defineModule({
       const rows = await ctx.db
         .select({
           projectId: media.projectId,
-          count: sql<number>`count(distinct ${media.id})::int`,
+          // Slides items count once, not their pages.
+          count: sql<number>`(count(distinct ${media.id}) filter (where ${notASlide}))::int`,
           size: sql<number>`coalesce(sum(${mediaFormats.size}),0)::float8`,
         })
         .from(media)
@@ -337,10 +371,12 @@ export default defineModule({
           const { version } = await svc.formatRow(formatId)
           return { mediaId: target.mediaId, formatId, version }
         }
+        const slides = target.slidesId ? await svc.get(target.slidesId, actor) : null
+        if (slides && slides.kind !== 'slides') throw badRequest('slidesId is not a Slides item')
         const mediaId = await svc.createFromBlob(
           blob,
           {
-            projectId: target.projectId ?? null,
+            projectId: slides ? slides.projectId : (target.projectId ?? null),
             title: target.title,
             formatKey: target.formatKey,
             tags: target.tags,
@@ -348,6 +384,8 @@ export default defineModule({
           },
           actor,
         )
+        // Several files dropped at once land in the order they finish; the viewer orders them as they were dropped.
+        if (slides) await svc.addPages(slides.id, [mediaId], actor)
         return { mediaId }
       },
     })
@@ -394,6 +432,51 @@ export default defineModule({
         if (status !== undefined) assertCan(actor, 'media.status')
         return svc.update(params.id, body, actor)
       },
+    })
+    route(ctx.api, {
+      method: 'post',
+      path: '/media/slides',
+      summary: "Group pictures and videos as one Slides item (a carousel's pages)",
+      description:
+        'The library then lists the Slides item in place of its pages; each page stays a media item of its own. ' +
+        "Title: what the pages' titles share unless given. Project: the first page's unless given (pages move into it).",
+      tags,
+      access: 'media.edit',
+      body: CreateSlidesInput,
+      response: Media,
+      handler: ({ actor, body }) => svc.createSlides(body, actor),
+    })
+    route(ctx.api, {
+      method: 'get',
+      path: '/media/{id}/slides',
+      summary: "A Slides item's pages in order, each with all its formats and versions",
+      tags,
+      access: 'media.read',
+      params: IdParams,
+      response: z.array(Media),
+      handler: ({ actor, params }) => svc.pages(params.id, actor),
+    })
+    route(ctx.api, {
+      method: 'put',
+      path: '/media/{id}/slides',
+      summary: "Set a Slides item's pages and their order",
+      description: `Missing pages leave it (back to the library), new ones join it. At most ${SLIDES_MAX}.`,
+      tags,
+      access: 'media.edit',
+      params: IdParams,
+      body: SetSlidesInput,
+      response: Media,
+      handler: ({ actor, params, body }) => svc.setSlides(params.id, body.mediaIds, actor),
+    })
+    route(ctx.api, {
+      method: 'delete',
+      path: '/media/{id}/slides',
+      summary: 'Ungroup a Slides item: its pages go back to the library and the Slides item is deleted',
+      tags,
+      access: 'media.edit',
+      params: IdParams,
+      response: z.object({ mediaIds: z.array(z.string()) }),
+      handler: async ({ actor, params }) => ({ mediaIds: await svc.ungroupSlides(params.id, actor) }),
     })
     route(ctx.api, {
       method: 'post',
@@ -682,6 +765,11 @@ export default defineModule({
       status: m.status,
       projectId: m.projectId,
       tags: m.tags,
+      ...(m.webLinks.length ? { webLinks: m.webLinks } : {}),
+      ...(m.slides
+        ? { slides: m.slides.map((p) => ({ id: p.mediaId, title: p.title, kind: p.kind, status: p.status })) }
+        : {}),
+      ...(m.inSlides ? { inSlides: m.inSlides } : {}),
       formats: m.formats.map((f) => ({
         id: f.id,
         key: f.key,
@@ -717,16 +805,20 @@ export default defineModule({
       createdAt: m.createdAt,
     })
     ctx.mcp.instruct(
-      'Greenlit is a media library, review and publishing platform with a video editor. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions that combine (the same video with Italian or English text, with or without the watermark: each version is one combination and has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video, and depth maps (one per format, made elsewhere: media_view with depth:true shows one, media_import with depth:true adds one). Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.',
+      "Greenlit is a media library, review and publishing platform with a video editor. A carousel's pages (several pictures or videos of one post) are grouped as one Slides item (kind slides, slides_create): the library lists it in their place, each page stays a media item of its own with its formats and versions, and a post given a Slides item gets its pages. Media items have formats (main 16:9, vertical 9:16, square...) of the same content, can have versions that combine (the same video with Italian or English text, with or without the watermark: each version is one combination and has its own formats) and extra audio tracks (a voice-over in another language...) that a post can use in place of the sound of the video, and depth maps (one per format, made elsewhere: media_view with depth:true shows one, media_import with depth:true adds one). Use media_search to find things, media_view to look at a picture or a video frame, and the editor_* tools to make videos and motion graphics that preview live without rendering.",
     )
     ctx.mcp.tool({
       name: 'media_search',
       description:
-        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design, status:draft|in_review|changes_requested|approved, project:"name", place:"name", has:depth / no:depth (with or without a depth map), -exclude.',
+        'Search the library. q understands words, "phrases", #tag, kind:video|image|audio|document|design|slides, status:draft|in_review|changes_requested|approved, project:"name", place:"name", has:depth / no:depth (with or without a depth map), -exclude. Pages of Slides items are left out (their Slides item is found by their words and tags) unless withSlides is true.',
       input: {
         q: z.string().optional(),
         projectId: z.uuid().optional(),
         kind: MediaKind.optional(),
+        withSlides: z
+          .boolean()
+          .optional()
+          .describe('Also list pictures and videos that are pages of Slides items'),
         limit: z.number().int().min(1).max(200).optional(),
         cursor: z.string().optional(),
       },
@@ -740,7 +832,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'media_get',
       description:
-        'Everything about one media item: notes, tags, formats with sizes and URLs, places, counts.',
+        'Everything about one media item: notes, tags, formats with sizes and URLs, places, counts. A Slides item lists its pages (slides, in order: each is a media item of its own); a page lists the Slides items it is in (inSlides).',
       input: { id: z.uuid() },
       access: 'media.read',
       readOnly: true,
@@ -749,9 +841,10 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'media_view',
       description:
-        'Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it. With depth:true, its depth map instead (stretched over the values it uses).',
+        'Look at a media item: returns the picture, or the video frame at `time` seconds (default: the poster), as an image you can see. Use it to check what is in a file before using it. With depth:true, its depth map instead (stretched over the values it uses). A Slides item shows its page `page` (1 = the first).',
       input: {
         id: z.uuid(),
+        page: z.number().int().min(1).optional().describe('Slides items: which page (default 1)'),
         time: z.number().min(0).optional(),
         format: FormatKey.optional(),
         version: z.string().optional().describe('A version key from media_get (default: the main version)'),
@@ -760,8 +853,13 @@ export default defineModule({
       },
       access: 'media.read',
       readOnly: true,
-      handler: async ({ id, time, format, version, depth, width }, { actor }) => {
-        const m = await svc.get(id, actor)
+      handler: async ({ id, page, time, format, version, depth, width }, { actor }) => {
+        let m = await svc.get(id, actor)
+        if (m.kind === 'slides') {
+          const p = m.slides?.[(page ?? 1) - 1]
+          if (!p) throw notFound(`${m.title} has ${m.slides?.length ?? 0} pages`)
+          m = await svc.get(p.mediaId, actor)
+        }
         const fs = versionFormats(m, version === 'main' ? '' : version)
         const picture = fs.find((x) => x.key === format) ?? fs.find((x) => x.isPrimary) ?? fs[0]
         const f = depth && picture ? depthMapFor(m, picture)?.map : picture
@@ -802,12 +900,17 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'media_update',
       description:
-        'Change a media item: title, description (notes), tags (replaces the list), status, projectId. Every change is versioned.',
+        'Change a media item: title, description (notes), tags (replaces the list), webLinks (web addresses kept with ' +
+        'it: where it is published, the page it belongs to...; replaces the list, so send the ones to keep too), ' +
+        'status, projectId. Every change is versioned.',
       input: {
         id: z.uuid(),
         title: z.string().optional(),
         description: z.string().optional(),
         tags: z.array(z.string()).optional(),
+        webLinks: WebLinks.optional().describe(
+          '[{ url, title }] in order; title may be empty (the address is shown)',
+        ),
         status: MediaStatus.optional(),
         projectId: z.uuid().nullable().optional(),
         versionName: z.string().optional(),
@@ -822,6 +925,50 @@ export default defineModule({
       input: ImportInput.shape,
       access: 'media.import',
       handler: async (input, { actor }) => importFile(input, actor),
+    })
+    ctx.mcp.tool({
+      name: 'slides_create',
+      description:
+        "Group pictures and videos as one Slides item: a carousel's pages (a post's photos), which the library then lists as one item in their place. Each page stays a media item of its own (formats, versions, notes). Title defaults to what the pages' titles share; project to the first page's (pages move into it). A page may be in several Slides items (a closing Key Facts page). Posts given a Slides item get its pages in order.",
+      input: {
+        mediaIds: z.array(z.uuid()).min(1).max(SLIDES_MAX).describe('The pages in order'),
+        title: z.string().optional(),
+        projectId: z.uuid().nullable().optional(),
+      },
+      access: 'media.edit',
+      handler: async (input, { actor }) => compact(await svc.createSlides(input, actor)),
+    })
+    ctx.mcp.tool({
+      name: 'slides_update',
+      description:
+        "Change a Slides item's pages: mediaIds sets them all in order (missing ones go back to the library); or add (appended, or inserted before page `at`, 1 = first) and remove. Rename it with media_update.",
+      input: {
+        id: z.uuid(),
+        mediaIds: z.array(z.uuid()).max(SLIDES_MAX).optional(),
+        add: z.array(z.uuid()).optional(),
+        at: z.number().int().min(1).optional(),
+        remove: z.array(z.uuid()).optional(),
+      },
+      access: 'media.edit',
+      handler: async ({ id, mediaIds, add, at, remove }, { actor }) => {
+        let next = mediaIds ?? (await svc.get(id, actor)).slides?.map((p) => p.mediaId) ?? []
+        if (remove?.length) next = next.filter((p) => !remove.includes(p))
+        if (add?.length) {
+          const fresh = add.filter((p) => !next.includes(p))
+          const i = at ? Math.min(at - 1, next.length) : next.length
+          next = [...next.slice(0, i), ...fresh, ...next.slice(i)]
+        }
+        return compact(await svc.setSlides(id, next, actor))
+      },
+    })
+    ctx.mcp.tool({
+      name: 'slides_ungroup',
+      description:
+        'Take a Slides item apart: its pages go back to the library as separate items and the Slides item is deleted (the pages and their posts are untouched).',
+      input: { id: z.uuid() },
+      access: 'media.edit',
+      destructive: true,
+      handler: async ({ id }, { actor }) => ({ ungrouped: await svc.ungroupSlides(id, actor) }),
     })
     ctx.mcp.tool({
       name: 'media_trash',

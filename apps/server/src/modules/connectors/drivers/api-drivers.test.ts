@@ -62,7 +62,7 @@ function fakeRun(answers: Record<string, (args: Record<string, unknown>) => unkn
 
 describe('YouTube through API Anything', () => {
   const channels = [
-    { name: 'Stefan', hasChannel: false },
+    { name: 'Alex', hasChannel: false },
     {
       name: 'Viral Maniac',
       handle: '@Viral_Maniac',
@@ -70,11 +70,11 @@ describe('YouTube through API Anything', () => {
       pageId: '116684877487889621524',
       photo: 'https://yt3.ggpht.com/a=s40-c-k',
     },
-    { name: 'GEM', handle: '@studioassociatogem', hasChannel: true, pageId: '113651186703712428850' },
+    { name: 'Acme', handle: '@example', hasChannel: true, pageId: '100000000000000000001' },
   ]
   const ids: Record<string, string> = {
     '@Viral_Maniac': 'UC2B3kSwohC18hCpd50H6QcQ',
-    '@studioassociatogem': 'UC8YjX5RrJJY26uBC8slgNtw',
+    '@example': 'UCxxxxxxxxxxxxxxxxxxxxxx',
   }
 
   it('connects every channel of the sign-in, with its pageId and channel id', async () => {
@@ -82,7 +82,7 @@ describe('YouTube through API Anything', () => {
     const found = await youtubeApi.discover(run)
     expect(found.map((f) => [f.name, f.externalId, f.platformIds.pageId])).toEqual([
       ['Viral Maniac', 'UC2B3kSwohC18hCpd50H6QcQ', '116684877487889621524'],
-      ['GEM', 'UC8YjX5RrJJY26uBC8slgNtw', '113651186703712428850'],
+      ['Acme', 'UCxxxxxxxxxxxxxxxxxxxxxx', '100000000000000000001'],
     ])
     expect(found[0]!.avatarUrl).toBe('https://yt3.ggpht.com/a=s240-c-k')
     expect(found[0]!.profileUrl).toBe('https://www.youtube.com/@Viral_Maniac')
@@ -98,10 +98,10 @@ describe('YouTube through API Anything', () => {
     const account: DriverAccount = {
       id: 'a',
       platform: 'youtube',
-      externalId: 'UC8YjX5RrJJY26uBC8slgNtw',
-      name: 'GEM',
-      handle: '@studioassociatogem',
-      platformIds: { channelId: 'UC8YjX5RrJJY26uBC8slgNtw', pageId: '113651186703712428850' },
+      externalId: 'UCxxxxxxxxxxxxxxxxxxxxxx',
+      name: 'Acme',
+      handle: '@example',
+      platformIds: { channelId: 'UCxxxxxxxxxxxxxxxxxxxxxx', pageId: '100000000000000000001' },
     }
     const { run, calls } = fakeRun({
       videos: () => [
@@ -126,7 +126,7 @@ describe('YouTube through API Anything', () => {
     const posts = await youtubeApi.list(run, account, {})
     expect(calls[0]).toEqual({
       op: 'videos',
-      args: { pageId: '113651186703712428850', channelId: 'UC8YjX5RrJJY26uBC8slgNtw' },
+      args: { pageId: '100000000000000000001', channelId: 'UCxxxxxxxxxxxxxxxxxxxxxx' },
     })
     expect(posts.map((p) => [p.remoteId, p.placement, p.state])).toEqual([
       ['aaaaaaaaaaa', 'video', 'published'],
@@ -379,13 +379,13 @@ describe('YouTube Shorts with a sound (the YouTube app’s requests)', () => {
 describe('Facebook through API Anything', () => {
   it('connects the login’s profile and every Page it can act as', async () => {
     const { run } = fakeRun({
-      me: () => ({ id: '61596705001051', name: 'Nu Piezzu', kind: 'User', picture: 'https://x/me.jpg' }),
-      profiles: () => [{ id: '100063648724866', name: 'Studio associato GEM', picture: 'https://x/p.jpg' }],
+      me: () => ({ id: '61000000000001', name: 'Alex Doe', kind: 'User', picture: 'https://x/me.jpg' }),
+      profiles: () => [{ id: '100000000000001', name: 'Acme Studio', picture: 'https://x/p.jpg' }],
     })
     const found = await facebookApi.discover(run)
     expect(found.map((f) => [f.name, f.externalId, f.platformIds.kind, f.platformIds.actorId])).toEqual([
-      ['Nu Piezzu', '61596705001051', 'profile', '61596705001051'],
-      ['Studio associato GEM', '100063648724866', 'page', '100063648724866'],
+      ['Alex Doe', '61000000000001', 'profile', '61000000000001'],
+      ['Acme Studio', '100000000000001', 'page', '100000000000001'],
     ])
   })
 
@@ -412,13 +412,13 @@ describe('Facebook through API Anything', () => {
     const page: DriverAccount = {
       id: 'a',
       platform: 'facebook',
-      externalId: '100063648724866',
-      name: 'GEM',
+      externalId: '100000000000001',
+      name: 'Acme',
       handle: '',
-      platformIds: { kind: 'page', actorId: '100063648724866' },
+      platformIds: { kind: 'page', actorId: '100000000000001' },
     }
     const posts = await facebookApi.list(run, page, {})
-    expect(calls[0]).toEqual({ op: 'posts', args: { profileId: '100063648724866', count: 20 } })
+    expect(calls[0]).toEqual({ op: 'posts', args: { profileId: '100000000000001', count: 20 } })
     expect(posts.map((p) => [p.remoteId, p.placement, p.thumbnailUrl])).toEqual([
       ['1', 'reel', null],
       ['2', 'feed', 'https://img'],
@@ -427,14 +427,14 @@ describe('Facebook through API Anything', () => {
   })
 
   it('a Page the login can no longer act as fails the check', async () => {
-    const { run } = fakeRun({ me: () => ({ id: '61596705001051' }), profiles: () => [] })
+    const { run } = fakeRun({ me: () => ({ id: '61000000000001' }), profiles: () => [] })
     const r = await facebookApi.check(run, {
       id: 'a',
       platform: 'facebook',
-      externalId: '100063648724866',
-      name: 'GEM',
+      externalId: '100000000000001',
+      name: 'Acme',
       handle: '',
-      platformIds: { kind: 'page', actorId: '100063648724866' },
+      platformIds: { kind: 'page', actorId: '100000000000001' },
     })
     expect(r.ok).toBe(false)
   })
@@ -444,10 +444,10 @@ describe('Facebook posting through API Anything (switched off until tested for r
   const page: DriverAccount = {
     id: 'acc',
     platform: 'facebook',
-    externalId: '100063648724866',
-    name: 'GEM',
+    externalId: '100000000000001',
+    name: 'Acme',
     handle: '',
-    platformIds: { kind: 'page', actorId: '100063648724866' },
+    platformIds: { kind: 'page', actorId: '100000000000001' },
   }
   const req = (over: Record<string, unknown> = {}) =>
     ({
@@ -468,16 +468,16 @@ describe('Facebook posting through API Anything (switched off until tested for r
     const { run, calls, callOpts } = fakeRun({
       uploadPhoto: () => ({ photoID: `p${++n}` }),
       createPost: () => ({
-        story: { post_id: '100063648724866_555', url: 'https://www.facebook.com/x/posts/555' },
+        story: { post_id: '100000000000001_555', url: 'https://www.facebook.com/x/posts/555' },
       }),
     })
     const out = await postWithPhotos(run, page, req())
     expect(calls.map((c) => c.op)).toEqual(['uploadPhoto', 'uploadPhoto', 'createPost'])
-    expect(calls[0]!.args).toMatchObject({ actorId: '100063648724866', path: '/data/a.jpg' })
+    expect(calls[0]!.args).toMatchObject({ actorId: '100000000000001', path: '/data/a.jpg' })
     expect(callOpts.every((o) => o?.asActor)).toBe(true)
     const create = calls[2]!.args
     expect(create).toMatchObject({
-      actorId: '100063648724866',
+      actorId: '100000000000001',
       text: 'Trullo in vendita',
       // a Page posts publicly whatever the option says
       audience: 'EVERYONE',
@@ -485,7 +485,7 @@ describe('Facebook posting through API Anything (switched off until tested for r
     })
     expect(create.token).toMatch(/^[0-9a-f-]{36}_FEED$/)
     expect(out).toEqual({
-      remoteId: '100063648724866_555',
+      remoteId: '100000000000001_555',
       url: 'https://www.facebook.com/x/posts/555',
       state: 'published',
     })
@@ -506,29 +506,29 @@ describe('Facebook posting through API Anything (switched off until tested for r
   it('posts as the login profile with the audience asked for, not as an actor session', async () => {
     const profile: DriverAccount = {
       ...page,
-      externalId: '61596705001051',
-      platformIds: { kind: 'profile', actorId: '61596705001051' },
+      externalId: '61000000000001',
+      platformIds: { kind: 'profile', actorId: '61000000000001' },
     }
     const { run, calls } = fakeRun({ createPost: () => ({ story: { post_id: '1_2' } }) })
     await postWithPhotos(run, profile, req({ files: [] }))
-    expect(calls[0]!.args).toMatchObject({ actorId: '61596705001051', audience: 'SELF', attachments: [] })
+    expect(calls[0]!.args).toMatchObject({ actorId: '61000000000001', audience: 'SELF', attachments: [] })
     expect(facebookApi.actorSite?.(profile, 'gl-x')).toBeNull()
     expect(facebookApi.actorSite?.(page, 'gl-x')).toEqual({
-      site: 'gl-x-p100063648724866',
-      cookies: [{ name: 'i_user', value: '100063648724866' }],
+      site: 'gl-x-p100000000000001',
+      cookies: [{ name: 'i_user', value: '100000000000001' }],
     })
   })
 
   it('deletes a post by the story id facebook.com uses, as the Page', async () => {
     // as recorded from facebook.com's own "Delete post" (request aborted)
-    const recorded = 'UzpfSTEwMDA2MzY0ODcyNDg2Njo3NTY4NDU4OTk3ODAzNjE6NzU2ODQ1ODk5NzgwMzYx'
-    expect(storyIdOf('100063648724866', '756845899780361')).toBe(recorded)
-    expect(storyIdOf('100063648724866', '108477347434387_756845899780361')).toBe(recorded)
-    expect(storyIdOf('100063648724866', recorded)).toBe(recorded)
+    const recorded = 'UzpfSTEwMDAwMDAwMDAwMDAwMTo3NTY4NDU4OTk3ODAzNjE6NzU2ODQ1ODk5NzgwMzYx'
+    expect(storyIdOf('100000000000001', '756845899780361')).toBe(recorded)
+    expect(storyIdOf('100000000000001', '108477347434387_756845899780361')).toBe(recorded)
+    expect(storyIdOf('100000000000001', recorded)).toBe(recorded)
     expect(() => storyIdOf('1', 'https://x')).toThrow()
     const { run, calls, callOpts } = fakeRun({ deletePost: () => ({}) })
     await facebookApi.remove(run, page, '756845899780361')
-    expect(calls).toEqual([{ op: 'deletePost', args: { actorId: '100063648724866', storyId: recorded } }])
+    expect(calls).toEqual([{ op: 'deletePost', args: { actorId: '100000000000001', storyId: recorded } }])
     expect(callOpts[0]?.asActor).toBe(true)
   })
 
@@ -554,13 +554,17 @@ describe('Facebook posting through API Anything (switched off until tested for r
     expect(out.state).toBe('scheduled')
   })
 
-  it('refuses videos, profile schedules and schedules under 10 minutes, sending nothing', async () => {
+  it('refuses videos, profile schedules and schedules under 10 minutes or past 28 days, sending nothing', async () => {
     const { run, calls } = fakeRun({})
-    const profile: DriverAccount = { ...page, platformIds: { kind: 'profile', actorId: '61596705001051' } }
+    const profile: DriverAccount = { ...page, platformIds: { kind: 'profile', actorId: '61000000000001' } }
     await expect(
       postWithPhotos(run, page, req({ files: [{ path: '/v.mp4', mime: 'video/mp4', kind: 'video' }] })),
     ).rejects.toThrow(/Videos/)
     await expect(postWithPhotos(run, page, req({ scheduleAt: new Date() }))).rejects.toThrow(/10 minutes/)
+    // 25 Nov → 30 Dec came back "field_exception" from Facebook: Greenlit keeps such a post itself.
+    await expect(
+      postWithPhotos(run, page, req({ scheduleAt: new Date(Date.now() + 35 * 86_400_000) })),
+    ).rejects.toThrow(/at most 28 days/)
     await expect(
       postWithPhotos(run, profile, req({ scheduleAt: new Date(Date.now() + 3600_000) })),
     ).rejects.toThrow(/profile cannot schedule/)
@@ -572,14 +576,14 @@ describe('Facebook Page reels with a sound (Business Suite’s requests)', () =>
   const page: DriverAccount = {
     id: 'p',
     platform: 'facebook',
-    externalId: '100063648724866',
-    name: 'Studio associato GEM',
+    externalId: '100000000000001',
+    name: 'Acme Studio',
     handle: '',
     platformIds: {
       kind: 'page',
-      actorId: '100063648724866',
+      actorId: '100000000000001',
       pageId: '108477347434387',
-      loginId: '61596705001051',
+      loginId: '61000000000001',
     },
   }
   let dir = ''
@@ -801,7 +805,7 @@ describe('Facebook Page reels with a sound (Business Suite’s requests)', () =>
       text: 'Scrivi per info',
       token: 'EAAP'.padEnd(60, 'y'),
     })
-    expect(calls[1]).toMatchObject({ args: { actorId: '100063648724866', query: 'ostuni' }, asActor: true })
+    expect(calls[1]).toMatchObject({ args: { actorId: '100000000000001', query: 'ostuni' }, asActor: true })
     expect(calls[2]!.args).toMatchObject({ placeId: '112431795438176', placeShow: 'SHOW_ATTACHMENT' })
     expect(out.remoteId).toBe('108477347434387_1000000000000006')
     expect(warnings).toEqual([])
@@ -997,7 +1001,7 @@ describe('Facebook Page reels with a sound (Business Suite’s requests)', () =>
       }),
     )
     expect(calls.map((c) => c.op)).toEqual(['uploadPhoto', 'createStory'])
-    expect(calls[0]).toMatchObject({ args: { actorId: '100063648724866' }, asActor: true })
+    expect(calls[0]).toMatchObject({ args: { actorId: '100000000000001' }, asActor: true })
     expect(calls[1]!.args).toEqual({
       pageId: '108477347434387',
       identities: ['108477347434387'],
@@ -1058,7 +1062,7 @@ describe('Instagram through API Anything', () => {
   const withCookie = (answers: Record<string, (args: Record<string, unknown>) => unknown>) => {
     const f = fakeRun(answers)
     ;(f.run.api as unknown as { cookies: () => Promise<unknown[]> }).cookies = async () => [
-      { name: 'ds_user_id', value: '31505689963', domain: '.instagram.com' },
+      { name: 'ds_user_id', value: '31000000001', domain: '.instagram.com' },
     ]
     return f
   }
@@ -1066,21 +1070,21 @@ describe('Instagram through API Anything', () => {
   it('connects the signed-in account, read by its id', async () => {
     const { run, calls } = withCookie({
       profile: () => ({
-        id: '31505689963',
-        username: 'studio_associato_gem',
-        name: 'Studio Associato GEM',
+        id: '31000000001',
+        username: 'acme_studio',
+        name: 'Acme Studio',
         picture: 'https://p',
         fbId: '17841431498898211',
       }),
     })
     const [a] = await instagramApi.discover(run)
-    expect(calls[0]).toEqual({ op: 'profile', args: { userId: '31505689963' } })
+    expect(calls[0]).toEqual({ op: 'profile', args: { userId: '31000000001' } })
     expect(a).toMatchObject({
-      externalId: '31505689963',
-      handle: '@studio_associato_gem',
-      name: 'Studio Associato GEM',
+      externalId: '31000000001',
+      handle: '@acme_studio',
+      name: 'Acme Studio',
       // the id Business Suite knows it by: how the two connectors' accounts are told to be one
-      platformIds: { userId: '31505689963', username: 'studio_associato_gem', igUserId: '17841431498898211' },
+      platformIds: { userId: '31000000001', username: 'acme_studio', igUserId: '17841431498898211' },
     })
   })
 
@@ -1088,7 +1092,7 @@ describe('Instagram through API Anything', () => {
     const { run, calls } = withCookie({
       posts: () => [
         {
-          id: '1_31505689963',
+          id: '1_31000000001',
           code: 'AbC',
           created: 1794063682,
           text: 'Villa',
@@ -1097,7 +1101,7 @@ describe('Instagram through API Anything', () => {
           comments: 0,
         },
         {
-          id: '2_31505689963',
+          id: '2_31000000001',
           code: 'DeF',
           created: 1794000000,
           text: null,
@@ -1111,14 +1115,14 @@ describe('Instagram through API Anything', () => {
       {
         id: 'a',
         platform: 'instagram',
-        externalId: '31505689963',
-        name: 'GEM',
+        externalId: '31000000001',
+        name: 'Acme',
         handle: '',
-        platformIds: { username: 'studio_associato_gem' },
+        platformIds: { username: 'acme_studio' },
       },
       {},
     )
-    expect(calls[0]).toEqual({ op: 'posts', args: { username: 'studio_associato_gem', count: 24 } })
+    expect(calls[0]).toEqual({ op: 'posts', args: { username: 'acme_studio', count: 24 } })
     expect(posts.map((p) => [p.placement, p.url, p.stats])).toEqual([
       ['reel', 'https://www.instagram.com/reel/AbC/', { likes: 3, comments: 0 }],
       ['feed', 'https://www.instagram.com/p/DeF/', null],
@@ -1132,7 +1136,7 @@ describe('Instagram through API Anything', () => {
       },
     })
     const [a] = await instagramApi.discover(run)
-    expect(a).toMatchObject({ externalId: '31505689963', name: 'Instagram account' })
+    expect(a).toMatchObject({ externalId: '31000000001', name: 'Instagram account' })
     expect(warnings).toHaveLength(1)
   })
 })
@@ -1141,10 +1145,10 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
   const account: DriverAccount = {
     id: 'a',
     platform: 'instagram',
-    externalId: '31505689963',
-    name: 'Studio Associato GEM',
-    handle: '@studio_associato_gem',
-    platformIds: { userId: '31505689963', username: 'studio_associato_gem' },
+    externalId: '31000000001',
+    name: 'Acme Studio',
+    handle: '@acme_studio',
+    platformIds: { userId: '31000000001', username: 'acme_studio' },
   }
   const signed = (oe: string) => `https://instagram.fbri1-1.fna.fbcdn.net/o1/v/t2/a.mp4?oe=${oe}&oh=00_x`
   const music = {
@@ -1209,8 +1213,8 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
   }
   const shared = {
     uploadReelVideo: () => ({ media_id: 1878668539804931, status: 'ok' }),
-    configureReelWithSound: () => ({ status: 'ok', pk: '3757', code: 'DRe1', id: '3757_31505689963' }),
-    configureReel: () => ({ status: 'ok', pk: '3758', code: 'DRe2', id: '3758_31505689963' }),
+    configureReelWithSound: () => ({ status: 'ok', pk: '3757', code: 'DRe1', id: '3757_31000000001' }),
+    configureReel: () => ({ status: 'ok', pk: '3758', code: 'DRe2', id: '3758_31000000001' }),
   }
 
   it('reads the app’s sound search as tracks, both ids in the track id; other items are left out', async () => {
@@ -1262,7 +1266,7 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
     const { run, calls } = igRun(shared)
     const out = await instagramApi.publish(run, account, request())
     expect(out).toEqual({
-      remoteId: '3757_31505689963',
+      remoteId: '3757_31000000001',
       url: 'https://www.instagram.com/reel/DRe1/',
       state: 'published',
     })
@@ -1340,7 +1344,7 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
             ? { status: 'fail', message: 'Transcode not finished yet.' }
             : shared.configureReelWithSound(),
       })
-      expect((await instagramApi.publish(run, account, request())).remoteId).toBe('3757_31505689963')
+      expect((await instagramApi.publish(run, account, request())).remoteId).toBe('3757_31000000001')
       expect(
         calls.filter((c) => c.op === 'configureReelWithSound').map((c) => c.key?.split(':').at(-1)),
       ).toEqual(['0', '1', '2'])
@@ -1371,14 +1375,14 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
             ? []
             : [
                 {
-                  id: '4025220147794798582_31505689963',
+                  id: '4025220147794798582_31000000001',
                   code: 'Old',
                   kind: 'clips',
                   created: 1794063682,
                   text: 'Trullo a Ostuni',
                 },
                 {
-                  id: '4036097084961735334_31505689963',
+                  id: '4036097084961735334_31000000001',
                   code: 'DRe9',
                   kind: 'clips',
                   created: Math.floor(Date.now() / 1000),
@@ -1388,11 +1392,11 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
       })
       const out = await instagramApi.publish(run, account, request())
       expect(out).toMatchObject({
-        remoteId: '4036097084961735334_31505689963',
+        remoteId: '4036097084961735334_31000000001',
         url: 'https://www.instagram.com/reel/DRe9/',
       })
       expect(calls.filter((c) => c.op === 'posts')[0]!.args).toEqual({
-        username: 'studio_associato_gem',
+        username: 'acme_studio',
         count: 12,
       })
 
@@ -1414,12 +1418,12 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
 
   it('deletes a post by its id as the app does; one it has no id for is left to the app', async () => {
     const { run, calls } = igRun({ deleteMedia: () => ({ status: 'ok', deleted: true }) })
-    await instagramApi.remove(run, account, '4036097084961735334_31505689963')
+    await instagramApi.remove(run, account, '4036097084961735334_31000000001')
     expect(calls).toEqual([
       {
         op: 'deleteMedia',
-        args: { mediaId: '4036097084961735334_31505689963' },
-        key: 'ig-delete-4036097084961735334_31505689963',
+        args: { mediaId: '4036097084961735334_31000000001' },
+        key: 'ig-delete-4036097084961735334_31000000001',
       },
     ])
     await expect(instagramApi.remove(run, account, 'upload:1795360286914')).rejects.toThrow(
@@ -1430,7 +1434,7 @@ describe('Instagram sounds and reels (the Instagram app’s requests)', () => {
     )
     const refused = igRun({ deleteMedia: () => ({ status: 'fail', message: 'Media not found' }) })
     await expect(
-      instagramApi.remove(refused.run, account, '4036097084961735334_31505689963'),
+      instagramApi.remove(refused.run, account, '4036097084961735334_31000000001'),
     ).rejects.toThrow(/Media not found/)
   })
 
@@ -1454,10 +1458,10 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
   const account: DriverAccount = {
     id: 'a',
     platform: 'instagram',
-    externalId: '31505689963',
-    name: 'Studio Associato GEM',
-    handle: '@studio_associato_gem',
-    platformIds: { userId: '31505689963', username: 'studio_associato_gem' },
+    externalId: '31000000001',
+    name: 'Acme Studio',
+    handle: '@acme_studio',
+    platformIds: { userId: '31000000001', username: 'acme_studio' },
   }
   let dir = ''
   let picture = ''
@@ -1517,7 +1521,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     uploadPhoto: ok,
     uploadVideo: ok,
     configurePhoto: () => ({ status: 'ok', pk: '4040', code: 'DPh1' }),
-    configureSidecar: () => ({ status: 'ok', id: '4041_31505689963', code: 'DCa1' }),
+    configureSidecar: () => ({ status: 'ok', id: '4041_31000000001', code: 'DCa1' }),
     configureStoryPhoto: ok,
     configureStoryPhotoWithSound: ok,
     configureStoryVideo: ok,
@@ -1527,7 +1531,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     const { run, calls } = igRun(shared)
     const out = await instagramApi.publish(run, account, request({ options: { aiGenerated: true } }))
     expect(out).toEqual({
-      remoteId: '4040_31505689963',
+      remoteId: '4040_31000000001',
       url: 'https://www.instagram.com/p/DPh1/',
       state: 'published',
     })
@@ -1612,7 +1616,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
   it('a single video in the feed goes up as a reel shown in the grid', async () => {
     const { run, calls } = igRun({
       uploadReelVideo: ok,
-      configureReel: () => ({ status: 'ok', id: '4042_31505689963', code: 'DRe5' }),
+      configureReel: () => ({ status: 'ok', id: '4042_31000000001', code: 'DRe5' }),
     })
     const out = await instagramApi.publish(
       run,
@@ -1633,7 +1637,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(pic.calls[0]!.args).toMatchObject({ shareType: 'stories', sidecar: '' })
     expect(pic.calls[1]!.args.nowSec).toMatch(/^\d{10}$/)
     expect(out.remoteId).toMatch(/^upload:\d{13}$/)
-    expect(out.url).toBe('https://www.instagram.com/stories/studio_associato_gem/')
+    expect(out.url).toBe('https://www.instagram.com/stories/acme_studio/')
     const vid = igRun(shared)
     await instagramApi.publish(
       vid.run,
@@ -1665,7 +1669,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     mixes.length = 0
     const { run, calls } = igRun({
       uploadReelVideo: ok,
-      configureReelWithSound: () => ({ status: 'ok', id: '4043_31505689963', code: 'DSt1' }),
+      configureReelWithSound: () => ({ status: 'ok', id: '4043_31000000001', code: 'DSt1' }),
     })
     const out = await instagramApi.publish(run, account, request({ music: song }))
     // the picture became a 10 s video first, then went out as a reel with the sound
@@ -1677,7 +1681,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     mixes.length = 0
     const b = igRun({
       uploadReelVideo: ok,
-      configureReelWithSound: () => ({ status: 'ok', id: '4043_31505689963', code: 'DSt2' }),
+      configureReelWithSound: () => ({ status: 'ok', id: '4043_31000000001', code: 'DSt2' }),
     })
     await instagramApi.publish(b.run, account, request({ music: song, options: { stillSeconds: 15 } }))
     const second = mixes.find((a) => a.includes('anullsrc=channel_layout=stereo:sample_rate=44100'))!
@@ -1849,7 +1853,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     const reel = igRun({
       uploadReelVideo: ok,
       placeSearch: () => places,
-      configureReel: () => ({ status: 'ok', id: '4042_31505689963', code: 'DRe5' }),
+      configureReel: () => ({ status: 'ok', id: '4042_31000000001', code: 'DRe5' }),
     })
     await instagramApi.publish(
       reel.run,
@@ -1943,7 +1947,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     const out = await instagramApi.publish(ok2.run, account, request({ firstComment: ' Scrivi per info ' }))
     expect(ok2.calls.map((c) => c.op)).toEqual(['uploadPhoto', 'configurePhoto', 'postComment'])
     expect(ok2.calls[2]!.args).toMatchObject({
-      mediaId: '4040_31505689963',
+      mediaId: '4040_31000000001',
       numericId: '4040',
       text: 'Scrivi per info',
     })
@@ -1974,7 +1978,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
       request({ firstComment: 'Ciao', options: { pinFirstComment: true } }),
     )
     expect(pin.calls.map((c) => c.op)).toEqual(['uploadPhoto', 'configurePhoto', 'postComment', 'pinComment'])
-    expect(pin.calls[3]!.args).toEqual({ mediaId: '4040_31505689963', commentId: '18137299927790260' })
+    expect(pin.calls[3]!.args).toEqual({ mediaId: '4040_31000000001', commentId: '18137299927790260' })
     const noPin = igRun({ ...shared, postComment: () => ({ status: 'ok', id: '18137299927790260' }) })
     await instagramApi.publish(noPin.run, account, request({ firstComment: 'Ciao' }))
     expect(noPin.calls.map((c) => c.op)).toEqual(['uploadPhoto', 'configurePhoto', 'postComment'])
@@ -2005,7 +2009,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
   it('sets a reel’s cover frame and AI label as the app does; a picture cover is left out and said', async () => {
     const answers = {
       uploadReelVideo: ok,
-      configureReel: () => ({ status: 'ok', id: '4042_31505689963', code: 'DRe5' }),
+      configureReel: () => ({ status: 'ok', id: '4042_31000000001', code: 'DRe5' }),
     }
     const reel = (extra: Partial<PublishRequest>) =>
       request({ files: [{ path: video, mime: 'video/mp4', kind: 'video' }], ...extra })
@@ -2037,7 +2041,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
   })
 
   it('changes a post’s caption as the app’s Edit does, keeping its AI label; stories and unnamed posts are refused', async () => {
-    const mediaId = '4040123456789012345_31505689963'
+    const mediaId = '4040123456789012345_31000000001'
     const ed = igRun({ editMedia: () => ({ status: 'ok' }) })
     await instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo', options: {} })
     expect(ed.calls[0]).toMatchObject({
@@ -2069,7 +2073,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
   })
 
   it('edits a post’s place with its caption, and turns its comments off or on, as the app does', async () => {
-    const mediaId = '4040123456789012345_31505689963'
+    const mediaId = '4040123456789012345_31000000001'
     const places = [{ placeId: '529415319299814', name: 'Ostuni', subtitle: '0.9mi', lat: 40.72, lng: 17.58 }]
     const ed = igRun({
       placeSearch: () => places,
@@ -2143,8 +2147,8 @@ describe('TikTok sounds and posts', () => {
     id: 't',
     platform: 'tiktok',
     externalId: '7698640934871843873',
-    name: 'Studio Associato GEM',
-    handle: '@studioassociatogem',
+    name: 'Acme Studio',
+    handle: '@example',
     platformIds: { userId: '7698640934871843873' },
   }
 
@@ -2237,10 +2241,14 @@ describe('TikTok sounds and posts', () => {
 describe('TikTok through API Anything', () => {
   it('connects the signed-in account from the passport answer', async () => {
     const { run } = fakeRun({
-      account: () => ({ id: '7000', handle: 'gem', name: 'GEM', picture: 'https://p', secUid: 'MS4' }),
+      account: () => ({ id: '7000', handle: 'acme', name: 'Acme', picture: 'https://p', secUid: 'MS4' }),
     })
     const [a] = await tiktokApi.discover(run)
-    expect(a).toMatchObject({ externalId: '7000', handle: '@gem', profileUrl: 'https://www.tiktok.com/@gem' })
+    expect(a).toMatchObject({
+      externalId: '7000',
+      handle: '@acme',
+      profileUrl: 'https://www.tiktok.com/@acme',
+    })
   })
 
   it('falls back to the session’s user cookie when the read fails', async () => {

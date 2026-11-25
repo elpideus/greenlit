@@ -72,6 +72,13 @@ export const MediaTile = memo(function MediaTile({
         onClick={(e) => handlers.onClick(media, e)}
         onDoubleClick={() => handlers.onOpen(media)}
       >
+        {/* Slides: the next pages' edges peek out above the first, like a short stack of prints. */}
+        {media.kind === 'slides' && (media.slides?.length ?? 0) > 1 && (
+          <>
+            <div className="pointer-events-none absolute inset-x-[16px] -top-[8px] h-4 rounded-t-[7px] bg-[color-mix(in_oklab,var(--ink)_20%,var(--canvas))]" />
+            <div className="pointer-events-none absolute inset-x-[8px] -top-[4px] h-4 rounded-t-[8px] bg-[color-mix(in_oklab,var(--ink)_34%,var(--canvas))]" />
+          </>
+        )}
         <MediaThumb
           media={media}
           fit={fit}

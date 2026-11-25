@@ -44,6 +44,8 @@ export function MediaPicker({
       q: q || undefined,
       projectId: scope === 'project' && project ? project : undefined,
       kind,
+      // Choosing pictures or videos (not Slides): the pages of Slides items are choosable one by one.
+      withSlides: kinds ? !kinds.includes('slides') : undefined,
       sort: 'recent',
       limit: 90,
     },

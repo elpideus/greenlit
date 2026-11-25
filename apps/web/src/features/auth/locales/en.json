@@ -3,10 +3,11 @@
   "signInTo": "Sign in to {{name}}",
   "welcome": "Footage, review and publishing for a studio that films its work.",
   "email": "Email",
+  "login": "Email or username",
   "password": "Password",
   "remember": "Keep me signed in",
   "signingIn": "Signing in…",
-  "wrong": "That email and password don’t match an account.",
+  "wrong": "That username or email and password don’t match an account.",
   "setup": {
     "title": "Set up {{name}}",
     "body": "You become the admin. You can invite your reviewers afterwards.",

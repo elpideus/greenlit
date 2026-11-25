@@ -188,7 +188,15 @@ export const youtube: Driver = {
       await goToVisibility(page, run)
       await setVisibility(page, run, req)
       await waitForUpload(page, run)
-      const done = page.locator('#done-button').first()
+      // Publish, or Schedule ("Programma") once a time is set: the same button of the upload dialog. The
+      // dialog's own element has no box (its paper dialog inside is fixed), so the button is what is looked for.
+      const dialog = page.locator('ytcp-uploads-dialog')
+      const done = await firstVisible(
+        [dialog.locator('#done-button'), dialog.getByRole('button', { name: L.done })],
+        30_000,
+      )
+      if (!done)
+        throw new Error('The upload dialog shows no Publish button (YouTube Studio may have closed it)')
       await until(
         async () => (await done.getAttribute('aria-disabled')) !== 'true' && (await done.isEnabled()),
         'the Publish button',
@@ -214,23 +222,25 @@ export const youtube: Driver = {
       }
       run.step(`Pressing ${(await done.textContent())?.trim()}`)
       await done.click()
-      await until(
-        async () =>
-          (await page
-            .locator('ytcp-video-share-dialog, ytcp-uploads-still-processing-dialog')
-            .first()
-            .isVisible()
-            .catch(() => false)) ||
-          !(await page
-            .locator('ytcp-uploads-dialog')
-            .first()
-            .isVisible()
-            .catch(() => false)),
-        'YouTube to confirm',
-        90_000,
-        1000,
+      // YouTube confirms with its "published / scheduled" dialog, or a "still processing" one. Their own
+      // elements have no box (as the upload dialog's has none), so their buttons are looked for; the upload
+      // dialog is never closed here: closing it before YouTube has saved leaves the video a private draft
+      // (all nine Shorts of 25 Nov 2026).
+      const confirmation = page.locator(
+        'ytcp-video-share-dialog #close-button, ytcp-uploads-still-processing-dialog #close-button',
       )
-      await closeDialog(page)
+      const confirmed = await confirmAfterLastButton(page, run, confirmation)
+      if (confirmed) {
+        run.step(req.scheduleAt ? 'YouTube confirmed the schedule' : 'YouTube confirmed the publish')
+        await sleep(1500)
+        await confirmed.click().catch(() => {})
+        await sleep(700)
+      }
+      // The video's state is read back from YouTube afterwards (youtube-api), which says whether it went out.
+      else {
+        await run.snapshot(page, 'no-confirmation')
+        run.warn('YouTube Studio showed no confirmation after the last button')
+      }
     } catch (err) {
       if (req.dryRun) await deleteVideo(run, channelId, videoId).catch(() => {})
       throw err
@@ -262,7 +272,23 @@ export const youtube: Driver = {
         patch.caption.slice(0, 5000),
       )
     if (patch.thumbnailPath) await setThumbnail(page, run, patch.thumbnailPath)
-    if (patch.tags) await setTags(page, run, patch.tags)
+    if (patch.tags?.length) {
+      // Tags sit under "Show more" on the video's page too.
+      const more = await firstVisible(
+        [page.locator('#toggle-button'), page.getByRole('button', { name: L.showMore })],
+        3000,
+      )
+      if (
+        more &&
+        !(await page
+          .locator('#tags-container')
+          .first()
+          .isVisible()
+          .catch(() => false))
+      )
+        await more.click().catch(() => {})
+      await setTags(page, run, patch.tags)
+    }
     // Visibility only changes for a new schedule or an explicit privacy choice (never flips a private video public).
     if (
       (patch.scheduleAt instanceof Date && patch.scheduleAt.getTime() > Date.now()) ||
@@ -576,8 +602,60 @@ async function setVisibility(
     ampm ? `${h12}:${String(z.minute).padStart(2, '0')} ${z.hour < 12 ? 'AM' : 'PM'}` : z.hm,
   )
   await timeInput.press('Enter')
-  await page.keyboard.press('Escape').catch(() => {})
-  run.step(`Scheduled for ${z.iso} ${z.hm} (${req.timeZone})`)
+  // Never Escape here: in the upload dialog it closes the dialog itself (Studio keeps a draft and goes back to the
+  // dashboard, so there is no Schedule button left to press; seen 25 Nov 2026). A list still open is closed by
+  // clicking the dialog's own title, as a person would.
+  await closeLists(page)
+  const shownDate = (await trigger.textContent().catch(() => ''))?.trim() ?? ''
+  const shownTime = await timeInput.inputValue().catch(() => '')
+  run.step(`Scheduled for ${z.iso} ${z.hm} (${req.timeZone}); Studio shows ${shownDate} ${shownTime}`.trim())
+}
+
+/**
+ * After Publish / Schedule YouTube may first say it is still checking the video ("Stiamo ancora controllando i tuoi
+ * contenuti" / "We're still checking your content", seen 25 Nov 2026): its OK is what lets the schedule be saved,
+ * as a person would press it. Then its confirmation shows. Returns the confirmation's close button, or null.
+ */
+async function confirmAfterLastButton(page: Page, run: DriverRun, confirmation: ReturnType<Page['locator']>) {
+  const checking = page
+    .locator('tp-yt-paper-dialog, ytcp-dialog, [role=dialog]')
+    .filter({ hasText: label(['ancora controllando', 'still checking']) })
+    .getByRole('button', { name: label(['OK', 'Ok', 'Capito', 'Got it'], true) })
+  const end = Date.now() + 90_000
+  while (Date.now() < end) {
+    const done = await firstVisible([confirmation], 1500)
+    if (done) return done
+    const ok = await firstVisible([checking], 500)
+    if (ok) {
+      await ok.click().catch(() => {})
+      run.step('YouTube is still checking the video: OK')
+      await sleep(1500)
+    }
+  }
+  return null
+}
+
+/** Closes a date picker or time list left open in the upload dialog, without leaving the dialog. */
+async function closeLists(page: Page) {
+  const open = page.locator(
+    'tp-yt-iron-dropdown:not([aria-hidden="true"]) tp-yt-paper-listbox, ytcp-date-picker #calendar-main',
+  )
+  for (let i = 0; i < 3; i++) {
+    if (
+      !(await open
+        .first()
+        .isVisible()
+        .catch(() => false))
+    )
+      return
+    const title = await firstVisible(
+      [page.locator('ytcp-uploads-dialog #dialog-title, ytcp-uploads-dialog h1').first()],
+      1000,
+    )
+    if (!title) return
+    await title.click({ position: { x: 4, y: 4 } }).catch(() => {})
+    await sleep(400)
+  }
 }
 
 /** Writes the date in the same pattern as `sample` (the date Studio shows), e.g. "Nov 21, 2026" or "21 nov 2026". */
@@ -694,8 +772,70 @@ async function deleteVideo(run: DriverRun, _channelId: string, videoId: string) 
 /** Adds title & description translations (Studio → Subtitles/Languages). */
 async function setTranslations(run: DriverRun, videoId: string, req: Pick<PublishRequest, 'translations'>) {
   const page = await run.page()
+  try {
+    await addTranslations(run, page, videoId, req)
+  } catch (err) {
+    // A publish only warns about translations: keep a picture of the page for the warning.
+    await run.snapshot(page, 'translations-failed')
+    throw err
+  }
+}
+
+/**
+ * Studio's Languages page asks for the video's own language before it offers "Add language" ("Lingua del video:
+ * Imposta lingua", then Conferma). It is set to Italian, the account's language for titles and descriptions, without
+ * making it the channel's default.
+ */
+async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
+  const trigger = page.locator('#language-input #trigger').first()
+  const shown = async () => ((await trigger.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim()
+  if (!(await trigger.isVisible().catch(() => false))) return
+  if (!/Imposta lingua|Select language|Set language/i.test(await shown())) return
+  const italian = new Intl.DisplayNames(['it'], { type: 'language' }).of(lang) ?? lang
+  const english = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang
+  await trigger.click()
+  // The list ("Lingua del video") has every language, each item showing its name twice (in the page's language
+  // and its own): the item whose first line is the name.
+  const list = page
+    .locator('tp-yt-paper-listbox[role=listbox]')
+    .filter({ has: page.locator('tp-yt-paper-item') })
+  await list.first().waitFor({ state: 'visible', timeout: 10_000 })
+  const items = list.first().locator('tp-yt-paper-item[role=option]')
+  const at = await items.evaluateAll(
+    (els, names) =>
+      els.findIndex((e) => {
+        // biome-ignore lint/performance/useDomNodeTextContent: the item's lines as shown; its first is the name
+        const first = ((e as HTMLElement).innerText || '').split('\n')[0]!.trim().toLowerCase()
+        return names.includes(first)
+      }),
+    [italian.toLowerCase(), english.toLowerCase()],
+  )
+  if (at < 0) throw new Error(`${english} is not in YouTube's language list`)
+  await items.nth(at).scrollIntoViewIfNeeded()
+  await items.nth(at).click()
+  await sleep(800)
+  if (/Imposta lingua|Select language|Set language/i.test(await shown()))
+    throw new Error(`YouTube did not take ${english} as the video's language`)
+  const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
+  if ((await asDefault.getAttribute('aria-checked').catch(() => null)) === 'true')
+    await asDefault.click().catch(() => {})
+  await clickOne(
+    [page.getByRole('button', { name: label(['Conferma', 'Confirm'], true) })],
+    'Confirm the language',
+  )
+  await sleep(1500)
+  run.step(`Video language: ${english}`)
+}
+
+async function addTranslations(
+  run: DriverRun,
+  page: Page,
+  videoId: string,
+  req: Pick<PublishRequest, 'translations'>,
+) {
   await page.goto(`${STUDIO}/video/${videoId}/translations`, { waitUntil: 'domcontentloaded' })
   await assertStudio(page)
+  await setVideoLanguage(run, page, 'it')
   for (const [lang, t] of Object.entries(req.translations)) {
     if (!t.title && !t.caption) continue
     const name = new Intl.DisplayNames([run.locale, 'en'], { type: 'language' }).of(lang) ?? lang

@@ -40,6 +40,7 @@
     "audio": "Audio",
     "document": "Documento",
     "design": "Design",
+    "slides": "Slide",
     "other": "File"
   },
   "role": { "admin": "Amministratore", "reviewer": "Revisore" },

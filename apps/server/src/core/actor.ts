@@ -3,7 +3,8 @@ import { forbidden, HttpError } from './errors.ts'
 
 export interface ActorUser {
   id: string
-  email: string
+  email: string | null
+  username: string | null
   displayName: string
   avatarUrl: string | null
   role: Role

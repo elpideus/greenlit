@@ -33,10 +33,13 @@ export const FramePoint = z.object({ x: z.number().min(0).max(1), y: z.number().
 export type FramePoint = z.infer<typeof FramePoint>
 
 /** `design`: a design document (FigCraft), shown live in the viewer. */
-export const MediaKind = z.enum(['video', 'image', 'audio', 'document', 'design', 'other'])
+/** `slides`: an ordered set of pictures and videos (a carousel's pages), each a media item of its own. */
+export const MediaKind = z.enum(['video', 'image', 'audio', 'document', 'design', 'slides', 'other'])
 export type MediaKind = z.infer<typeof MediaKind>
+/** What a file can be (a Slides item is never a file: it groups pictures and videos). */
+export type FileKind = Exclude<MediaKind, 'slides'>
 
-export function mediaKindFromMime(mime: string): MediaKind {
+export function mediaKindFromMime(mime: string): FileKind {
   if (mime === 'application/x-figcraft') return 'design'
   if (mime.startsWith('video/')) return 'video'
   if (mime.startsWith('image/')) return 'image'

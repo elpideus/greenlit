@@ -248,7 +248,14 @@ export class Connectors implements ConnectorsService {
     sessionDir: string,
     what: string,
     fn: (run: DriverRun & { runId: string; steps: string[]; warnings: string[] }) => Promise<T>,
-    opts: { accountId?: string; keepPages?: boolean; driver?: Driver; account?: DriverAccount } = {},
+    opts: {
+      accountId?: string
+      keepPages?: boolean
+      driver?: Driver
+      account?: DriverAccount
+      /** Runs once the operation's tabs are closed (the session they leave is final then). */
+      afterClose?: (context: BrowserContext) => Promise<void>
+    } = {},
   ): Promise<T> {
     if (opts.driver?.kind === 'api')
       return this.operateApi(sessionDir, what, fn, opts.driver, opts.account, opts.accountId)
@@ -310,6 +317,10 @@ export class Connectors implements ConnectorsService {
         throw err
       } finally {
         if (!opts.keepPages) for (const p of pages) await p.close().catch(() => {})
+        if (opts.afterClose)
+          await opts
+            .afterClose(context)
+            .catch((err) => log.warn({ err: (err as Error).message }, 'after-close step failed'))
       }
     })
   }
@@ -456,38 +467,43 @@ export class Connectors implements ConnectorsService {
           },
         },
         cookies: () => this.engine.cookies(site),
-        // The page gets the session API Anything keeps up to date (a profile filled by a cookie import, or not
-        // opened for a while, holds older cookies; Google would ask to sign in again).
-        browser: <R>(fn: (r: DriverRun) => Promise<R>) =>
-          this.operate(
+        // The browser profile owns the sign-in, as any browser does: nothing is ever written into its cookies from
+        // outside. API Anything only takes a copy of them after each step (and from the sign-in window). Handing the
+        // page API Anything's copy, with the consistency cookies Google set for those plain requests (SIDCC…), made
+        // Google end the YouTube session again and again (25 Nov 2026).
+        browser: <R>(fn: (r: DriverRun) => Promise<R>) => {
+          let signedOut = false
+          return this.operate(
             sessionDir,
             `${what}.page`,
             async (r) => {
-              const fresh = await this.engine.cookies(site).catch(() => [])
-              if (fresh.length)
-                await r.context
-                  .addCookies(
-                    fresh.map((c) => ({
-                      name: c.name,
-                      value: c.value,
-                      domain: c.domain,
-                      path: c.path || '/',
-                      expires: c.expires ?? -1,
-                      httpOnly: !!c.httpOnly,
-                      secure: !!c.secure,
-                    })),
-                  )
-                  .catch((err) => log.warn({ err: (err as Error).message }, 'session not handed to the page'))
               // What the page's steps did and warned about is this run's too (a dry run reports it).
               try {
                 return await fn(r)
+              } catch (err) {
+                signedOut = err instanceof NeedsLogin
+                throw err
               } finally {
                 for (const m of r.steps) if (!steps.includes(m)) steps.push(m)
                 for (const m of r.warnings) if (!warnings.includes(m)) warnings.push(m)
               }
             },
-            { accountId },
-          ),
+            {
+              accountId,
+              // ...and API Anything takes a copy of the session the page leaves, once its tabs are closed (an open
+              // Studio tab still rotates cookies, during the failure snapshots too), for its plain requests.
+              afterClose: async (context) => {
+                if (signedOut || !(await driver.looksSignedIn(context).catch(() => false))) return
+                await sleep(500)
+                await this.handOver(context, driver, sessionDir)
+                  .then(() => log.info('session taken back from the page'))
+                  .catch((err) =>
+                    log.warn({ err: (err as Error).message }, 'session not taken back from the page'),
+                  )
+              },
+            },
+          )
+        },
       },
     }
     try {
@@ -981,6 +997,13 @@ export class Connectors implements ConnectorsService {
     clearInterval(this.watchers.get(id))
     this.watchers.delete(id)
     if (s.state === 'ready' || s.state === 'starting') await this.logUnfinished(s)
+    // A finished sign-in: API Anything took the session when the page first looked signed in, and the platform
+    // went on setting cookies after that (Google's redirects to YouTube). The page's final session is what it keeps.
+    const d = s.state === 'signed_in' ? driverFor(s.platform, s.driverId) : null
+    if (d && (await d.looksSignedIn(s.context).catch(() => false)))
+      await this.handOver(s.context, d, s.sessionDir).catch((err) =>
+        this.ctx.log.warn({ err: (err as Error).message }, 'session not taken from the sign-in window'),
+      )
     await this.streams.close(s, reason)
     // A fresh profile nobody signed in with is thrown away.
     if (!s.accountId && !(await this.referenced(s.sessionDir))) {

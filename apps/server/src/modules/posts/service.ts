@@ -93,7 +93,27 @@ export class PostsService {
       syncedAt: t.syncedAt?.toISOString() ?? null,
       stats: (t.stats as Record<string, number>) ?? null,
       notes: ((t.remoteSnapshot as { warnings?: string[] } | null)?.warnings ?? []).slice(0, 20),
+      coverUrl: PostsService.coverUrlOf(t),
     }
+  }
+
+  /** Greenlit's copy of the cover the platform shows for a target, when there is one. */
+  static coverUrlOf(t: Pick<TargetRow, 'id' | 'postId' | 'remoteCover'>) {
+    return t.remoteCover ? `/api/posts/${t.postId}/targets/${t.id}/cover?v=${t.remoteCover}` : null
+  }
+
+  /** Accounts turned off in Settings (a connector merged into an account counts as that account). */
+  async turnedOff(): Promise<Set<string>> {
+    const all = (await this.ctx.services.connectors?.accounts().catch(() => [])) ?? []
+    const byId = new Map(all.map((a) => [a.id, a]))
+    return new Set(
+      all.filter((a) => (byId.get(a.mergedInto ?? a.id) ?? a).state === 'disabled').map((a) => a.id),
+    )
+  }
+
+  /** A post Greenlit found on accounts that are all turned off now: not listed (it comes back when one is on). */
+  static hiddenBy(off: Set<string>, p: { origin: string; targets: { accountId: string }[] }) {
+    return p.origin === 'platform' && p.targets.length > 0 && p.targets.every((t) => off.has(t.accountId))
   }
 
   static statusOf(targets: PostTarget[], now = Date.now()): Post['status'] {
@@ -204,7 +224,8 @@ export class PostsService {
       .limit(opts.limit ?? 200)
     const visible: PostRow[] = []
     for (const r of rows) if (await this.canView(r.id, actor)) visible.push(r)
-    const out = await this.views(visible, actor)
+    const off = await this.turnedOff()
+    const out = (await this.views(visible, actor)).filter((p) => !PostsService.hiddenBy(off, p))
     return opts.status ? out.filter((p) => p.status === opts.status) : out
   }
 
@@ -315,16 +336,19 @@ export class PostsService {
     if (input.media) {
       for (const m of input.media)
         if (!(await this.ctx.services.media.canView(m.mediaId, actor))) throw notFound('Media not found')
+      // A Slides item stands for its pages: the post gets them, in order (a carousel).
+      const ids = await this.ctx.services.media.expandSlides(
+        input.media.map((m) => m.mediaId),
+        actor,
+      )
       await this.db.delete(postMedia).where(eq(postMedia.postId, postId))
-      if (input.media.length)
-        await this.db
-          .insert(postMedia)
-          .values(input.media.map((m, i) => ({ postId, mediaId: m.mediaId, position: i })))
+      if (ids.length)
+        await this.db.insert(postMedia).values(ids.map((mediaId, i) => ({ postId, mediaId, position: i })))
       if (this.ctx.services.links) {
         await this.ctx.services.links.syncAuto(
           { type: 'post', id: postId },
           'uses',
-          input.media.map((m) => ({ type: 'media' as const, id: m.mediaId })),
+          ids.map((id) => ({ type: 'media' as const, id })),
         )
       }
     }
@@ -474,13 +498,18 @@ export class PostsService {
           firstMedia.map((m) => m.mediaId),
           actor,
         )
-      ).map((m) => [m.id, m.thumbnailUrl]),
+      ).map((m) => [m.id, m.thumbnailUrl ?? m.formats[0]?.urls.poster ?? null]),
     )
+    const off = await this.turnedOff()
     for (const { t, p } of rows) {
+      // what Greenlit found on a channel that is turned off now
+      if (p.origin === 'platform' && off.has(t.accountId)) continue
       if (!visible.has(p.id)) visible.set(p.id, await this.canView(p.id, actor))
       if (!visible.get(p.id)) continue
       const acc = accounts.get(t.accountId)
       const mid = firstMedia.find((m) => m.postId === p.id)?.mediaId
+      const media = mid ? (thumbs.get(mid) ?? null) : null
+      const cover = PostsService.coverUrlOf(t)
       out.push({
         postId: p.id,
         targetId: t.id,
@@ -491,7 +520,8 @@ export class PostsService {
         account: { id: t.accountId, name: acc?.name ?? 'Account', avatarUrl: acc?.avatarUrl ?? null },
         at: (t.scheduleAt ?? t.publishedAt)!.toISOString(),
         state: t.state as PostTarget['state'],
-        thumbnailUrl: mid ? (thumbs.get(mid) ?? null) : null,
+        // what the platform shows for a post found there; the library item for one made here
+        thumbnailUrl: p.origin === 'platform' ? (cover ?? media) : (media ?? cover),
         remoteUrl: t.remoteUrl,
       })
     }

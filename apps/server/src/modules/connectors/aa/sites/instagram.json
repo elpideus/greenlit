@@ -1567,10 +1567,10 @@
     },
     {
       "name": "configureSidecar",
-      "description": "Publishes uploaded pictures and videos as one carousel post, as the app's Share does (media/configure_sidecar/): the carousel's id (its items' upload session), the caption, its items (children_metadata, in order: each item's upload id, size and edits as the app writes them) and the AI label when asked. Sent without cookies, as the app sends it: with the web session's cookies Instagram answers \"SecFetch Policy violation\" (Nov 2026).",
+      "description": "Publishes uploaded pictures and videos as one carousel post, as the app's Share does (media/configure_sidecar/): the carousel's id (its items' upload session), the caption, its items (children_metadata, in order: each item's upload id, size and edits as the app writes them) and the AI label when asked. Sent without Node's sec-fetch headers (secFetch: false) but with the session's cookies: with the sec-fetch headers Instagram answers \"SecFetch Policy violation\" (Nov 2026), and without the cookies it ended the session (logout_reason 3, each time on 25 Nov 2026).",
       "readOnly": false,
       "learnedLoggedIn": true,
-      "cookies": false,
+      "secFetch": false,
       "request": {
         "method": "POST",
         "url": "https://i.instagram.com/api/v1/media/configure_sidecar/",
@@ -2615,7 +2615,7 @@
         "format": "json",
         "pick": ["status", "message"]
       },
-      "cookies": false
+      "secFetch": false
     },
     {
       "name": "configureStoryVideoWithSound",

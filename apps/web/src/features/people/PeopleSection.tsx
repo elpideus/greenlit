@@ -35,7 +35,7 @@ import {
   toast,
   useContextMenu,
 } from '@/ui'
-import { CredentialsDialog, PersonDialog } from './PersonDialog'
+import { CredentialsDialog, PersonDialog, signInNames } from './PersonDialog'
 
 export default function PeopleSection() {
   const t = useT('people')
@@ -45,7 +45,8 @@ export default function PeopleSection() {
   >(null)
   const [creds, setCreds] = useState<{
     name: string
-    email: string
+    username: string | null
+    email: string | null
     password: string
     created: boolean
   } | null>(null)
@@ -109,6 +110,7 @@ export default function PeopleSection() {
             if (result.password)
               setCreds({
                 name: result.user.displayName,
+                username: result.user.username,
                 email: result.user.email,
                 password: result.password,
                 created: result.created,
@@ -251,7 +253,7 @@ function PersonRow({
           {isMe && <Badge>{t('you')}</Badge>}
           {user.disabled && <Badge tone="cut">{t('disabled')}</Badge>}
         </div>
-        <div className="truncate t-caption text-ink-3">{user.email}</div>
+        <div className="truncate t-caption text-ink-3">{signInNames(user)}</div>
       </div>
       <div className="hidden w-36 shrink-0 text-right t-caption text-ink-3 sm:block">
         {user.lastSeenAt ? t('seen', { when: formatRelative(user.lastSeenAt, tz) }) : t('neverSeen')}

@@ -12,6 +12,8 @@
     "pictureRemoved": "Picture removed",
     "name": "Display name",
     "nameHint": "Shown on your notes, reviews and posts.",
+    "username": "Username",
+    "usernameHint": "You sign in with it. An admin can change it in People.",
     "email": "Email",
     "emailHint": "An admin can change it in People.",
     "role": "Role",

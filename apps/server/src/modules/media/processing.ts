@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, open, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { type MediaKind, mediaKindFromMime } from '@greenlit/shared'
+import { type FileKind, mediaKindFromMime } from '@greenlit/shared'
 import { eq } from 'drizzle-orm'
 import exifr from 'exifr'
 import sharp, { type Metadata } from 'sharp'
@@ -25,7 +25,7 @@ declare module '../../core/hooks.ts' {
 }
 
 export interface ProcessedFile {
-  kind?: MediaKind
+  kind?: FileKind
   width?: number | null
   height?: number | null
   /** Names of the files written to `out`. */

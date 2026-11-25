@@ -43,9 +43,16 @@ export default function ProfileSection() {
             onSave={(displayName) => save({ displayName })}
           />
         </SettingsRow>
-        <SettingsRow inline label={t('profile.email')} description={t('profile.emailHint')}>
-          <span className="t-callout text-ink-2">{me.email}</span>
-        </SettingsRow>
+        {me.username && (
+          <SettingsRow inline label={t('profile.username')} description={t('profile.usernameHint')}>
+            <span className="t-callout text-ink-2">{me.username}</span>
+          </SettingsRow>
+        )}
+        {me.email && (
+          <SettingsRow inline label={t('profile.email')} description={t('profile.emailHint')}>
+            <span className="t-callout text-ink-2">{me.email}</span>
+          </SettingsRow>
+        )}
         <SettingsRow inline label={t('profile.role')}>
           <Badge tone={me.role === 'admin' ? 'signal' : 'neutral'}>{t(`common:role.${me.role}`)}</Badge>
         </SettingsRow>

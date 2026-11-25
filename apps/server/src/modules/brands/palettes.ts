@@ -167,7 +167,7 @@ function parseCss(css: string): { colors: ParsedColor[]; fonts: FontFound[] } {
   const colors: ParsedColor[] = []
   const fonts: FontFound[] = []
   const props = [...css.matchAll(/--([\w-]+)\s*:\s*([^;]+);[ \t]*(?:\/\*\s*(.*?)\s*\*\/)?/g)]
-  // A prefix every property shares ("gem-") isn't part of the names.
+  // A prefix every property shares ("acme-") isn't part of the names.
   const names = props.map((p) => p[1]!)
   const prefix = names.length > 1 ? sharedPrefix(names) : ''
   for (const [, name, value, comment] of props) {
@@ -285,7 +285,7 @@ function labToHex(l: number, a: number, bb: number) {
 
 // ── merging ─────────────────────────────────────────────────────────────────
 
-/** A name that is only the colour's value or a key ("dark-gray") loses to one people wrote ("GEM Dark Gray"). */
+/** A name that is only the colour's value or a key ("dark-gray") loses to one people wrote ("Acme Dark Gray"). */
 const nameScore = (n: string) => (!n ? 0 : /^#?[0-9a-f]{6}$/i.test(n) ? 1 : /[A-Z].*\s|\s/.test(n) ? 3 : 2)
 
 /**

@@ -1,12 +1,15 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 import { createdAt, pk, updatedAt } from '../../core/schema.ts'
 
 export const users = pgTable(
   'users',
   {
     id: pk(),
-    email: text('email').notNull(),
+    /** Email and username are both optional, but one of them is always there: either signs in. */
+    email: text('email'),
+    /** Stored lower-case, never contains "@". */
+    username: text('username'),
     passwordHash: text('password_hash').notNull(),
     displayName: text('display_name').notNull(),
     avatarPath: text('avatar_path'),
@@ -17,7 +20,11 @@ export const users = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex('users_email').on(sql`lower(${t.email})`)],
+  (t) => [
+    uniqueIndex('users_email').on(sql`lower(${t.email})`),
+    uniqueIndex('users_username').on(sql`lower(${t.username})`),
+    check('users_sign_in', sql`${t.email} is not null or ${t.username} is not null`),
+  ],
 )
 
 export const sessions = pgTable(

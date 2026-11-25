@@ -1,0 +1,73 @@
+{
+  "nav": "Grafo",
+  "palette": { "open": "Apri il grafo", "process": "Grafo per processo" },
+  "menu": { "showInGraph": "Mostra nel grafo" },
+  "canvasLabel": "Grafo di {{items}} elementi e {{links}} collegamenti",
+  "search": "Trova un elemento",
+  "noMatches": "Niente si chiama “{{q}}”",
+  "allProjects": "Tutti i progetti",
+  "noProject": "Nessun progetto",
+  "untitled": "Senza titolo",
+  "error": "Non è stato possibile caricare il grafo",
+  "empty": {
+    "title": "Ancora niente da disegnare",
+    "body": "Carica foto e video in un progetto, poi collega da cosa è fatto ogni elemento nella sua scheda Collegamenti."
+  },
+  "layout": { "free": "Libero", "process": "Per processo" },
+  "display": {
+    "title": "Visualizzazione",
+    "arrows": "Frecce",
+    "loose": "Elementi senza collegamenti",
+    "looseHint": "Mostra ciò che non è ancora collegato a niente",
+    "brandKits": "Kit del marchio",
+    "brandKitsHint": "Loghi, caratteri e modelli che il lavoro indossa"
+  },
+  "zoomIn": "Ingrandisci",
+  "zoomOut": "Riduci",
+  "fit": "Mostra tutto",
+  "close": "Chiudi",
+  "summary": "{{items}} elementi · {{links}} collegamenti",
+  "stage": {
+    "source": "Ripreso e usato",
+    "made": "Fatto da altri",
+    "edit": "Montaggio",
+    "final": "Finito",
+    "post": "Post",
+    "loose": "Non ancora collegato"
+  },
+  "type": { "media": "Media", "composition": "Montaggio", "post": "Post", "project": "Progetto" },
+  "relations": {
+    "source_of": { "forward": "Origine di", "inverse": "Fatto da" },
+    "uses": { "forward": "Usa", "inverse": "Usato in" },
+    "rendered_to": { "forward": "Esportato in", "inverse": "Esportato da" },
+    "related": { "forward": "Collegato a", "inverse": "Collegato a" },
+    "reference_for": { "forward": "Riferimento per", "inverse": "Riferimento" },
+    "published_as": { "forward": "Pubblicato come", "inverse": "Pubblica" }
+  },
+  "card": {
+    "open": "Apri",
+    "process": "Processo",
+    "center": "Porta in vista",
+    "madeFrom": "Fatto da",
+    "usedIn": "Usato in",
+    "related": "Collegati",
+    "chain_one": "1 elemento nella sua catena",
+    "chain_other": "{{count}} elementi nella sua catena",
+    "chain_zero": "Non ancora collegato a niente"
+  },
+  "strip": {
+    "title": "Processo",
+    "resize": "Trascina per cambiare l\u2019altezza del processo",
+    "show": "Mostra il processo",
+    "hide": "Nascondi il processo",
+    "openGraph": "Apri nel grafo",
+    "summary": "{{before}} prima · {{after}} dopo",
+    "here": "Questo elemento",
+    "empty": "Non fa ancora parte di un processo",
+    "emptyBody": "Collega da cosa è fatto, o in cosa è finito, nella scheda Collegamenti.",
+    "moreInputs_one": "+{{count}} altra origine",
+    "moreInputs_other": "+{{count}} altre origini",
+    "moreOutputs_one": "+{{count}} altro uso",
+    "moreOutputs_other": "+{{count}} altri usi"
+  }
+}

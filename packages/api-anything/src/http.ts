@@ -777,8 +777,9 @@ export async function send(
   try {
     for (let hops = 0; ; hops++) {
       const { url, ...init } = hop;
-      // greenlit fork: an app-style op (cookies: false) goes without the browser's sec-fetch headers (proxy.ts)
-      const sender = opts.fetchImpl ?? (op.cookies === false ? appFetch : siteFetch);
+      // greenlit fork: an app-style op (cookies: false, or secFetch: false with its cookies) goes without the
+      // browser's sec-fetch headers (proxy.ts)
+      const sender = opts.fetchImpl ?? (op.cookies === false || op.secFetch === false ? appFetch : siteFetch);
       const res = await sender(url, {
         ...init,
         ...(files && hops === 0 ? { body: files.body } : {}),

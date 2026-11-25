@@ -1,0 +1,73 @@
+{
+  "nav": "Graph",
+  "palette": { "open": "Open the graph", "process": "Graph by process" },
+  "menu": { "showInGraph": "Show in graph" },
+  "canvasLabel": "Graph of {{items}} items and {{links}} links",
+  "search": "Find an item",
+  "noMatches": "Nothing called “{{q}}”",
+  "allProjects": "All projects",
+  "noProject": "No project",
+  "untitled": "Untitled",
+  "error": "The graph could not be loaded",
+  "empty": {
+    "title": "Nothing to draw yet",
+    "body": "Upload photos and videos to a project, then link what each item was made from in its Links tab."
+  },
+  "layout": { "free": "Free", "process": "By process" },
+  "display": {
+    "title": "Display",
+    "arrows": "Arrows",
+    "loose": "Items without links",
+    "looseHint": "Show what nothing is linked to yet",
+    "brandKits": "Brand kits",
+    "brandKitsHint": "Logos, fonts and templates the work wears"
+  },
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "fit": "Show everything",
+  "close": "Close",
+  "summary": "{{items}} items · {{links}} links",
+  "stage": {
+    "source": "Taken and used",
+    "made": "Made from others",
+    "edit": "Edit",
+    "final": "Finished",
+    "post": "Post",
+    "loose": "Not linked yet"
+  },
+  "type": { "media": "Media", "composition": "Edit", "post": "Post", "project": "Project" },
+  "relations": {
+    "source_of": { "forward": "Source of", "inverse": "Made from" },
+    "uses": { "forward": "Uses", "inverse": "Used in" },
+    "rendered_to": { "forward": "Rendered to", "inverse": "Rendered from" },
+    "related": { "forward": "Related to", "inverse": "Related to" },
+    "reference_for": { "forward": "Reference for", "inverse": "Reference" },
+    "published_as": { "forward": "Published as", "inverse": "Publishes" }
+  },
+  "card": {
+    "open": "Open",
+    "process": "Process",
+    "center": "Bring into view",
+    "madeFrom": "Made from",
+    "usedIn": "Used in",
+    "related": "Related",
+    "chain_one": "1 item in its chain",
+    "chain_other": "{{count}} items in its chain",
+    "chain_zero": "Not linked to anything yet"
+  },
+  "strip": {
+    "title": "Process",
+    "resize": "Drag to resize the process strip",
+    "show": "Show the process",
+    "hide": "Hide the process",
+    "openGraph": "Open in the graph",
+    "summary": "{{before}} before · {{after}} after",
+    "here": "This item",
+    "empty": "Not part of a process yet",
+    "emptyBody": "Link what this was made from, or what it went into, in the Links tab.",
+    "moreInputs_one": "+{{count}} other source",
+    "moreInputs_other": "+{{count}} other sources",
+    "moreOutputs_one": "+{{count}} more use",
+    "moreOutputs_other": "+{{count}} more uses"
+  }
+}

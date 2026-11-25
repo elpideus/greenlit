@@ -8,7 +8,7 @@ import { PassThrough, type Readable, Transform, Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 import zlib from 'node:zlib'
-import type { ArchivePolicy, ArchiveStrategy, MediaKind } from '@greenlit/shared'
+import type { ArchivePolicy, ArchiveStrategy, FileKind } from '@greenlit/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import type { ModuleContext } from '../../core/module.ts'
 import { ffmpegBin, probe } from '../../lib/ffmpeg.ts'
@@ -152,7 +152,7 @@ export class Archiver {
     blobId: string,
     opts: {
       policy: ArchivePolicy
-      kind: MediaKind
+      kind: FileKind
       strategy?: ArchiveStrategy
       signal?: AbortSignal
       onProgress?: (fraction: number) => void
@@ -288,7 +288,7 @@ export class Archiver {
     blob: BlobRow,
     src: string,
     wanted: Packed,
-    kind: MediaKind,
+    kind: FileKind,
     signal: AbortSignal,
     progress: (f: number) => void,
   ): Promise<Produced | null> {

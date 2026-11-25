@@ -7,6 +7,7 @@ import {
   Copy,
   Download,
   Ellipsis,
+  GalleryHorizontalEnd,
   PanelRightClose,
   PanelRightOpen,
   Pencil,
@@ -17,7 +18,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { menuEntries } from '@/app/registry'
 import { Slot } from '@/app/Slot'
-import { formatByKey, useBulkMedia, useMediaItem, useUpdateMedia } from '@/data/media'
+import { formatByKey, useBulkMedia, useMediaItem, useSlidePages, useUpdateMedia } from '@/data/media'
 import { useProjects } from '@/data/projects'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/cn'
@@ -32,6 +33,7 @@ import './locales'
 import { type Neighbors, useNeighbors } from './browse'
 import { FormatSwitcher } from './FormatSwitcher'
 import { SidePanel } from './SidePanel'
+import { SlidesStrip } from './SlidesStrip'
 import { Stage } from './Stage'
 import { Transport } from './Transport'
 import { stepFrames } from './usePlayer'
@@ -71,9 +73,39 @@ export function Viewer({
   onClose?: () => void
 }) {
   const t = useT('viewer')
-  const { data: media, isLoading, error } = useMediaItem(mediaId)
+  const { data: item, isLoading, error } = useMediaItem(mediaId)
   const phone = useIsPhone()
   const [params, setParams] = useSearchParams()
+  const qc = useQueryClient()
+  // A Slides item shows one of its pages at a time (?slide=<n>, 1 = the first): the stage, the switches and the panel
+  // are that page's (its notes, versions, info); the title, the menu and the decision stay the Slides item's.
+  const slides = item?.kind === 'slides' ? (item.slides ?? []) : null
+  const wantedSlide = Number(params.get('slide'))
+  const slideIndex = slides
+    ? Math.min(
+        Number.isInteger(wantedSlide) && wantedSlide >= 1 ? wantedSlide : 1,
+        Math.max(1, slides.length),
+      ) - 1
+    : 0
+  const page = useMediaItem(slides ? (slides[slideIndex]?.mediaId ?? null) : null)
+  const media = slides ? page.data : item
+  // Every page at once, so stepping through them shows each without a wait.
+  const allPages = useSlidePages(slides ? mediaId : null)
+  useEffect(() => {
+    for (const p of allPages.data ?? [])
+      if (!qc.getQueryData(qk.mediaItem(p.id))) qc.setQueryData(qk.mediaItem(p.id), p)
+  }, [allPages.data])
+  const selectSlide = useCallback(
+    (i: number) => {
+      const next = new URLSearchParams(params)
+      if (i > 0) next.set('slide', String(i + 1))
+      else next.delete('slide')
+      next.delete('comment')
+      next.delete('t')
+      setParams(next, { replace: true })
+    },
+    [params, setParams],
+  )
   const [panelOpen, setPanelOpen] = useStoredState('viewer.panelOpen', true)
   const [width, setWidth] = useStoredState('viewer.panelWidth', 384)
   const column = useRef<HTMLDivElement>(null)
@@ -81,7 +113,7 @@ export function Viewer({
   const set = useViewer((s) => s.set)
   const stageVars = useStageVars()
   // Previous / next in the list the viewer was opened from (the review room has its own list beside it).
-  const nav = useNeighbors(mediaId, media, !embedded)
+  const nav = useNeighbors(mediaId, item, !embedded)
 
   // ?version=<key> (another version of the item), ?format=<key>, ?audio=<track key>
   const wantedVersion = params.get('version')
@@ -95,21 +127,22 @@ export function Viewer({
   // Reset the shared state per item, keeping playback preferences. Another version or shape of the same item keeps
   // the moment, playback and the open note: the stage carries playback over when the lengths match.
   const shownItem = useRef<string | null>(null)
+  const shownId = media?.id ?? mediaId
   useEffect(() => {
     const s = useViewer.getState()
     const patch = {
-      mediaId,
+      mediaId: shownId,
       formatId: format?.id ?? null,
       kind: format?.kind ?? null,
       duration: format?.duration ?? 0,
       audioTrack,
     }
-    if (shownItem.current === mediaId) return s.set(patch)
-    shownItem.current = mediaId
+    if (shownItem.current === shownId) return s.set(patch)
+    shownItem.current = shownId
     const keep = { rate: s.rate, loop: s.loop, volume: s.volume, muted: s.muted, tab: s.tab }
     s.reset()
     s.set({ ...keep, ...patch })
-  }, [mediaId, format?.id])
+  }, [shownId, format?.id])
   useEffect(() => {
     useViewer.getState().set({ audioTrack })
   }, [audioTrack])
@@ -211,10 +244,23 @@ export function Viewer({
     nav.go(to)
   }
   // ← → walk the list where they don't move through time; Shift+P / Shift+N everywhere (designs keep their arrows).
-  useHotkey('arrowleft', (e) => step(nav?.prev, e), { enabled: !!nav && !timed && format?.kind !== 'design' })
-  useHotkey('arrowright', (e) => step(nav?.next, e), {
-    enabled: !!nav && !timed && format?.kind !== 'design',
+  // In a Slides item they walk its pages, and [ ] do too on a video page.
+  useHotkey('arrowleft', (e) => step(nav?.prev, e), {
+    enabled: !!nav && !slides && !timed && format?.kind !== 'design',
   })
+  useHotkey('arrowright', (e) => step(nav?.next, e), {
+    enabled: !!nav && !slides && !timed && format?.kind !== 'design',
+  })
+  const stepSlide = (by: number, e: KeyboardEvent) => {
+    if (!slides || e.repeat) return
+    if (document.querySelector('[role=dialog][data-open],[role=menu]')) return
+    const to = slideIndex + by
+    if (to >= 0 && to < slides.length) selectSlide(to)
+  }
+  useHotkey('arrowleft', (e) => stepSlide(-1, e), { enabled: !!slides && !timed })
+  useHotkey('arrowright', (e) => stepSlide(1, e), { enabled: !!slides && !timed })
+  useHotkey('[', (e) => stepSlide(-1, e), { enabled: !!slides })
+  useHotkey(']', (e) => stepSlide(1, e), { enabled: !!slides })
   useHotkey('shift+p', (e) => step(nav?.prev, e), { enabled: !!nav })
   useHotkey('shift+n', (e) => step(nav?.next, e), { enabled: !!nav })
   useHotkey('f', toggleFullscreen)
@@ -237,7 +283,11 @@ export function Viewer({
         />
       </div>
     )
-  if (isLoading || !media || !format) return <ViewerSkeleton embedded={embedded} />
+  if (isLoading || !item) return <ViewerSkeleton embedded={embedded} />
+  if (slides && !slides.length)
+    return <EmptySlides set={item} embedded={embedded} onClose={onClose} nav={nav} stageVars={stageVars} />
+  if (!media || !format) return <ViewerSkeleton embedded={embedded} />
+  const strip = slides && <SlidesStrip set={item} index={slideIndex} onSelect={selectSlide} compact={phone} />
 
   const formats = versionFormats(media, version)
   const selectFormat = (key: string) => {
@@ -275,7 +325,14 @@ export function Viewer({
     />
   )
 
-  const panel = <SidePanel media={media} format={format} />
+  const panel = (
+    <SidePanel
+      media={media}
+      format={format}
+      owner={slides ? item : undefined}
+      slide={slides ? { index: slideIndex, total: slides.length } : undefined}
+    />
+  )
 
   if (phone) {
     // Phones: the page scrolls — the picture at its own shape, then the decision and the panel at full height.
@@ -289,13 +346,14 @@ export function Viewer({
       <div className="flex min-h-full flex-col bg-canvas">
         <div ref={column} className="force-dark flex shrink-0 flex-col bg-stage" style={stageVars}>
           <ViewerBar
-            media={media}
+            media={item}
+            page={slides ? media : undefined}
             {...versionProps}
             onFormat={selectFormat}
             embedded={embedded}
             onClose={onClose}
             nav={nav}
-            walkKeys={!timed && format.kind !== 'design'}
+            walkKeys={!slides && !timed && format.kind !== 'design'}
             compact
           />
           <div className="relative max-h-[64dvh] w-full" style={{ aspectRatio: String(ratio) }}>
@@ -309,6 +367,8 @@ export function Viewer({
               onFullscreen={toggleFullscreen}
             />
           )}
+          {strip}
+          <Slot name="media.viewer.drawer" props={{ media, format }} />
         </div>
         <div className="h-[100dvh] shrink-0">{panel}</div>
         {dialogs}
@@ -324,13 +384,14 @@ export function Viewer({
         style={stageVars}
       >
         <ViewerBar
-          media={media}
+          media={item}
+          page={slides ? media : undefined}
           {...versionProps}
           onFormat={selectFormat}
           embedded={embedded}
           onClose={onClose}
           nav={nav}
-          walkKeys={!timed && format.kind !== 'design'}
+          walkKeys={!slides && !timed && format.kind !== 'design'}
           panelOpen={panelOpen}
           onTogglePanel={() => setPanelOpen((o) => !o)}
         />
@@ -340,6 +401,8 @@ export function Viewer({
         {timed && (
           <Transport media={media} format={format} fullscreen={fullscreen} onFullscreen={toggleFullscreen} />
         )}
+        {!fullscreen && strip}
+        {!fullscreen && <Slot name="media.viewer.drawer" props={{ media, format }} />}
       </div>
       {panelOpen && (
         <>
@@ -350,6 +413,42 @@ export function Viewer({
         </>
       )}
       {dialogs}
+    </div>
+  )
+}
+
+/** A Slides item without pages yet: its bar, a word on what it is for and the strip's + to add some. */
+function EmptySlides({
+  set,
+  embedded,
+  onClose,
+  nav,
+  stageVars,
+}: {
+  set: Media
+  embedded?: boolean
+  onClose?: () => void
+  nav?: Neighbors | null
+  stageVars: React.CSSProperties
+}) {
+  const t = useT('viewer')
+  return (
+    <div className="force-dark flex h-full min-h-0 flex-col bg-stage" style={stageVars}>
+      <ViewerBar
+        media={set}
+        version=""
+        formats={[]}
+        onVersion={() => {}}
+        onNewVersion={() => {}}
+        onFormat={() => {}}
+        embedded={embedded}
+        onClose={onClose}
+        nav={nav}
+      />
+      <div className="grid min-h-0 flex-1 place-items-center">
+        <EmptyState icon={GalleryHorizontalEnd} title={t('slides.emptyTitle')} body={t('slides.emptyBody')} />
+      </div>
+      <SlidesStrip set={set} index={0} onSelect={() => {}} />
     </div>
   )
 }
@@ -389,6 +488,7 @@ function ResizeHandle({ width, onWidth }: { width: number; onWidth: (w: number) 
 
 function ViewerBar({
   media,
+  page,
   version,
   formats,
   format,
@@ -404,9 +504,12 @@ function ViewerBar({
   compact,
 }: {
   media: Media
+  /** A Slides item's page on screen: the switches and the download are its; the rest is the Slides item's. */
+  page?: Media
   version: string
   formats: MediaFormat[]
-  format: MediaFormat
+  /** None for a Slides item without pages. */
+  format?: MediaFormat
   onVersion: (key: string) => void
   onNewVersion: () => void
   onFormat: (key: string) => void
@@ -445,7 +548,7 @@ function ViewerBar({
       {
         order: 80,
         items: [
-          {
+          format && {
             label: `${t('download')} · ${format.label}`,
             icon: Download,
             onSelect: () => window.open(format.urls.download, '_self'),
@@ -458,15 +561,16 @@ function ViewerBar({
               toast.done(t('linkCopied'))
             },
           },
-          canEdit && {
-            label: t('reprocess'),
-            icon: RefreshCw,
-            onSelect: async () => {
-              await api.post(`/media/${media.id}/reprocess`)
-              toast.info(t('reprocessStarted'))
-              void qc.invalidateQueries({ queryKey: qk.mediaItem(media.id) })
+          canEdit &&
+            media.kind !== 'slides' && {
+              label: t('reprocess'),
+              icon: RefreshCw,
+              onSelect: async () => {
+                await api.post(`/media/${media.id}/reprocess`)
+                toast.info(t('reprocessStarted'))
+                void qc.invalidateQueries({ queryKey: qk.mediaItem(media.id) })
+              },
             },
-          },
         ],
       },
       {
@@ -509,8 +613,9 @@ function ViewerBar({
     check()
     return () => ro.disconnect()
   }, [compact, stacked])
-  const ownRow = compact ? formats.length > 1 || media.versions.length > 1 || !!version : stacked
-  const switches = media.formats.length > 0 && (
+  const shown = page ?? media
+  const ownRow = compact ? formats.length > 1 || shown.versions.length > 1 || !!version : stacked
+  const switches = format && shown.formats.length > 0 && (
     <div
       ref={strips}
       className={cn(
@@ -520,14 +625,14 @@ function ViewerBar({
       )}
     >
       <VersionSwitcher
-        media={media}
+        media={shown}
         version={version}
         format={format}
         onSelect={onVersion}
         onNew={onNewVersion}
       />
       <FormatSwitcher
-        media={media}
+        media={shown}
         formats={formats}
         version={version}
         format={format}
@@ -565,10 +670,16 @@ function ViewerBar({
             onSave={(title) => update.mutate({ title })}
             className="t-headline text-white"
           />
+          {media.kind === 'slides' && !compact && (
+            <span className="flex shrink-0 items-center gap-1 t-meta text-white/45 tabular-nums">
+              <GalleryHorizontalEnd size={13} strokeWidth={1.75} />
+              {t('slides.count', { count: media.slides?.length ?? 0 })}
+            </span>
+          )}
         </div>
         {!compact && !stacked && switches}
         <div className={cn('flex flex-1 items-center justify-end gap-0.5', compact && 'flex-none')}>
-          <Slot name="media.viewer.tools" props={{ media, format }} />
+          {format && <Slot name="media.viewer.tools" props={{ media: shown, format }} />}
           <Menu
             align="end"
             width={240}

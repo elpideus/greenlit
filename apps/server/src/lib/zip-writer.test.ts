@@ -12,7 +12,7 @@ describe('zipStream', () => {
   let dir: string
   const picture = Buffer.alloc(300_000)
   for (let i = 0; i < picture.length; i++) picture[i] = (i * 7919) % 251
-  const text = 'Pietra su pietra.\n'.repeat(5000)
+  const text = 'Stone su stone.\n'.repeat(5000)
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'gl-zipw-'))
     await writeFile(join(dir, 'logo.png'), picture)
@@ -27,11 +27,11 @@ describe('zipStream', () => {
       await pipeline(
         zipStream(
           [
-            { name: 'Studio Associato GEM/01 Loghi/logo.png', path: join(dir, 'logo.png') },
-            { name: 'Studio Associato GEM/README.md', path: join(dir, 'README.md') },
-            { name: 'Studio Associato GEM/vuoto.txt', path: join(dir, 'empty.txt') },
+            { name: 'Acme Studio/01 Loghi/logo.png', path: join(dir, 'logo.png') },
+            { name: 'Acme Studio/README.md', path: join(dir, 'README.md') },
+            { name: 'Acme Studio/vuoto.txt', path: join(dir, 'empty.txt') },
             {
-              name: 'Studio Associato GEM/00 Anteprime/01 — Copertina.txt',
+              name: 'Acme Studio/00 Anteprime/01 — Copertina.txt',
               open: async () => Readable.from([Buffer.from('copertina '), Buffer.from('à è ì')]),
             },
           ],
@@ -42,19 +42,19 @@ describe('zipStream', () => {
       const z = await ZipReader.open(out)
       try {
         expect(z.entries.map((e) => [e.name, e.method])).toEqual([
-          ['Studio Associato GEM/01 Loghi/logo.png', 0],
-          ['Studio Associato GEM/README.md', 8],
-          ['Studio Associato GEM/vuoto.txt', 8],
-          ['Studio Associato GEM/00 Anteprime/01 — Copertina.txt', 8],
+          ['Acme Studio/01 Loghi/logo.png', 0],
+          ['Acme Studio/README.md', 8],
+          ['Acme Studio/vuoto.txt', 8],
+          ['Acme Studio/00 Anteprime/01 — Copertina.txt', 8],
         ])
-        expect((await z.read('Studio Associato GEM/01 Loghi/logo.png'))!.equals(picture)).toBe(true)
-        expect((await z.read('Studio Associato GEM/README.md'))!.toString()).toBe(text)
-        expect((await z.read('Studio Associato GEM/vuoto.txt'))!.length).toBe(0)
-        expect((await z.read('Studio Associato GEM/00 Anteprime/01 — Copertina.txt'))!.toString()).toBe(
+        expect((await z.read('Acme Studio/01 Loghi/logo.png'))!.equals(picture)).toBe(true)
+        expect((await z.read('Acme Studio/README.md'))!.toString()).toBe(text)
+        expect((await z.read('Acme Studio/vuoto.txt'))!.length).toBe(0)
+        expect((await z.read('Acme Studio/00 Anteprime/01 — Copertina.txt'))!.toString()).toBe(
           'copertina à è ì',
         )
         // Deflating actually happened.
-        expect(z.get('Studio Associato GEM/README.md')!.compressedSize).toBeLessThan(text.length / 10)
+        expect(z.get('Acme Studio/README.md')!.compressedSize).toBeLessThan(text.length / 10)
       } finally {
         await z.close()
       }

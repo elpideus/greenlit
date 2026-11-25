@@ -1,7 +1,8 @@
 import type { Media, MediaFormat } from '@greenlit/shared'
+import { ArrowUpRight } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { Slot, useSlot } from '@/app/Slot'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
@@ -14,9 +15,20 @@ export type PanelProps = { media: Media; format: MediaFormat }
 /**
  * The viewer's right panel: the decision (review) on top, then the tabs features add through `media.panels`
  * (Notes, Info, History, Links, Posts…). The tab follows `?tab=` and the viewer store (features bring their tab
- * forward by setting `tab`).
+ * forward by setting `tab`). For a Slides item, the decision is the Slides item's (`owner`) and the tabs are about
+ * the page on screen, named under it.
  */
-export function SidePanel({ media, format, className }: PanelProps & { className?: string }) {
+export function SidePanel({
+  media,
+  format,
+  owner,
+  slide,
+  className,
+}: PanelProps & {
+  owner?: Media
+  slide?: { index: number; total: number }
+  className?: string
+}) {
   const t = useT('viewer')
   const entries = useSlot<PanelProps>('media.panels', { media, format })
   const [params, setParams] = useSearchParams()
@@ -49,8 +61,25 @@ export function SidePanel({ media, format, className }: PanelProps & { className
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)}>
       <div className="shrink-0">
-        <Slot name="media.decision" props={{ media }} />
+        <Slot name="media.decision" props={{ media: owner ?? media }} />
       </div>
+      {slide && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-line px-5 py-2.5">
+          <span className="shrink-0 t-meta text-ink-3 tabular-nums">
+            {t('slides.slideOf', { position: slide.index + 1, total: slide.total })}
+          </span>
+          <span className="min-w-0 flex-1 truncate t-callout text-ink">
+            {media.title || t('common:untitled')}
+          </span>
+          <Link
+            to={`/media/${media.id}`}
+            className="press flex shrink-0 items-center gap-1 rounded-[6px] px-1.5 py-0.5 t-meta text-ink-3 hover:bg-hover hover:text-ink"
+          >
+            {t('slides.openAlone')}
+            <ArrowUpRight size={12} />
+          </Link>
+        </div>
+      )}
       {entries.length > 1 && (
         <div className="shrink-0 border-b border-line px-5">
           <Tabs

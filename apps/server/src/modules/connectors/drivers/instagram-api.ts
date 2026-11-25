@@ -226,9 +226,23 @@ export const instagramApi: Driver = {
   async check(run, account) {
     try {
       const id = await signedInId(run)
-      return id === account.externalId
-        ? { ok: true }
-        : { ok: false, reason: 'This sign-in is now another Instagram account.' }
+      if (id !== account.externalId)
+        return { ok: false, reason: 'This sign-in is now another Instagram account.' }
+      // A cookie is not a sign-in: publishing goes through the app's requests with this session (IGT), so one of
+      // them is made. On 25 Nov 2026 Instagram logged that form out while the cookie stayed, and the check kept
+      // saying connected until the 13:00 carousel failed.
+      try {
+        await api(run).call('musicSearch', { query: 'piano' }, { maxTier: 1 })
+      } catch (err) {
+        if (/login_required|logged out|HTTP 401/i.test((err as Error).message))
+          return {
+            ok: false,
+            reason:
+              'Instagram logged Greenlit out (its posting requests answer "login_required"). Reconnect Instagram.',
+          }
+        throw err
+      }
+      return { ok: true }
     } catch (err) {
       if (err instanceof NeedsLogin) return { ok: false, reason: err.message }
       throw err

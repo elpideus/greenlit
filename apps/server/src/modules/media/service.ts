@@ -1,4 +1,6 @@
 import {
+  type CreateSlidesInput,
+  cleanWebLinks,
   type DepthMatch,
   type DepthMatchInput,
   type DepthNear,
@@ -19,18 +21,22 @@ import {
   parseQuery,
   pruneVersionSet,
   readVersionSet,
+  SLIDE_KINDS,
+  SLIDES_MAX,
+  slidesTitle,
   tagKey,
   type UpdateMediaInput,
   type VersionSet,
   versionName,
 } from '@greenlit/shared'
-import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, type SQL, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, notInArray, type SQL, sql } from 'drizzle-orm'
 import { type Actor, actorUserId, isAdmin } from '../../core/actor.ts'
 import { badRequest, conflict, forbidden, notFound } from '../../core/errors.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import type { BlobRow } from '../files/service.ts'
 import { projects } from '../projects/schema.ts'
-import { media, mediaFiles, mediaFormats } from './schema.ts'
+import { media, mediaFiles, mediaFormats, mediaSlides } from './schema.ts'
+import { decorateSlides, notASlide, orItsPages, pageRows } from './slides.ts'
 
 type MediaRow = typeof media.$inferSelect
 type FormatRow = typeof mediaFormats.$inferSelect
@@ -187,7 +193,7 @@ export class MediaService {
     }
     const refs = await this.ctx.services.users.refs(rows.map((r) => r.createdBy))
     const extras = await this.ctx.hooks.run('media.decorate', { ids, actor })
-    return rows.map((r) => {
+    const out = rows.map((r) => {
       const versionFormats = byMedia.get(r.id) ?? new Map<string, MediaFormat[]>()
       const fs = versionFormats.get('') ?? []
       const primary = fs.find((f) => f.isPrimary) ?? fs[0]
@@ -207,6 +213,7 @@ export class MediaService {
         status: r.status as MediaStatus,
         origin: r.origin as Media['origin'],
         tags: r.tags,
+        webLinks: r.webLinks ?? [],
         formats: fs,
         versions,
         versionGroups: set.groups,
@@ -227,6 +234,8 @@ export class MediaService {
       for (const e of extras) Object.assign(m, e[r.id] ?? {})
       return m
     })
+    await decorateSlides(this.ctx, out, actor, (pageIds, a) => this.many(pageIds, a))
+    return out
   }
 
   async row(id: string): Promise<MediaRow> {
@@ -257,6 +266,8 @@ export class MediaService {
 
   async list(actor: Actor, q: MediaListQuery) {
     const where: (SQL | undefined)[] = [await this.visibleWhere(actor, { trash: q.trash })]
+    // Slides items stand for their pages (in the trash, a page trashed on its own shows so it can come back).
+    if (!q.withSlides && !q.trash) where.push(notASlide)
     if (q.projectId === 'none') where.push(isNull(media.projectId))
     else if (q.projectId) where.push(eq(media.projectId, q.projectId))
     else if (q.projectKind && !/(^|\s)-?project:/i.test(q.q ?? '')) {
@@ -265,15 +276,16 @@ export class MediaService {
     }
     if (q.kind) where.push(eq(media.kind, q.kind))
     if (q.status) where.push(eq(media.status, q.status))
-    if (q.tag)
-      where.push(sql`exists (select 1 from unnest(${media.tags}) t where lower(t) = ${tagKey(q.tag)})`)
+    const hasTag = (tag: string) =>
+      orItsPages((t) => sql`exists (select 1 from unnest(${t.tags}) t where lower(t) = ${tagKey(tag)})`)
+    if (q.tag) where.push(hasTag(q.tag))
     if (q.q) {
       const parsed = parseQuery(q.q)
-      for (const w of parsed.text) where.push(sql`${media.searchText} like ${`%${escapeLike(fold(w))}%`}`)
+      for (const w of parsed.text)
+        where.push(orItsPages((t) => sql`${t.searchText} like ${`%${escapeLike(fold(w))}%`}`))
       for (const w of parsed.exclude)
         where.push(sql`${media.searchText} not like ${`%${escapeLike(fold(w))}%`}`)
-      for (const t of parsed.tags)
-        where.push(sql`exists (select 1 from unnest(${media.tags}) t where lower(t) = ${tagKey(t)})`)
+      for (const t of parsed.tags) where.push(hasTag(t))
       for (const [key, values] of Object.entries(parsed.filters)) {
         if (key === 'kind' || key === 'type') where.push(inArray(media.kind, values))
         else if (key === 'status') where.push(inArray(media.status, values))
@@ -426,6 +438,8 @@ export class MediaService {
     actor: Actor,
   ) {
     const m = await this.row(mediaId)
+    if (m.kind === 'slides')
+      throw badRequest('A Slides item has no files of its own: add the file as a new page (slidesId) instead')
     const kind = mediaKindFromMime(blob.mime)
     const role = opts.audio ? 'audio' : opts.depth ? 'depth' : 'format'
     let version = opts.audio ? '' : (opts.version ?? '')
@@ -587,6 +601,7 @@ export class MediaService {
     if (input.title !== undefined) patch.title = input.title.trim()
     if (input.description !== undefined) patch.description = input.description
     if (input.tags !== undefined) patch.tags = cleanTags(input.tags)
+    if (input.webLinks !== undefined) patch.webLinks = cleanWebLinks(input.webLinks)
     if (input.status !== undefined) patch.status = input.status
     if (input.projectId !== undefined) patch.projectId = input.projectId
     if (input.takenAt !== undefined) patch.takenAt = input.takenAt ? new Date(input.takenAt) : null
@@ -606,6 +621,13 @@ export class MediaService {
     this.publish(id, patch.projectId ?? current.projectId, 'media.updated')
     if (current.projectId && input.projectId !== undefined && input.projectId !== current.projectId)
       this.publish(id, current.projectId, 'media.updated')
+    // A Slides item's pages go where it goes and take its status.
+    if (current.kind === 'slides' && (input.status !== undefined || input.projectId !== undefined)) {
+      const pages = await this.pageIds(id)
+      if (input.status !== undefined) for (const p of pages) await this.setStatus(p, input.status, actor)
+      if (input.projectId !== undefined)
+        await this.movePages(await this.rowsOf(pages), input.projectId, actor)
+    }
     return this.get(id, actor)
   }
 
@@ -679,11 +701,15 @@ export class MediaService {
 
   async setStatus(id: string, status: MediaStatus, actor: Actor) {
     const current = await this.row(id)
-    if (current.status === status) return
-    await this.db.update(media).set({ status, updatedAt: new Date() }).where(eq(media.id, id))
-    await this.ctx.versions.record('media', id, actor)
-    this.ctx.events.emit('media.updated', { id, projectId: current.projectId })
-    this.publish(id, current.projectId, 'media.updated')
+    if (current.status !== status) {
+      await this.db.update(media).set({ status, updatedAt: new Date() }).where(eq(media.id, id))
+      await this.ctx.versions.record('media', id, actor)
+      this.ctx.events.emit('media.updated', { id, projectId: current.projectId })
+      this.publish(id, current.projectId, 'media.updated')
+    }
+    // A Slides item is decided as a whole: its pages take its status.
+    if (current.kind === 'slides')
+      for (const p of await this.pageIds(id)) await this.setStatus(p, status, actor)
   }
 
   async updateFormat(
@@ -1021,8 +1047,35 @@ export class MediaService {
     }
   }
 
-  /** Permanently deletes media rows. Their files are removed by the storage clean-up once nothing points at them. */
+  /**
+   * Permanently deletes media rows. Their files are removed by the storage clean-up once nothing points at them.
+   * A Slides item's pages go with it, unless another Slides item has them too.
+   */
   async purge(ids: string[]) {
+    const sets = ids.length
+      ? (
+          await this.db
+            .select({ id: media.id })
+            .from(media)
+            .where(and(inArray(media.id, ids), eq(media.kind, 'slides')))
+        ).map((r) => r.id)
+      : []
+    if (sets.length) {
+      const pages = [...new Set((await pageRows(this.ctx, sets)).map((r) => r.mediaId))].filter(
+        (id) => !ids.includes(id),
+      )
+      const elsewhere = pages.length
+        ? new Set(
+            (
+              await this.db
+                .select({ id: mediaSlides.mediaId })
+                .from(mediaSlides)
+                .where(and(inArray(mediaSlides.mediaId, pages), notInArray(mediaSlides.slidesId, sets)))
+            ).map((r) => r.id),
+          )
+        : new Set<string>()
+      ids = [...ids, ...pages.filter((id) => !elsewhere.has(id))]
+    }
     for (const id of ids) {
       const m = await this.row(id)
       await this.db.delete(mediaFiles).where(eq(mediaFiles.mediaId, id))
@@ -1192,6 +1245,226 @@ export class MediaService {
       }
       return { name: w.name, targets: [] }
     })
+  }
+
+  // ── slides ──────────────────────────────────────────────────────────────
+
+  /** A Slides item's pages in order: all of them, trashed ones and ones hidden from someone too. */
+  async pageIds(slidesId: string): Promise<string[]> {
+    return (await pageRows(this.ctx, [slidesId])).map((r) => r.mediaId)
+  }
+
+  /** Full views of a Slides item's pages the actor can see, in order. */
+  async pages(slidesId: string, actor: Actor): Promise<Media[]> {
+    await this.slidesRow(slidesId, actor)
+    return this.many(await this.pageIds(slidesId), actor)
+  }
+
+  private async rowsOf(ids: string[]): Promise<MediaRow[]> {
+    if (!ids.length) return []
+    return this.db.select().from(media).where(inArray(media.id, ids))
+  }
+
+  private async slidesRow(id: string, actor: Actor): Promise<MediaRow> {
+    const row = await this.row(id)
+    if (row.kind !== 'slides' || !(await this.canView(id, actor))) throw notFound('Slides not found')
+    return row
+  }
+
+  /** Pictures and videos that may be pages, in the order given (each once); anything else is refused. */
+  private async pageCandidates(ids: string[], actor: Actor): Promise<MediaRow[]> {
+    const unique = [...new Set(ids)]
+    if (unique.length > SLIDES_MAX) throw badRequest(`Slides hold at most ${SLIDES_MAX} pages`)
+    if (!unique.length) return []
+    const rows = await this.db
+      .select()
+      .from(media)
+      .where(and(inArray(media.id, unique), await this.visibleWhere(actor)))
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    for (const id of unique) {
+      const r = byId.get(id)
+      if (!r) throw notFound(`Media ${id} not found`)
+      if (!SLIDE_KINDS.includes(r.kind as MediaKind))
+        throw badRequest(
+          r.kind === 'slides'
+            ? `"${r.title || 'Untitled'}" is a Slides item itself: add its pages instead`
+            : `"${r.title || 'Untitled'}" is a ${r.kind} file: Slides hold pictures and videos`,
+        )
+    }
+    return unique.map((id) => byId.get(id)!)
+  }
+
+  /** Pages follow their Slides item's project (a page left in another project would vanish from both lists). */
+  private async movePages(pages: MediaRow[], projectId: string | null, actor: Actor) {
+    const moving = pages.filter((p) => p.projectId !== projectId)
+    for (const p of moving) {
+      await this.db.update(media).set({ projectId, updatedAt: new Date() }).where(eq(media.id, p.id))
+      await this.ctx.versions.record('media', p.id, actor)
+      await this.ctx.services.projects.touch(p.projectId)
+      this.ctx.events.emit('media.updated', { id: p.id, projectId })
+    }
+    if (moving.length) await this.ctx.services.projects.touch(projectId)
+    this.publishMany(moving, projectId)
+  }
+
+  /** One list message for many items (one per item would refetch every open list as many times). */
+  private publishMany(rows: Pick<MediaRow, 'id' | 'projectId'>[], alsoProject?: string | null) {
+    if (!rows.length) return
+    const ids = rows.map((r) => r.id)
+    for (const id of ids) this.ctx.realtime.publish(`media:${id}`, 'media.updated', { id })
+    this.ctx.realtime.publish('library', 'media.updated', { ids })
+    for (const p of new Set([...rows.map((r) => r.projectId), alsoProject ?? null]))
+      if (p) this.ctx.realtime.publish(`project:${p}`, 'media.updated', { ids })
+  }
+
+  /**
+   * Groups pictures and videos as one Slides item (a carousel's pages), which the library then lists in their place.
+   * Title: given, else what the pages' titles share. Project: given, else the first page's; pages move into it.
+   * Status: the pages' when they all have the same one.
+   */
+  async createSlides(input: CreateSlidesInput, actor: Actor): Promise<Media> {
+    const pages = await this.pageCandidates(input.mediaIds, actor)
+    if (!pages.length) throw badRequest('Slides need at least one picture or video')
+    const projectId = input.projectId !== undefined ? input.projectId : (pages[0]!.projectId ?? null)
+    const title = input.title?.trim() || slidesTitle(pages.map((p) => p.title)) || 'Slides'
+    const statuses = new Set(pages.map((p) => p.status))
+    const takenAt =
+      pages
+        .map((p) => p.takenAt)
+        .filter((d): d is Date => !!d)
+        .sort((a, b) => a.getTime() - b.getTime())[0] ?? null
+    const id = await this.db.transaction(async (tx) => {
+      const [m] = await tx
+        .insert(media)
+        .values({
+          projectId,
+          title,
+          kind: 'slides',
+          status: statuses.size === 1 ? pages[0]!.status : 'draft',
+          origin: 'upload',
+          takenAt,
+          createdBy: actorUserId(actor),
+          searchText: this.searchTextFor({ title, description: '', tags: [] }),
+        })
+        .returning({ id: media.id })
+      await tx
+        .insert(mediaSlides)
+        .values(pages.map((p, position) => ({ slidesId: m!.id, mediaId: p.id, position })))
+      return m!.id
+    })
+    await this.ctx.services.projects.touch(projectId)
+    await this.ctx.versions.record('media', id, actor, { force: true })
+    this.ctx.events.emit('media.created', { id, projectId })
+    this.publish(id, projectId, 'media.created')
+    await this.movePages(pages, projectId, actor)
+    this.publishMany(pages)
+    return this.get(id, actor)
+  }
+
+  /**
+   * A Slides item's pages in their new order: missing ones leave it (back in the library unless another Slides item
+   * has them), new ones join it and move into its project. Pages the actor can't see (trashed, hidden from them) stay,
+   * after the others.
+   */
+  async setSlides(slidesId: string, mediaIds: string[], actor: Actor): Promise<Media> {
+    const set = await this.slidesRow(slidesId, actor)
+    const before = await this.pageIds(slidesId)
+    const wanted = await this.pageCandidates(mediaIds, actor)
+    const visible = before.length
+      ? new Set(
+          (
+            await this.db
+              .select({ id: media.id })
+              .from(media)
+              .where(and(inArray(media.id, before), await this.visibleWhere(actor)))
+          ).map((r) => r.id),
+        )
+      : new Set<string>()
+    const wantedIds = wanted.map((w) => w.id)
+    const order = [...wantedIds, ...before.filter((id) => !visible.has(id) && !wantedIds.includes(id))]
+    if (order.length > SLIDES_MAX) throw badRequest(`Slides hold at most ${SLIDES_MAX} pages`)
+    if (order.length === before.length && order.every((id, i) => id === before[i]))
+      return this.get(slidesId, actor)
+    await this.db.transaction(async (tx) => {
+      await tx.delete(mediaSlides).where(eq(mediaSlides.slidesId, slidesId))
+      if (order.length)
+        await tx
+          .insert(mediaSlides)
+          .values(order.map((mediaId, position) => ({ slidesId, mediaId, position })))
+    })
+    await this.db.update(media).set({ updatedAt: new Date() }).where(eq(media.id, slidesId))
+    await this.ctx.versions.record('media', slidesId, actor)
+    this.ctx.events.emit('media.updated', { id: slidesId, projectId: set.projectId })
+    this.publish(slidesId, set.projectId, 'media.updated')
+    await this.movePages(wanted, set.projectId, actor)
+    const changed = [
+      ...before.filter((id) => !order.includes(id)),
+      ...order.filter((id) => !before.includes(id)),
+    ]
+    this.publishMany(await this.rowsOf(changed))
+    return this.get(slidesId, actor)
+  }
+
+  /** Adds pages at the end of a Slides item, one statement each (uploads finishing at once don't drop any). */
+  async addPages(slidesId: string, ids: string[], actor: Actor) {
+    const set = await this.slidesRow(slidesId, actor)
+    const pages = await this.pageCandidates(ids, actor)
+    const count = (await this.pageIds(slidesId)).length
+    if (count + pages.length > SLIDES_MAX) throw badRequest(`Slides hold at most ${SLIDES_MAX} pages`)
+    for (const p of pages)
+      await this.db.execute(sql`
+        insert into ${mediaSlides} (slides_id, media_id, position)
+        select ${slidesId}::uuid, ${p.id}::uuid, coalesce(max(position) + 1, 0)
+        from ${mediaSlides} where slides_id = ${slidesId}::uuid
+        on conflict do nothing`)
+    await this.db.update(media).set({ updatedAt: new Date() }).where(eq(media.id, slidesId))
+    await this.ctx.versions.record('media', slidesId, actor)
+    this.ctx.events.emit('media.updated', { id: slidesId, projectId: set.projectId })
+    this.publish(slidesId, set.projectId, 'media.updated')
+    await this.movePages(pages, set.projectId, actor)
+    this.publishMany(pages)
+  }
+
+  /** Takes a Slides item apart: its pages go back to the library, the Slides item is deleted. Returns the pages. */
+  async ungroupSlides(slidesId: string, actor: Actor): Promise<string[]> {
+    await this.slidesRow(slidesId, actor)
+    const pages = await this.pageIds(slidesId)
+    await this.db.delete(mediaSlides).where(eq(mediaSlides.slidesId, slidesId))
+    await this.purge([slidesId])
+    this.publishMany(await this.rowsOf(pages))
+    return pages
+  }
+
+  /** Media ids with each Slides item replaced by its pages the actor can see, in order, each id once (posts). */
+  async expandSlides(ids: string[], actor: Actor): Promise<string[]> {
+    if (!ids.length) return ids
+    const sets = (
+      await this.db
+        .select({ id: media.id })
+        .from(media)
+        .where(and(inArray(media.id, ids), eq(media.kind, 'slides')))
+    ).map((r) => r.id)
+    if (!sets.length) return ids
+    const rows = await pageRows(this.ctx, sets)
+    const pageIds = [...new Set(rows.map((r) => r.mediaId))]
+    const visible = pageIds.length
+      ? new Set(
+          (
+            await this.db
+              .select({ id: media.id })
+              .from(media)
+              .where(and(inArray(media.id, pageIds), await this.visibleWhere(actor)))
+          ).map((r) => r.id),
+        )
+      : new Set<string>()
+    const out: string[] = []
+    for (const id of ids) {
+      const add = sets.includes(id)
+        ? rows.filter((r) => r.slidesId === id && visible.has(r.mediaId)).map((r) => r.mediaId)
+        : [id]
+      for (const a of add) if (!out.includes(a)) out.push(a)
+    }
+    return out
   }
 
   publish(id: string, projectId: string | null, event: string) {

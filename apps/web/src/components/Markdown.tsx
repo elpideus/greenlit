@@ -185,7 +185,7 @@ function blocks(src: string): ReactNode {
   })
 }
 
-// Underscores only emphasise whole words, so file names (GEM_Luce.cube) stay as written.
+// Underscores only emphasise whole words, so file names (Acme_Luce.cube) stay as written.
 const INLINE =
   /(!\[[^\]]*\]\([^)\s]+\)|\*\*[^*]+\*\*|(?<!\w)__[^_]+__(?!\w)|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\*[^*\s][^*]*\*|(?<!\w)_[^_\s][^_]*_(?!\w))/g
 

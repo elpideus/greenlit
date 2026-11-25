@@ -21,6 +21,13 @@ import {
 import { cookie, findObjects, str } from './util.ts'
 
 /**
+ * How far ahead facebook.com takes a Page's scheduled post: at least 10 minutes (its composer's rule) and, as
+ * seen on 25 Nov 2026, not much past four weeks: 23 Dec went in, 30 Dec came back "A server error field_exception
+ * occured". 28 days keeps a day clear of that edge; a later post waits in Greenlit and goes out at its time.
+ */
+export const FB_FEED_SCHEDULE = { minLeadMinutes: 10, maxLeadDays: 28 }
+
+/**
  * Facebook signed in directly on facebook.com, through API Anything (aa/sites/facebook.json): facebook.com's own
  * GraphQL requests over plain HTTP. One login reaches its own profile and every Page it can switch to (Pages
  * are profiles in Facebook's current Pages experience); each becomes an account, chosen when publishing.
@@ -51,11 +58,11 @@ const capabilities = {
 const pageCapabilities = {
   ...capabilities,
   publish: true,
-  // Feed posts schedule on Facebook itself, at least 10 minutes ahead (its composer's rule); reels go out at
-  // their time from Greenlit.
+  // Feed posts schedule on Facebook itself, 10 minutes to 28 days ahead (FB_FEED_SCHEDULE); reels, and feed
+  // posts further out, go out at their time from Greenlit.
   nativeSchedule: true,
   scheduleOn: ['feed'] as Placement[],
-  scheduleWindow: { minMinutes: 10 },
+  scheduleWindow: { minMinutes: FB_FEED_SCHEDULE.minLeadMinutes, maxDays: FB_FEED_SCHEDULE.maxLeadDays },
   // Reels through Business Suite's requests, with a sound from Meta's music library at the volumes chosen.
   placements: ['feed', 'reel', 'story'] as Placement[],
   music: true,
@@ -148,14 +155,23 @@ export async function postWithPhotos(
   if (req.files.some((f) => f.kind !== 'image'))
     throw new ConnectorUnsupported('video', 'Videos through facebook.com are not supported yet')
   const page = account.platformIds.kind === 'page'
-  // A Page schedules on Facebook itself, at least 10 minutes ahead (its composer's rule).
+  // A Page schedules on Facebook itself, 10 minutes to 28 days ahead (FB_FEED_SCHEDULE).
   if (req.scheduleAt && !page)
     throw new ConnectorUnsupported(
       'scheduleAt',
       'A Facebook profile cannot schedule posts; Greenlit posts it on time',
     )
-  if (req.scheduleAt && req.scheduleAt.getTime() < Date.now() + 10 * 60_000)
-    throw new ConnectorUnsupported('scheduleAt', 'Facebook schedules posts at least 10 minutes ahead')
+  const lead = req.scheduleAt ? req.scheduleAt.getTime() - Date.now() : 0
+  if (req.scheduleAt && lead < FB_FEED_SCHEDULE.minLeadMinutes * 60_000)
+    throw new ConnectorUnsupported(
+      'scheduleAt',
+      `Facebook schedules posts at least ${FB_FEED_SCHEDULE.minLeadMinutes} minutes ahead`,
+    )
+  if (req.scheduleAt && lead > FB_FEED_SCHEDULE.maxLeadDays * 86_400_000)
+    throw new ConnectorUnsupported(
+      'scheduleAt',
+      `Facebook schedules posts at most ${FB_FEED_SCHEDULE.maxLeadDays} days ahead; Greenlit posts it on time`,
+    )
   // One token per publish attempt: it keys each write (a retry inside this attempt is the same write, a new
   // attempt is a new one) and is the composer's idempotence token.
   const token = `${randomUUID()}_FEED`

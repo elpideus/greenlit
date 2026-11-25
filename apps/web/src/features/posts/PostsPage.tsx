@@ -91,7 +91,7 @@ export default function PostsPage() {
     }
   }, [posts])
 
-  const usedAccounts = accounts.filter((a) => !a.mergedInto)
+  const usedAccounts = accounts.filter((a) => !a.mergedInto && a.state !== 'disabled')
   const anyFilter = status !== 'all' || platforms.length > 0 || account !== 'all' || project !== 'all' || q
 
   return (

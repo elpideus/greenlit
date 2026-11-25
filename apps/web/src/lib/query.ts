@@ -27,6 +27,7 @@ export const qk = {
   directory: ['users', 'directory'] as const,
   media: (q?: unknown) => (q === undefined ? (['media'] as const) : (['media', 'list', q] as const)),
   mediaItem: (id: string) => ['media', 'item', id] as const,
+  slidePages: (id: string) => ['media', 'slides', id] as const,
   mediaFiles: (id: string) => ['media', 'files', id] as const,
   projects: ['projects'] as const,
   project: (id: string) => ['projects', id] as const,

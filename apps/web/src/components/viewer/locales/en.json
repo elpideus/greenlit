@@ -109,5 +109,28 @@
   "notUploaded": "No {{version}} yet",
   "uploadVersion": "Upload {{version}}…",
   "showVersion": "Show {{version}}",
-  "makeMainNamed": "Make {{version}} the main version"
+  "makeMainNamed": "Make {{version}} the main version",
+  "slides": {
+    "count_one": "{{count}} slide",
+    "count_other": "{{count}} slides",
+    "slideOf": "Slide {{position}} of {{total}}",
+    "openAlone": "Open on its own",
+    "none": "No slides",
+    "add": "Add slides",
+    "fromLibrary": "From the library…",
+    "upload": "Upload pictures…",
+    "pickTitle": "Add slides from the library",
+    "pickConfirm": "Add",
+    "added_one": "Slide added",
+    "added_other": "{{count}} slides added",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "remove": "Take out of these slides",
+    "removed": "{{title}} is back in the library",
+    "onlyPictures": "Slides hold pictures and videos",
+    "full": "At most {{max}} slides",
+    "someFailed": "Some files could not be uploaded",
+    "emptyTitle": "No slides yet",
+    "emptyBody": "Add pictures from the library with +, or drop files here. Each one stays its own item, with its versions and notes."
+  }
 }

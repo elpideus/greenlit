@@ -50,7 +50,7 @@ export const BrandFontUse = z.object({
   family: z.string().min(1).max(120),
   role: BrandFontRole,
   usage: z.string().max(300).default(''),
-  /** Titles set in capitals (GEM: Cinzel, always uppercase). */
+  /** Titles set in capitals (e.g. Cinzel, always uppercase). */
   uppercase: z.boolean().default(false),
   /** Tracking in em (0.03 = +3%). */
   letterSpacing: z.number().min(-0.2).max(0.5).nullable().default(null),
@@ -83,9 +83,9 @@ export type BrandFamily = z.infer<typeof BrandFamily>
 export const BrandAsset = z.object({
   media: Media,
   section: BrandSectionType,
-  /** The folder it came from inside its section ("Studio Associato GEM › Vettoriale (SVG)"); '' = none. */
+  /** The folder it came from inside its section ("Acme Studio › Vettoriale (SVG)"); '' = none. */
   group: z.string(),
-  /** Its path inside the kit as it was added ("01 Loghi/Studio Associato GEM/…svg"); '' = added on its own. */
+  /** Its path inside the kit as it was added ("01 Loghi/Acme Studio/…svg"); '' = added on its own. */
   path: z.string(),
   /** Transparent artwork: the background it reads on. Null for opaque pictures and other files. */
   surface: BrandSurface.nullable(),
@@ -227,8 +227,8 @@ const PLAIN_NAMES: Record<BrandSectionType, RegExp> = {
 
 /**
  * Where a file of a kit goes, from its path inside the kit: the section the first folder that names one says (or
- * what the file is), and the folders from there down as its group ("01 Loghi/Costruzioni GEM/x.svg" → Logos,
- * "Costruzioni GEM"). A folder that only names the section isn't repeated ("02 Colori/x.ase" → Colours, no group);
+ * what the file is), and the folders from there down as its group ("01 Loghi/Acme Builders/x.svg" → Logos,
+ * "Acme Builders"). A folder that only names the section isn't repeated ("02 Colori/x.ase" → Colours, no group);
  * one that says more is ("00 Anteprime/…" → Guidelines, "Anteprime"). Fonts and looks go to their section wherever
  * they are; so do palette files.
  */

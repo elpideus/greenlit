@@ -2,7 +2,7 @@ import type { Capabilities } from '@greenlit/shared/areas/connectors'
 import type { AccountRow } from './schema.ts'
 
 /**
- * One account reached through two connectors (the GEM Page through facebook.com and through Meta Business Suite;
+ * One account reached through two connectors (a Page through facebook.com and through Meta Business Suite;
  * an Instagram account through instagram.com and Business Suite) is one account in Greenlit: the platform's own
  * connector is the main one, the other is merged into it and fills in what the main one cannot do (Business Suite
  * posts reels, stories and music to a Page that facebook.com cannot yet).

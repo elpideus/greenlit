@@ -17,6 +17,8 @@
     "pictureRemoved": "Foto rimossa",
     "name": "Nome visualizzato",
     "nameHint": "Compare sulle tue note, revisioni e post.",
+    "username": "Nome utente",
+    "usernameHint": "Lo usi per accedere. Può cambiarlo un amministratore in Persone.",
     "email": "Email",
     "emailHint": "Può cambiarla un amministratore in Persone.",
     "role": "Ruolo",

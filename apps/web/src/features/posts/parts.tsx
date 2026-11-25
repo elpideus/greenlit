@@ -1,4 +1,4 @@
-import type { Account, Post, PostTarget } from '@greenlit/shared'
+import { type Account, type Post, type PostTarget, postThumbnail } from '@greenlit/shared'
 import { ExternalLink, Image as ImageIcon, MoreHorizontal } from 'lucide-react'
 import { Link } from 'react-router'
 import { menuEntries } from '@/app/registry'
@@ -116,7 +116,7 @@ export function PostRow({
   const menu = useContextMenu(items)
   const m = post.media[0]
   const f = m?.formats[0]
-  const thumb = m?.thumbnailUrl ?? f?.posterUrl
+  const thumb = postThumbnail(post)
   const live = post.targets.filter((x) => x.state !== 'removed')
   const when =
     post.status === 'published'

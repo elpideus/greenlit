@@ -315,6 +315,8 @@ function show(v: unknown): ReactNode {
         x && typeof x === 'object'
           ? ((x as Record<string, unknown>).label ??
             (x as Record<string, unknown>).name ??
+            ((x as Record<string, unknown>).title || undefined) ??
+            (x as Record<string, unknown>).url ??
             (x as Record<string, unknown>).key)
           : null,
       )

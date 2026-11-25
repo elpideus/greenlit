@@ -73,7 +73,7 @@ export const Account = z.object({
   signIn: z.object({
     /** Same for every account of one sign-in. */
     id: z.string(),
-    /** Who signed in ("Stefan", "Nu Piezzu", "@studio_associato_gem"); empty when the connector cannot tell. */
+    /** Who signed in ("Alex", "Acme Studio", "@acme_studio"); empty when the connector cannot tell. */
     name: z.string(),
     handle: z.string(),
     avatarUrl: z.string().nullable(),

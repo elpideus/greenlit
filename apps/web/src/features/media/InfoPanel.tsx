@@ -4,6 +4,7 @@ import { RotateCcw } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Slot } from '@/app/Slot'
 import { PeoplePicker } from '@/components/PeoplePicker'
+import { WebLinks } from '@/components/web-links'
 import { useUpdateMedia } from '@/data/media'
 import { useProjects } from '@/data/projects'
 import { api } from '@/lib/api'
@@ -131,6 +132,14 @@ export function InfoPanel({ media, format }: { media: Media; format: MediaFormat
             disabled={!canEdit}
             placeholder={t('info.addTag')}
             onChange={(tags) => save({ tags })}
+          />
+        </div>
+        <div>
+          <Label>{t('info.webLinks')}</Label>
+          <WebLinks
+            links={media.webLinks ?? []}
+            editable={canEdit}
+            onChange={(webLinks) => save({ webLinks })}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

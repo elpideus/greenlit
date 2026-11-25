@@ -158,7 +158,8 @@ export default defineModule({
         .catch((err) => ctx.log.warn({ err }, 'account capabilities not refreshed'))
         .then(() => svc.mergeDuplicates())
         .catch((err) => ctx.log.warn({ err }, 'accounts not merged'))
-      ctx.jobs.schedule('connectors.health', '20 */6 * * *')
+      // Every two hours: a sign-in a platform ended is found (and the admins told) well before a post is due.
+      ctx.jobs.schedule('connectors.health', '20 */2 * * *')
       ctx.jobs.schedule('connectors.sync', '*/15 * * * *')
       ctx.jobs.schedule('connectors.prune', '50 4 * * *')
       // What is signed in on Greenlit's Android device joins the accounts it belongs to.

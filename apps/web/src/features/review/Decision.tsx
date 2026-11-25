@@ -1,6 +1,6 @@
 import type { Media, ReviewRequest } from '@greenlit/shared'
 import { useQueryClient } from '@tanstack/react-query'
-import { Ellipsis, RotateCcw, Send, Undo2 } from 'lucide-react'
+import { Check, Ellipsis, RotateCcw, Send, Undo2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { api } from '@/lib/api'
@@ -18,8 +18,10 @@ import { openSendForReview, useReviewRoom } from './store'
 const names = (xs: { displayName: string }[]) => xs.map((x) => x.displayName.split(' ')[0]).join(', ')
 
 /**
- * The decision, above the viewer's panel: the signal lit for the item's state, who it waits for, and the one or two
- * actions that move it (Greenlight / Ask for changes for the reviewer; Send for review / Greenlight for the admin).
+ * The decision, above the viewer's panel: the signal lit for the item's state, who it waits for, and the actions that
+ * move it. Accept is one big button for whoever can decide (the reviewer whose turn it is; the admin, for everyone,
+ * while a request is open or before one is sent), so nobody has to look for it in a menu; Ask for changes (reviewer) or
+ * Send for review (admin, no open request) sits under it.
  */
 export function Decision({ media }: { media: Media }) {
   const t = useT('review')
@@ -120,8 +122,8 @@ export function Decision({ media }: { media: Media }) {
     meta = t('decision.draftBody')
   }
 
+  const canAccept = myTurn || (admin && media.status !== 'approved')
   const moreItems = [
-    admin && open && { label: t('decision.decideForAll'), icon: Send, onSelect: () => void greenlight() },
     admin &&
       open && {
         label: t('decision.withdraw'),
@@ -182,20 +184,29 @@ export function Decision({ media }: { media: Media }) {
         )}
       </div>
       {quote && <Quote text={quote} />}
-      {(myTurn || (admin && !open && media.status !== 'approved')) && (
-        <div className="mt-3.5 grid grid-cols-2 gap-2">
+      {canAccept && (
+        <div className="mt-4 flex flex-col gap-2">
+          <Button
+            variant="primary"
+            size="xl"
+            icon={Check}
+            loading={busy}
+            onClick={() => void greenlight()}
+            className="w-full"
+          >
+            {t('decision.accept')}
+          </Button>
           {myTurn ? (
-            <Button variant="review" onClick={() => setAsking(true)}>
+            <Button variant="review" size="lg" onClick={() => setAsking(true)} className="w-full">
               {t('decision.askChanges')}
             </Button>
           ) : (
-            <Button icon={Send} onClick={() => openSendForReview([media.id])}>
-              {media.status === 'changes_requested' ? t('decision.sendAgain') : t('decision.sendForReview')}
-            </Button>
+            !open && (
+              <Button icon={Send} size="lg" onClick={() => openSendForReview([media.id])} className="w-full">
+                {media.status === 'changes_requested' ? t('decision.sendAgain') : t('decision.sendForReview')}
+              </Button>
+            )
           )}
-          <Button variant="primary" loading={busy} onClick={() => void greenlight()}>
-            {t('decision.greenlight')}
-          </Button>
         </div>
       )}
       {open && myTurn && (

@@ -13,6 +13,23 @@ import { apiTokens, sessions, users } from './schema.ts'
 type UserRow = typeof users.$inferSelect
 
 export const SESSION_COOKIE = 'gl_session'
+
+/** A unique-index clash on users, said in words; anything else passes through. */
+function taken(err: unknown) {
+  // postgres.js puts the code on the error; drizzle may wrap it in `cause`.
+  const e = err as {
+    code?: string
+    constraint_name?: string
+    cause?: { code?: string; constraint_name?: string }
+  }
+  const pg = e.code ? e : e.cause
+  if (pg?.code !== '23505') return err
+  return conflict(
+    pg.constraint_name === 'users_username'
+      ? 'Someone already uses this username'
+      : 'Someone already uses this email',
+  )
+}
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex')
 
 /** Permissions a share-link session keeps: look at what it was sent and talk about it. */
@@ -46,6 +63,7 @@ export class UsersService {
     return {
       id: r.id,
       email: r.email,
+      username: r.username,
       displayName: r.displayName,
       avatarUrl: r.avatarPath ? `/api/users/${r.id}/avatar?v=${r.avatarPath.slice(-12, -5)}` : null,
       role: r.role as Role,
@@ -99,11 +117,15 @@ export class UsersService {
   }
 
   async create(input: CreateUserInput): Promise<User> {
+    const email = input.email?.trim() || null
+    const username = input.username || null
+    if (!email && !username) throw badRequest('Give them an email or a username to sign in with')
     try {
       const [row] = await this.db
         .insert(users)
         .values({
-          email: input.email.trim(),
+          email,
+          username,
           displayName: input.displayName.trim(),
           role: input.role,
           locale: input.locale,
@@ -113,8 +135,7 @@ export class UsersService {
       this.ctx.events.emit('user.changed', { id: row!.id })
       return this.toUser(row!)
     } catch (err) {
-      if ((err as { code?: string }).code === '23505') throw conflict('Someone already uses this email')
-      throw err
+      throw taken(err)
     }
   }
 
@@ -125,7 +146,11 @@ export class UsersService {
     if (actor.kind === 'user' && actor.user.id === id && input.role && input.role !== current.role)
       throw badRequest('You cannot change your own role')
     const patch: Partial<UserRow> = { updatedAt: new Date() }
-    if (input.email !== undefined) patch.email = input.email.trim()
+    if (input.email !== undefined) patch.email = input.email?.trim() || null
+    if (input.username !== undefined) patch.username = input.username || null
+    const email = input.email === undefined ? current.email : patch.email
+    const username = input.username === undefined ? current.username : patch.username
+    if (!email && !username) throw badRequest('Keep an email or a username: they need one of them to sign in')
     if (input.displayName !== undefined) patch.displayName = input.displayName.trim()
     if (input.role !== undefined) patch.role = input.role
     if (input.locale !== undefined) patch.locale = input.locale
@@ -142,8 +167,7 @@ export class UsersService {
       this.ctx.events.emit('user.changed', { id })
       return this.toUser(row!)
     } catch (err) {
-      if ((err as { code?: string }).code === '23505') throw conflict('Someone already uses this email')
-      throw err
+      throw taken(err)
     }
   }
 
@@ -172,16 +196,18 @@ export class UsersService {
     }
   }
 
-  async login(email: string, password: string): Promise<UserRow> {
+  /** Sign in with a username or an email (usernames never contain "@", so the two cannot clash). */
+  async login(login: string, password: string): Promise<UserRow> {
+    const key = login.trim().toLowerCase()
     const [row] = await this.db
       .select()
       .from(users)
-      .where(sql`lower(${users.email}) = lower(${email.trim()})`)
-    // Always spend the hashing time so response timing does not reveal which emails exist.
+      .where(key.includes('@') ? sql`lower(${users.email}) = ${key}` : sql`lower(${users.username}) = ${key}`)
+    // Always spend the hashing time so response timing does not reveal which accounts exist.
     const ok = row
       ? await this.verifyPassword(row, password)
       : await verify('$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$Zm9v', password).catch(() => false)
-    if (!row || !ok) throw new HttpError('unauthenticated', 'Wrong email or password')
+    if (!row || !ok) throw new HttpError('unauthenticated', 'Wrong username, email or password')
     if (row.disabled) throw new HttpError('forbidden', 'This account is disabled')
     return row
   }
@@ -330,6 +356,7 @@ export class UsersService {
     const user: ActorUser = {
       id: u.id,
       email: u.email,
+      username: u.username,
       displayName: u.displayName,
       avatarUrl: this.toUser(u).avatarUrl,
       role: u.role as Role,

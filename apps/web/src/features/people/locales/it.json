@@ -25,10 +25,12 @@
   "roleChanged": "{{name}} ora è {{role}}",
   "form": {
     "addTitle": "Aggiungi una persona",
-    "addBody": "Potrà accedere subito con l'email e la password qui sotto.",
+    "addBody": "Potrà accedere subito con il nome utente o l'email e la password qui sotto.",
     "editTitle": "Modifica {{name}}",
     "name": "Nome",
+    "username": "Nome utente",
     "email": "Email",
+    "signInHint": "Ne basta uno dei due: può accedere con l'uno o con l'altro.",
     "role": "Ruolo",
     "adminHint": "Tutto, comprese impostazioni e persone.",
     "reviewerHint": "Vede media e post, lascia note, approva o chiede modifiche.",
@@ -52,6 +54,7 @@
     "copyAll": "Copia i dati",
     "done": "Fatto",
     "address": "Indirizzo",
+    "username": "Nome utente",
     "email": "Email",
     "password": "Password"
   },

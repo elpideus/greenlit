@@ -11,6 +11,7 @@ import {
   type RemotePost,
 } from './types.ts'
 import {
+  checkInput,
   clickOne,
   cookie,
   findObjects,
@@ -510,6 +511,7 @@ async function fillTitle(page: Page, run: DriverRun, req: PublishRequest) {
  * title. A photo post's sound plays at its own volume and from its beginning (the form offers neither).
  */
 async function choosePhotoSound(page: Page, run: DriverRun, req: PublishRequest) {
+  await unhidePage(page, run)
   const m = req.music!
   try {
     await clickOne(
@@ -555,10 +557,63 @@ async function choosePhotoSound(page: Page, run: DriverRun, req: PublishRequest)
       run.warn('TikTok Studio sets no volume for a photo post’s sound: it plays at its own')
     run.step(`Sound: ${m.title}${m.artist ? ` — ${m.artist}` : ''}`)
   } catch (err) {
+    // An editor left open covers the rest of the upload page (the schedule, the Post button).
+    await closeEditor(page)
     run.warn(`Sound not added: ${(err as Error).message}`)
     if (!req.dryRun)
       throw new Error(`Could not add the sound “${m.title}” in TikTok Studio: ${(err as Error).message}`)
   }
+}
+
+/**
+ * Takes off an aria-hidden TikTok Studio left on its page. Its dialogs hide the rest of the page while open
+ * (`aria-hidden="true"` with `data-floating-ui-inert`); after the cover dialog closes, the marker goes but the
+ * aria-hidden sometimes stays (25 Nov 2026: three runs in six). The page still shows and clicks normally, but every
+ * lookup by role then finds nothing: the Sounds button, the video editor's Save and Cancel, the Schedule radio. With
+ * no modal open, the page container's and the popup layers' aria-hidden without the marker is taken off.
+ */
+async function unhidePage(page: Page, run?: DriverRun) {
+  const fixed = await page
+    .evaluate(() => {
+      const visible = (e: Element) => (e as HTMLElement).getBoundingClientRect().width > 0
+      if ([...document.querySelectorAll('[aria-modal="true"], .Dialog__content')].some(visible)) return 0
+      let n = 0
+      for (const e of document.querySelectorAll(
+        '[data-tt^="PageContainer"][aria-hidden="true"], [data-floating-ui-portal][aria-hidden="true"]',
+      )) {
+        if (e.hasAttribute('data-floating-ui-inert')) continue
+        e.removeAttribute('aria-hidden')
+        n++
+      }
+      return n
+    })
+    .catch(() => 0)
+  if (fixed) run?.log.info({ fixed }, 'tiktok: took off a leftover aria-hidden')
+  return fixed
+}
+
+/** Leaves TikTok Studio's video editor without saving, when it is open. */
+async function closeEditor(page: Page) {
+  await unhidePage(page)
+  const cancel = await firstVisible(
+    [
+      page.locator('.TopBar__rightBox').getByRole('button', { name: label(['Cancel', 'Annulla'], true) }),
+      page.locator('.TopBar__rightBox button').filter({ hasText: label(['Cancel', 'Annulla'], true) }),
+    ],
+    1500,
+  )
+  if (!cancel) return
+  await cancel.click().catch(() => {})
+  const confirm = await firstVisible(
+    [
+      page
+        .getByRole('dialog')
+        .getByRole('button', { name: label(['Discard', 'Leave', 'Exit', 'Scarta', 'Esci'], true) }),
+    ],
+    2000,
+  )
+  if (confirm) await confirm.click().catch(() => {})
+  await sleep(1000)
 }
 
 async function openUpload(run: DriverRun) {
@@ -636,9 +691,31 @@ async function fillDetails(page: Page, run: DriverRun, req: PublishRequest) {
         ],
         'Confirm cover',
       )
+      await page
+        .locator('.Dialog__content')
+        .first()
+        .waitFor({ state: 'hidden', timeout: 10_000 })
+        .catch(() => {})
+      await sleep(1000)
+      await unhidePage(page, run)
       run.step('Cover uploaded')
     } catch (err) {
       run.warn(`Cover not set: ${(err as Error).message}`)
+      // A cover dialog left open covers the rest of the page (privacy, sound, schedule, Post).
+      const open = page.locator('.Dialog__content')
+      if (
+        await open
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
+        await page.keyboard.press('Escape').catch(() => {})
+        await open
+          .first()
+          .waitFor({ state: 'hidden', timeout: 5000 })
+          .catch(() => {})
+        await unhidePage(page, run)
+      }
     }
   }
 
@@ -829,7 +906,9 @@ export async function dismissTours(page: Page) {
 
 /** The video editor's Sounds panel: the upload page's own Sounds button, else Edit video → Sounds (older pages). */
 async function openSounds(page: Page) {
-  const direct = await firstVisible([page.getByRole('button', { name: 'Sounds', exact: true })], 8000)
+  await unhidePage(page)
+  // The button shows once the preview is ready, which takes longer for a long video.
+  const direct = await firstVisible([page.getByRole('button', { name: 'Sounds', exact: true })], 20_000)
   if (direct) await direct.click()
   else {
     await clickOne(
@@ -837,8 +916,14 @@ async function openSounds(page: Page) {
       'Edit video',
       10_000,
     )
+    // The editor's left menu (Nov 2026: plain items, not tabs); the upload page's own Sounds button stays in the
+    // page behind the editor, so it comes last.
     await clickOne(
-      [page.getByRole('tab', { name: L.sounds }), page.getByRole('button', { name: L.sounds })],
+      [
+        page.locator('.EditorLeftSideMenu__menuItem').filter({ hasText: L.sounds }),
+        page.getByRole('tab', { name: L.sounds }),
+        page.getByRole('button', { name: L.sounds }),
+      ],
       'Sounds',
       15_000,
     )
@@ -859,8 +944,8 @@ export function volumeDb(v: number) {
 
 /** Writes a value into the selected track's Volume box (dB) of the editor's Audio panel. */
 async function setTrackDb(page: Page, db: number) {
-  const box = page.locator('.PropSettingInput__input').first()
-  await box.waitFor({ state: 'visible', timeout: 8000 })
+  const box = await firstVisible([page.locator('.PropSettingInput__input')], 8000)
+  if (!box) throw new Error('the Volume box was not found')
   await box.click({ clickCount: 3 })
   await box.fill(String(db))
   await box.press('Enter')
@@ -916,7 +1001,15 @@ export async function chooseSound(page: Page, run: DriverRun, req: PublishReques
     }
     if ((m.startAt ?? 0) >= 0.5)
       run.warn('TikTok Studio on the web starts a sound at its beginning: the start chosen was not applied')
-    await clickOne([page.getByRole('button', { name: L.save })], 'Save in the video editor', 10_000)
+    await unhidePage(page, run)
+    await clickOne(
+      [
+        page.getByRole('button', { name: L.save }),
+        page.locator('.TopBar__rightBox button').filter({ hasText: L.save }),
+      ],
+      'Save in the video editor',
+      10_000,
+    )
     await sleep(2000)
     run.step(
       `Sound: ${m.title}${m.artist ? ` — ${m.artist}` : ''} (sound ${volumeDb(req.audio.music)} dB, video ${req.audio.original <= 0.001 ? 'muted' : `${volumeDb(req.audio.original)} dB`})`,
@@ -929,94 +1022,142 @@ export async function chooseSound(page: Page, run: DriverRun, req: PublishReques
 }
 
 async function setSchedule(page: Page, run: DriverRun, req: PublishRequest) {
+  await unhidePage(page, run)
+  // "When to post": Now / Schedule radios, drawn over by their own circles (checkInput clicks their labels).
   if (!req.scheduleAt) {
     const now = await firstVisible([page.getByRole('radio', { name: L.now })], 1500)
-    if (now) await now.check().catch(() => {})
+    if (now) await checkInput(now, 'Now', [page.getByText(L.now).first()]).catch(() => {})
     return
   }
   // TikTok's picker works in 5-minute steps.
   const at = new Date(Math.ceil(req.scheduleAt.getTime() / 300_000) * 300_000)
   const z = zoned(at, req.timeZone)
-  await clickOne(
-    [page.getByRole('radio', { name: L.schedule }), page.getByText(L.schedule).first()],
-    'the Schedule option',
+  const radio = await firstVisible(
+    [
+      page.getByRole('radio', { name: L.schedule }),
+      page.locator('input[type=radio][name=postSchedule][value=schedule]'),
+    ],
+    8000,
   )
+  if (radio && (await radio.isDisabled().catch(() => false)))
+    throw new ConnectorUnsupported(
+      'scheduleAt',
+      'TikTok does not schedule a post only you can see: choose another audience, or publish it at its time',
+    )
+  if (radio) await checkInput(radio, 'the Schedule option', [page.getByText(L.schedule).first()])
+  else await clickOne([page.getByText(L.schedule).first()], 'the Schedule option')
   // Permission prompt the first time ("Allow" scheduling).
   const allow = await firstVisible(
     [page.getByRole('button', { name: label(['Allow', 'Consenti'], true) })],
     2000,
   )
   if (allow) await allow.click()
-  const time = await firstVisible(
-    [
-      page
-        .locator('input')
-        .filter({ hasNot: page.locator('[type=file]') })
-        .and(page.locator('input[value*=":"]')),
-    ],
-    5000,
-  )
-  const date = await firstVisible(
-    [page.locator('input[value*="-"], input[value*="/"]').filter({ hasNot: page.locator('[type=file]') })],
-    5000,
-  )
-  if (!time || !date) throw new Error('TikTok’s schedule date/time fields were not found')
-  // Time: pick the hour and minute from the two lists of the picker.
-  await time.click()
-  const hh = String(z.hour).padStart(2, '0')
-  const mm = String(z.minute).padStart(2, '0')
-  await clickOne(
-    [
-      page
-        .locator('[class*="hour"], [class*="picker"] li, [role=option]')
-        .getByText(new RegExp(`^${hh}$`))
-        .first(),
-    ],
-    `${hh} in the hour list`,
-    5000,
-  )
-  await clickOne(
-    [
-      page
-        .locator('[class*="minute"], [class*="picker"] li, [role=option]')
-        .getByText(new RegExp(`^${mm}$`))
-        .last(),
-    ],
-    `${mm} in the minute list`,
-    5000,
-  )
-  await page.keyboard.press('Escape').catch(() => {})
-  // Date: open the calendar, move to the right month, click the day.
-  await date.click()
-  for (let i = 0; i < 3; i++) {
-    const shown = (await date.inputValue().catch(() => '')) || ''
-    if (
-      shown.includes(z.iso) ||
-      shown.includes(`${String(z.day).padStart(2, '0')}/${String(z.month).padStart(2, '0')}`)
-    )
-      break
-    const day = page
-      .locator('[class*="calendar"] [class*="day"]:not([class*="disabled"]), [role=gridcell]')
-      .getByText(new RegExp(`^${z.day}$`))
-      .first()
-    if (await day.isVisible().catch(() => false)) {
-      await day.click()
-      break
+  // Two pickers (Nov 2026): a calendar behind "Select date" and two wheels (Hours, Minutes) behind "Select time",
+  // in the browser's own time zone, which is Greenlit's (the third picker stays on "Local time").
+  const datePicker = page.locator('[role=combobox][aria-label="Select date"]').first()
+  const timePicker = page.locator('[role=combobox][aria-label="Select time"]').first()
+  if (!(await firstVisible([datePicker, timePicker], 8000)))
+    throw new Error('TikTok’s schedule date/time pickers were not found')
+  const shown = async (picker: typeof datePicker) =>
+    (
+      (await picker
+        .locator('.Picker__value')
+        .first()
+        .textContent()
+        .catch(() => '')) ?? ''
+    ).trim()
+  // Date first: a time picked for today could be refused before the day changes.
+  const wanted = { day: z.day, month: z.month, year: z.year }
+  if (!sameDay(parseShownDate(await shown(datePicker)), wanted)) {
+    await datePicker.click()
+    const panel = page.locator('.DatePicker__panel').first()
+    await panel.waitFor({ state: 'visible', timeout: 5000 })
+    for (let i = 0; i < 14; i++) {
+      const month = monthOf(
+        ((await panel.locator('.DatePicker__titleMonth').first().textContent()) ?? '').trim(),
+      )
+      const year = Number((await panel.locator('.DatePicker__titleYear').first().textContent())?.trim())
+      if (month === null || !year) throw new Error('TikTok’s calendar shows no month')
+      const diff = (z.year - year) * 12 + (z.month - month)
+      if (diff === 0) break
+      await panel
+        .locator(`button[aria-label="${diff > 0 ? 'Next month' : 'Previous month'}"]`)
+        .first()
+        .click()
+      await sleep(300)
     }
-    await clickOne(
-      [
-        page.locator('[class*="arrow"]').last(),
-        page.getByRole('button', { name: label(['Next month', 'Mese successivo']) }),
-      ],
-      'next month',
-      3000,
-    )
+    const day = panel
+      .locator('button.DatePicker__day[data-outside="false"]')
+      .filter({ hasText: new RegExp(`^\\s*${z.day}\\s*$`) })
+      .first()
+    if ((await day.getAttribute('data-disabled').catch(() => null)) === 'true')
+      throw new ConnectorUnsupported('scheduleAt', `TikTok does not take ${z.iso} for a schedule`)
+    await day.click()
+    await sleep(400)
+    if (await panel.isVisible().catch(() => false)) await datePicker.click().catch(() => {})
   }
-  run.step(`Schedule: ${z.iso} ${hh}:${mm} (${req.timeZone})`)
+  if ((await shown(timePicker)) !== z.hm) {
+    await timePicker.click()
+    const pick = async (list: 'Hours' | 'Minutes', value: number) => {
+      const item = page
+        .locator(`[role=listbox][aria-label="${list}"] [role=option]`)
+        .filter({ hasText: new RegExp(`^\\s*0?${value}\\s*$`) })
+        .first()
+      await item.waitFor({ state: 'attached', timeout: 5000 })
+      if ((await item.getAttribute('data-disabled')) === 'true')
+        throw new ConnectorUnsupported('scheduleAt', `TikTok does not take ${z.hm} on ${z.iso}`)
+      await item.scrollIntoViewIfNeeded().catch(() => {})
+      await item.click()
+      await sleep(300)
+    }
+    await pick('Hours', z.hour)
+    await pick('Minutes', z.minute)
+    if ((await timePicker.getAttribute('aria-expanded')) === 'true') await timePicker.click().catch(() => {})
+  }
+  const shownDate = await shown(datePicker)
+  const shownTime = await shown(timePicker)
+  if (!sameDay(parseShownDate(shownDate), wanted) || shownTime !== z.hm)
+    throw new Error(`TikTok’s schedule shows ${shownDate} ${shownTime}, not ${z.iso} ${z.hm}`)
+  run.step(`Schedule: ${z.iso} ${z.hm} (${req.timeZone}); TikTok shows ${shownDate} ${shownTime}`)
 }
+
+const MONTHS = [
+  ['gen', 'jan'],
+  ['feb'],
+  ['mar'],
+  ['apr'],
+  ['mag', 'may'],
+  ['giu', 'jun'],
+  ['lug', 'jul'],
+  ['ago', 'aug'],
+  ['set', 'sep'],
+  ['ott', 'oct'],
+  ['nov'],
+  ['dic', 'dec'],
+]
+
+/** 1–12 for a month name as TikTok prints it, in Italian or English, long or short ("Novembre", "nov", "Dec"). */
+export function monthOf(name: string): number | null {
+  const n = name.trim().toLowerCase().slice(0, 3)
+  const i = MONTHS.findIndex((m) => m.includes(n))
+  return i < 0 ? null : i + 1
+}
+
+/** The date a TikTok date picker shows ("27 nov 2026", "Nov 27, 2026"), or null. */
+export function parseShownDate(text: string): { day: number; month: number; year: number } | null {
+  const dmy = text.match(/(\d{1,2})\s+(\p{L}+)\.?,?\s+(\d{4})/u)
+  const mdy = text.match(/(\p{L}+)\.?\s+(\d{1,2}),?\s+(\d{4})/u)
+  const [day, name, year] = dmy ? [dmy[1], dmy[2], dmy[3]] : mdy ? [mdy[2], mdy[1], mdy[3]] : []
+  const month = name ? monthOf(name) : null
+  return month && day && year ? { day: Number(day), month, year: Number(year) } : null
+}
+
+const sameDay = (a: { day: number; month: number; year: number } | null, b: typeof a) =>
+  !!a && !!b && a.day === b.day && a.month === b.month && a.year === b.year
 
 async function leaveUpload(page: Page) {
   // Discard what was loaded so nothing stays behind.
+  await unhidePage(page)
   const discard = await firstVisible([page.getByRole('button', { name: L.discard })], 1500)
   if (discard) {
     await discard.click().catch(() => {})

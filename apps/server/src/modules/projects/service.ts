@@ -1,4 +1,9 @@
-import type { CreateProjectInput, Project, UpdateProjectInput } from '@greenlit/shared'
+import {
+  type CreateProjectInput,
+  cleanWebLinks,
+  type Project,
+  type UpdateProjectInput,
+} from '@greenlit/shared'
 import { and, desc, eq, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { type Actor, actorUserId, isAdmin } from '../../core/actor.ts'
 import { forbidden, notFound } from '../../core/errors.ts'
@@ -67,6 +72,7 @@ export class ProjectsService {
         kind: r.kind === 'brand' ? 'brand' : 'project',
         name: r.name,
         description: r.description,
+        webLinks: r.webLinks ?? [],
         color: r.color,
         coverUrl: null,
         places: [],
@@ -132,6 +138,7 @@ export class ProjectsService {
         kind: input.kind ?? 'project',
         name: input.name.trim(),
         description: input.description,
+        webLinks: cleanWebLinks(input.webLinks ?? []),
         color: input.color,
         createdBy: actorUserId(actor),
       })
@@ -147,6 +154,7 @@ export class ProjectsService {
     const patch: Partial<Row> = { updatedAt: new Date() }
     if (input.name !== undefined) patch.name = input.name.trim()
     if (input.description !== undefined) patch.description = input.description
+    if (input.webLinks !== undefined) patch.webLinks = cleanWebLinks(input.webLinks)
     if (input.color !== undefined) patch.color = input.color
     if (input.coverMediaId !== undefined) patch.coverMediaId = input.coverMediaId
     if (input.hiddenFrom !== undefined) patch.hiddenFrom = input.hiddenFrom

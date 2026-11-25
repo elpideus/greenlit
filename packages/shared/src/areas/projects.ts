@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { Id, IsoDate, UserRef } from '../common.ts'
 import { BrandSummary } from './brands.ts'
 import { PlaceRef } from './places.ts'
+import { WebLink, WebLinks } from './web-links.ts'
 
 /** `project`: work (a property, a shoot, a campaign); `brand`: a brand kit (logos, colours, fonts, templates...). */
 export const ProjectKind = z.enum(['project', 'brand'])
@@ -12,6 +13,8 @@ export const Project = z.object({
   kind: ProjectKind,
   name: z.string(),
   description: z.string(),
+  /** Web addresses kept with the project (the listing on the website, a Drive folder...), in order. */
+  webLinks: z.array(WebLink),
   coverUrl: z.string().nullable(),
   color: z.string().nullable(),
   places: z.array(PlaceRef),
@@ -34,12 +37,15 @@ export const CreateProjectInput = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(20_000).default(''),
   color: z.string().nullable().default(null),
+  webLinks: WebLinks.optional(),
 })
 export type CreateProjectInput = z.infer<typeof CreateProjectInput>
 
 export const UpdateProjectInput = z.object({
   name: z.string().min(1).max(120).optional(),
   description: z.string().max(20_000).optional(),
+  /** Replaces the whole list. */
+  webLinks: WebLinks.optional(),
   color: z.string().nullable().optional(),
   coverMediaId: Id.nullable().optional(),
   hiddenFrom: z.array(Id).optional(),

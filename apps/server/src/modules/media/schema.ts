@@ -1,4 +1,4 @@
-import type { StoredVersion, VersionGroupDef } from '@greenlit/shared'
+import type { StoredVersion, VersionGroupDef, WebLink } from '@greenlit/shared'
 import { sql } from 'drizzle-orm'
 import {
   bigint,
@@ -7,6 +7,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -27,6 +28,8 @@ export const media = pgTable(
     status: text('status').notNull().default('draft'),
     origin: text('origin').notNull().default('upload'),
     tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
+    /** Web addresses kept with the item, in order (see cleanWebLinks). */
+    webLinks: jsonb('web_links').$type<WebLink[]>().notNull().default([]),
     takenAt: timestamp('taken_at', { withTimezone: true }),
     hiddenFrom: uuid('hidden_from').array().notNull().default(sql`'{}'::uuid[]`),
     /**
@@ -120,4 +123,24 @@ export const mediaFiles = pgTable(
     index('media_files_blob').on(t.blobId),
     index('media_files_media').on(t.mediaId),
   ],
+)
+
+/**
+ * The pages of Slides items (kind `slides`), in order. Each page is a picture or video of its own, and may be a page
+ * of several Slides items (a "Key facts" page closing every carousel of a project). While it is a page of one, trashed
+ * or not, library listings show the Slides item in its place.
+ */
+export const mediaSlides = pgTable(
+  'media_slides',
+  {
+    slidesId: uuid('slides_id')
+      .notNull()
+      .references(() => media.id, { onDelete: 'cascade' }),
+    mediaId: uuid('media_id')
+      .notNull()
+      .references(() => media.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.slidesId, t.mediaId] }), index('media_slides_media').on(t.mediaId)],
 )

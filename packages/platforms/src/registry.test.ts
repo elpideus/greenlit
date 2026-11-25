@@ -78,7 +78,7 @@ describe('text helpers', () => {
       'puglia_2026',
       'trullo',
     ])
-    expect(extractMentions('con @studio.gem e mail a@b.it @x_')).toEqual(['studio.gem', 'x_'])
+    expect(extractMentions('con @studio.acme e mail a@b.it @x_')).toEqual(['studio.acme', 'x_'])
     expect(allHashtags('#Puglia', ['puglia', '#mare'])).toEqual(['Puglia', 'mare'])
     expect(composeCaption('Ciao #mare', ['mare', 'sole'])).toBe('Ciao #mare\n\n#sole')
   })

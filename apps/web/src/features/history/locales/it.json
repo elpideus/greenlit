@@ -44,6 +44,7 @@
     "targets": "piattaforme",
     "document": "montaggio",
     "name": "nome",
-    "media": "media"
+    "media": "media",
+    "webLinks": "link"
   }
 }

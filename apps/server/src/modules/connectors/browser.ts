@@ -103,6 +103,9 @@ export class ProfilePool {
     await mkdir(dir, { recursive: true, mode: 0o700 })
     await chmod(dir, 0o700).catch(() => {})
     await clearStaleLock(dir)
+    // ...but not the tabs: the last session's pages are not reopened (the cookies are kept in the cookie store).
+    for (const d of ['Sessions', 'Sessions_Encrypted'])
+      await rm(join(dir, 'Default', d), { recursive: true, force: true }).catch(() => {})
     const major = await chromiumMajor(this.opts.executablePath)
     const locale = this.opts.locale()
     const args = [
@@ -114,8 +117,21 @@ export class ProfilePool {
       '--disable-features=Translate,MediaRouter,OptimizationHints',
       '--autoplay-policy=no-user-gesture-required',
       `--force-device-scale-factor=${DEVICE_SCALE}`,
+      // Keep the session cookies across launches, as Chrome's "Continue where you left off" does. Google's sign-in
+      // has some (google.com __Secure-1PSIDTS/3PSIDTS); a browser started fresh deletes them at startup, and each
+      // reopened profile was signed out of YouTube (25 Nov 2026: every failure came at the first step after the
+      // browser was reopened: a restart, the 3-minute idle close, a copied profile).
+      '--restore-last-session',
+      // Never sign the browser itself in to Google (DICE): see the BrowserSignin policy in docker/Dockerfile.
+      '--allow-browser-signin=false',
     ]
     if (process.getuid?.() === 0) args.push('--no-sandbox')
+    // Chromium keeps more than the profile: its key store (NSS, ~/.local/share/pki/nssdb) sits in the home folder.
+    // In the container that folder is not on the data volume, so every new container started with an empty one,
+    // and Google, which ties a sign-in to the browser's keys, ended the YouTube session at the first step after
+    // each restart (25 Nov 2026). The browsers get a home on the data volume instead.
+    const home = join(resolve(this.opts.root), '.home')
+    await mkdir(home, { recursive: true, mode: 0o700 })
     this.opts.log.debug({ dir }, 'opening browser profile')
     let context: BrowserContext
     try {
@@ -137,6 +153,7 @@ export class ProfilePool {
         colorScheme: 'light',
         acceptDownloads: false,
         extraHTTPHeaders: { 'Accept-Language': acceptLanguage(locale) },
+        env: { ...process.env, HOME: home },
       })
     } catch (err) {
       const msg = (err as Error).message

@@ -19,13 +19,24 @@ export function label(alternatives: string[], exact = false): RegExp {
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** The first locator that is visible within `timeout`, or null. */
+/** How many matches of one candidate firstVisible looks at. */
+const FIRST_VISIBLE_SCAN = 10
+
+/**
+ * The first visible element of the candidates within `timeout` (in the candidates' order, then the page's), or null.
+ * Every match of a candidate counts, not only its first: pages keep hidden copies of their dialogs (TikTok Studio
+ * keeps the cover editor's Save, Cancel and Sounds in the page once a cover is uploaded, ahead of the video
+ * editor's own), and the first match being hidden must not hide a visible one.
+ */
 export async function firstVisible(candidates: Locator[], timeout = 8000): Promise<Locator | null> {
   const end = Date.now() + timeout
   while (Date.now() < end) {
     for (const c of candidates) {
-      const l = c.first()
-      if (await l.isVisible().catch(() => false)) return l
+      const n = Math.min(await c.count().catch(() => 0), FIRST_VISIBLE_SCAN)
+      for (let i = 0; i < n; i++) {
+        const l = n === 1 ? c.first() : c.nth(i)
+        if (await l.isVisible().catch(() => false)) return l
+      }
     }
     await sleep(250)
   }
@@ -38,6 +49,54 @@ export async function clickOne(candidates: Locator[], what: string, timeout = 80
   if (!l) throw new Error(`Could not find ${what}`)
   await l.click()
   return l
+}
+
+/**
+ * Checks a radio button or checkbox and makes sure it took. Styled inputs often sit under their own drawn circle
+ * (TikTok Studio's Radio: its `Radio__innerCircle` span takes the pointer, so clicking the input itself waits
+ * until it times out), so the input's label is clicked first, as a person would, then the `also` locators (its
+ * visible text), then the input with a forced click, then the input's own DOM click. Throws when none took.
+ */
+export async function checkInput(input: Locator, what: string, also: Locator[] = []) {
+  const target = input.first()
+  // A controlled input's aria-checked is what the page holds (TikTok leaves a stale `checked` on "Now").
+  const on = () =>
+    target
+      .evaluate(
+        (el) => {
+          const aria = el.getAttribute('aria-checked')
+          return aria === null ? (el as HTMLInputElement).checked : aria === 'true'
+        },
+        null,
+        { timeout: 1000 },
+      )
+      .catch(() => false)
+  if (await on()) return
+  const id = await target.getAttribute('id', { timeout: 2000 }).catch(() => null)
+  const page = target.page()
+  const attempts: Locator[] = [
+    ...(id ? [page.locator(`label[for="${id.replace(/"/g, '\\"')}"]`)] : []),
+    target.locator('xpath=ancestor::label[1]'),
+    ...also,
+  ]
+  const took = async () => {
+    for (let i = 0; i < 6; i++) {
+      if (await on()) return true
+      await sleep(200)
+    }
+    return false
+  }
+  for (const l of attempts) {
+    const first = l.first()
+    if (!(await first.isVisible().catch(() => false))) continue
+    await first.click({ timeout: 2500 }).catch(() => {})
+    if (await took()) return
+  }
+  await target.check({ force: true, timeout: 2500 }).catch(() => {})
+  if (await took()) return
+  await target.evaluate((el) => (el as HTMLInputElement).click()).catch(() => {})
+  if (await took()) return
+  throw new Error(`Could not choose ${what}`)
 }
 
 /** Replaces the text of an input, textarea or rich editor (contenteditable) like a person typing. */

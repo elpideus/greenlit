@@ -44,7 +44,7 @@ export default function SetupPage() {
     try {
       await api.post('/setup', { ...form, setupCode: form.setupCode || undefined })
       const me = await api.post<Me>('/auth/login', {
-        email: form.email,
+        login: form.email,
         password: form.password,
         remember: true,
       })

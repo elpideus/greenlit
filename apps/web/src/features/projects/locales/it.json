@@ -42,7 +42,7 @@
     "kindBrand": "Brand kit",
     "brandTitle": "Nuovo brand kit",
     "createBrand": "Crea brand kit",
-    "brandNamePlaceholder": "Studio Associato GEM",
+    "brandNamePlaceholder": "Acme Studio",
     "brandDescriptionPlaceholder": "Di chi è il marchio e cosa comprende.",
     "brandHint": "Poi trascinaci dentro la cartella del kit o il suo .zip. Greenlit smista loghi, colori, caratteri, elementi grafici, template e linee guida, e legge la palette e i caratteri."
   },
@@ -103,7 +103,7 @@
     "blue": "Blu",
     "amber": "Ambra",
     "red": "Rosso",
-    "stone": "Pietra",
+    "stone": "Stone",
     "violet": "Viola",
     "teal": "Verde acqua",
     "pink": "Rosa"

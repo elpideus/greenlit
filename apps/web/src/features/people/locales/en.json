@@ -25,10 +25,12 @@
   "roleChanged": "{{name}} is now {{role}}",
   "form": {
     "addTitle": "Add a person",
-    "addBody": "They can sign in right away with the email and password below.",
+    "addBody": "They can sign in right away with the username or email and the password below.",
     "editTitle": "Edit {{name}}",
     "name": "Name",
+    "username": "Username",
     "email": "Email",
+    "signInHint": "One of the two is enough: they sign in with either.",
     "role": "Role",
     "adminHint": "Everything, including settings and people.",
     "reviewerHint": "Sees media and posts, leaves notes, approves or asks for changes.",
@@ -52,6 +54,7 @@
     "copyAll": "Copy details",
     "done": "Done",
     "address": "Address",
+    "username": "Username",
     "email": "Email",
     "password": "Password"
   },

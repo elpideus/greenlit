@@ -1,5 +1,13 @@
 import type { Media, MediaFormat } from '@greenlit/shared'
-import { AudioLines, File as FileIcon, FileText, Image as ImageIcon, PenTool, Video } from 'lucide-react'
+import {
+  AudioLines,
+  File as FileIcon,
+  FileText,
+  GalleryHorizontalEnd,
+  Image as ImageIcon,
+  PenTool,
+  Video,
+} from 'lucide-react'
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { loadSprite, primaryFormat, type SpriteInfo } from '@/data/media'
 import { cn } from '@/lib/cn'
@@ -12,6 +20,7 @@ const KIND_ICON = {
   audio: AudioLines,
   document: FileText,
   design: PenTool,
+  slides: GalleryHorizontalEnd,
   other: FileIcon,
 }
 
@@ -31,7 +40,7 @@ export function MediaThumb({
   rounded = true,
   viewTransitionName,
 }: {
-  media: Pick<Media, 'id' | 'kind' | 'title' | 'thumbnailUrl' | 'formats'>
+  media: Pick<Media, 'id' | 'kind' | 'title' | 'thumbnailUrl' | 'formats' | 'slides'>
   format?: MediaFormat
   fit?: 'cover' | 'contain'
   scrub?: boolean
@@ -124,6 +133,13 @@ export function MediaThumb({
       {showDuration && f?.duration ? (
         <span className="force-dark absolute right-1.5 bottom-1.5 rounded-[5px] bg-black/55 px-1.5 py-px t-meta text-[11px] text-white/95 backdrop-blur-md">
           {pos !== null && sprite ? formatDuration(pos * f.duration) : formatDuration(f.duration)}
+        </span>
+      ) : null}
+      {/* Slides: how many pictures sit behind the first one. */}
+      {showDuration && media.kind === 'slides' ? (
+        <span className="force-dark absolute right-1.5 bottom-1.5 flex h-[22px] items-center gap-1 rounded-[5px] bg-black/55 px-1.5 t-meta text-[11px] text-white/95 tabular-nums backdrop-blur-md">
+          <GalleryHorizontalEnd size={12} strokeWidth={1.75} />
+          {media.slides?.length ?? 0}
         </span>
       ) : null}
       {/* A design document's corner mark: its pictures (exports) look the same otherwise. */}

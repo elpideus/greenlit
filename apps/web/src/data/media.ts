@@ -89,6 +89,57 @@ export function useBulkMedia() {
   })
 }
 
+/** A Slides item's pages in order, each with all its formats and versions (the viewer and the post composer). */
+export function useSlidePages(id: string | null | undefined) {
+  useLiveQuery(id ? `media:${id}` : null, [qk.slidePages(id ?? '')])
+  return useQuery({
+    queryKey: qk.slidePages(id ?? ''),
+    queryFn: () => api.get<Media[]>(`/media/${id}/slides`),
+    enabled: !!id,
+  })
+}
+
+/** Replaces Slides items with their pages (a post given a Slides item gets its pages, in order). */
+export async function expandSlides(items: Media[]): Promise<Media[]> {
+  const out: Media[] = []
+  for (const m of items) {
+    const pages = m.kind === 'slides' ? await api.get<Media[]>(`/media/${m.id}/slides`) : [m]
+    for (const p of pages) if (!out.some((x) => x.id === p.id)) out.push(p)
+  }
+  return out
+}
+
+/**
+ * Slides: group pictures and videos as one item (a carousel's pages), change its pages, take it apart. Every change
+ * refreshes the lists (pages leave or come back to them).
+ */
+export function useSlides() {
+  const qc = useQueryClient()
+  const settle = (m?: Media) => {
+    if (m) qc.setQueryData(qk.mediaItem(m.id), m)
+    void qc.invalidateQueries({ queryKey: qk.media() })
+    void qc.invalidateQueries({ queryKey: qk.projects })
+  }
+  return {
+    create: async (input: { mediaIds: string[]; title?: string; projectId?: string | null }) => {
+      const m = await api.post<Media>('/media/slides', input)
+      settle(m)
+      return m
+    },
+    set: async (id: string, mediaIds: string[]) => {
+      const m = await api.put<Media>(`/media/${id}/slides`, { mediaIds })
+      settle(m)
+      return m
+    },
+    ungroup: async (id: string) => {
+      const r = await api.delete<{ mediaIds: string[] }>(`/media/${id}/slides`)
+      qc.removeQueries({ queryKey: qk.mediaItem(id) })
+      settle()
+      return r.mediaIds
+    },
+  }
+}
+
 /** The format to show by default: the primary one, else the first (of the main version, or of `version`). */
 export function primaryFormat(m: WithFormats, version?: string | null): MediaFormat | undefined {
   const fs = formatsOfVersion(m, version)
@@ -155,6 +206,8 @@ export type UploadTarget = {
   audio?: boolean
   /** The depth map of format `formatKey` (of `version`). */
   depth?: boolean
+  /** New items: the last page of this Slides item (they go into its project). */
+  slidesId?: string
 }
 
 /**

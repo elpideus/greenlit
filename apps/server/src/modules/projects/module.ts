@@ -1,4 +1,11 @@
-import { CreateProjectInput, Project, UpdateProjectInput } from '@greenlit/shared'
+import {
+  CreateProjectInput,
+  cleanWebLinks,
+  Project,
+  UpdateProjectInput,
+  type WebLink,
+  WebLinks,
+} from '@greenlit/shared'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { IdParams, Ok, route } from '../../core/http.ts'
@@ -29,6 +36,7 @@ export default defineModule({
       labels: {
         name: 'name',
         description: 'description',
+        webLinks: 'links',
         color: 'colour',
         hiddenFrom: 'visibility',
         archivedAt: 'archive state',
@@ -40,6 +48,8 @@ export default defineModule({
         return {
           name: r.name,
           description: r.description,
+          // Only when there are some, so revisions from before links existed don't read as a change.
+          ...(r.webLinks.length ? { webLinks: r.webLinks } : {}),
           color: r.color,
           coverMediaId: r.coverMediaId,
           hiddenFrom: r.hiddenFrom,
@@ -53,6 +63,7 @@ export default defineModule({
           .set({
             name: d.name as string,
             description: d.description as string,
+            webLinks: cleanWebLinks((d.webLinks as WebLink[]) ?? []),
             color: (d.color as string) ?? null,
             coverMediaId: (d.coverMediaId as string) ?? null,
             hiddenFrom: (d.hiddenFrom as string[]) ?? [],
@@ -154,6 +165,7 @@ export default defineModule({
           kind: p.kind,
           name: p.name,
           description: p.description,
+          ...(p.webLinks.length ? { webLinks: p.webLinks } : {}),
           media: p.mediaCount,
           editingProjects: p.compositionCount,
           places: p.places.map((x) => x.name),
@@ -168,18 +180,27 @@ export default defineModule({
         name: z.string(),
         description: z.string().optional(),
         kind: z.enum(['project', 'brand']).optional(),
+        webLinks: WebLinks.optional().describe('Web addresses kept with the project: [{ url, title }]'),
       },
       access: 'projects.manage',
-      handler: ({ name, description, kind }, { actor }) =>
-        svc.create({ kind: kind ?? 'project', name, description: description ?? '', color: null }, actor),
+      handler: ({ name, description, kind, webLinks }, { actor }) =>
+        svc.create(
+          { kind: kind ?? 'project', name, description: description ?? '', color: null, webLinks },
+          actor,
+        ),
     })
     ctx.mcp.tool({
       name: 'projects_update',
-      description: 'Rename a project, change its description, archive it.',
+      description:
+        'Rename a project, change its description or its web links (the listing on the website, a Drive folder...: ' +
+        'webLinks replaces the list, so send the ones to keep too), archive it.',
       input: {
         id: z.uuid(),
         name: z.string().optional(),
         description: z.string().optional(),
+        webLinks: WebLinks.optional().describe(
+          '[{ url, title }] in order; title may be empty (the address is shown)',
+        ),
         archived: z.boolean().optional(),
       },
       access: 'projects.manage',

@@ -6,6 +6,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { Slot, useSlot } from '@/app/Slot'
 import { MediaBrowser } from '@/components/library'
 import { PeoplePicker } from '@/components/PeoplePicker'
+import { WebLinks } from '@/components/web-links'
 import { uploadMedia } from '@/data/media'
 import { useProject } from '@/data/projects'
 import { useFileDrop } from '@/lib/dom'
@@ -180,6 +181,13 @@ function ProjectView({ project: p }: { project: Project }) {
             project={p}
             editable={manage}
             onSave={(description) => void actions.patch(p, { description })}
+          />
+          <WebLinks
+            variant="chips"
+            links={p.webLinks ?? []}
+            editable={manage}
+            onChange={(webLinks) => void actions.patch(p, { webLinks })}
+            className="-ml-2 mt-2.5"
           />
           <Meta className="mt-3 t-callout text-ink-3">
             <span className="tabular">{t('media', { count: p.mediaCount })}</span>

@@ -74,6 +74,8 @@ export class EngineError extends Error {
 }
 
 const TEMPLATES = join(import.meta.dirname, 'sites')
+/** The longest answer the engine hands back (its view.maxChars allows 256 to 200 000; its default is 20 000). */
+const MAX_ANSWER_CHARS = 200_000
 
 export class Engine {
   private lib: Promise<Lib> | null = null
@@ -139,6 +141,11 @@ export class Engine {
   /**
    * Calls one operation and returns its data. Writes are sent once: `key` (an idempotency key) makes a retry of
    * the same step the same call; a different key is a different write.
+   *
+   * The engine shortens answers to 20 000 characters by default (it is made for an agent's context). Greenlit wants
+   * the whole answer: Instagram's sound search gave 6 of its 13 sounds (each carries its DASH manifest), so most
+   * searches showed 5 unrelated sounds and a chosen sound could not be found again to publish. So every call asks
+   * for the most the engine keeps, and a still-shortened answer is logged.
    */
   async call<T = unknown>(
     site: string,
@@ -148,12 +155,17 @@ export class Engine {
   ): Promise<T> {
     const lib = await this.load()
     const r = await lib.call(site, op, args, {
-      maxTier: opts.maxTier ?? 2,
+      // Plain requests only unless a call asks for more: a higher tier opens API Anything's own browser with the
+      // sign-in's cookies, a second browser for one session, which platforms answer by ending it.
+      maxTier: opts.maxTier ?? 1,
       timeoutMs: opts.timeoutMs ?? 60_000,
+      view: { maxChars: MAX_ANSWER_CHARS },
       ...(opts.write ? { allowWrites: true } : {}),
       ...(opts.key ? { idempotencyKey: opts.key } : {}),
     })
     this.log.debug({ site, op, ok: r.ok, class: r.class, tier: r.tier, ms: r.ms, write: r.write }, 'api call')
+    if (r.ok && (r as { truncated?: string }).truncated)
+      this.log.warn({ site, op, truncated: (r as { truncated?: string }).truncated }, 'api answer shortened')
     if (!r.ok) throw new EngineError(op, r)
     return r.data as T
   }

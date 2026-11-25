@@ -6,25 +6,21 @@ import { firstParagraph, pickLogo } from './service.ts'
 describe('placing a kit’s files', () => {
   const cases: [string, string, string][] = [
     ['00 Anteprime/01 — Copertina.png', 'guidelines', 'Anteprime'],
-    ['01 Loghi/Costruzioni GEM/GEM-Costruzioni-bianco.svg', 'logos', 'Costruzioni GEM'],
-    [
-      '01 Loghi/Studio Associato GEM/Vettoriale (SVG)/x.svg',
-      'logos',
-      'Studio Associato GEM › Vettoriale (SVG)',
-    ],
-    ['02 Colori/GEM.ase', 'colors', ''],
-    ['02 Colori/GEM-palette.png', 'colors', ''],
+    ['01 Loghi/Acme Builders/Acme-Builders-bianco.svg', 'logos', 'Acme Builders'],
+    ['01 Loghi/Acme Studio/Vettoriale (SVG)/x.svg', 'logos', 'Acme Studio › Vettoriale (SVG)'],
+    ['02 Colori/Acme.ase', 'colors', ''],
+    ['02 Colori/Acme-palette.png', 'colors', ''],
     ['03 Font/Cinzel/static/Cinzel-Bold.ttf', 'fonts', 'Cinzel › static'],
     ['03 Font/Jost/OFL.txt', 'fonts', 'Jost'],
-    ['04 Elementi grafici/Icone/bianco/gem-icona-web.svg', 'graphics', 'Icone › bianco'],
+    ['04 Elementi grafici/Icone/bianco/acme-icona-web.svg', 'graphics', 'Icone › bianco'],
     ['05 Template/Social/Post 01.png', 'templates', 'Social'],
     ['05 Template/Stampa/Anteprime/Vetrina A3.png', 'templates', 'Stampa › Anteprime'],
-    ['06 LUT/GEM_Luce.cube', 'looks', ''],
+    ['06 LUT/Acme_Luce.cube', 'looks', ''],
     ['07 Firma email/firma-email.html', 'files', 'Firma email'],
     ['08 Sorgenti (per rigenerare il kit)/brand.py', 'files', 'Sorgenti (per rigenerare il kit)'],
-    ['09 Sfondi/GEM-sfondo-telefono-arco.png', 'graphics', 'Sfondi'],
-    ['GEM - Linee guida del marchio.pdf', 'guidelines', ''],
-    ['GEM Brand Kit.figcraft', 'templates', ''],
+    ['09 Sfondi/Acme-sfondo-telefono-arco.png', 'graphics', 'Sfondi'],
+    ['Acme - Linee guida del marchio.pdf', 'guidelines', ''],
+    ['Acme Brand Kit.figcraft', 'templates', ''],
     ['README.md', 'files', ''],
     // English kits, and files whose folder says nothing
     ['Brand/Logos/Primary/logo-white.svg', 'logos', 'Primary'],
@@ -55,7 +51,7 @@ describe('reading palettes', () => {
           ruolo: 'Background',
           tipo: 'core',
         },
-        pietra: { value: '#b49b74', ruolo: 'Accent, on dark only', tipo: 'accento' },
+        stone: { value: '#b49b74', ruolo: 'Accent, on dark only', tipo: 'accento' },
       },
       font: {
         display: { family: 'Cinzel', weight: 700, case: 'uppercase', letterSpacing: '0.03em' },
@@ -65,10 +61,10 @@ describe('reading palettes', () => {
   )
 
   it('reads design tokens: values, print values, usage, groups and fonts', () => {
-    const r = parsePalette('gem-tokens.json', tokens)
+    const r = parsePalette('acme-tokens.json', tokens)
     expect(r.colors).toEqual([
       { name: 'Dark Gray', hex: '#141414', cmyk: 'C73 M67 Y65 K80', usage: 'Background', group: 'core' },
-      { name: 'Pietra', hex: '#B49B74', cmyk: null, usage: 'Accent, on dark only', group: 'accento' },
+      { name: 'Stone', hex: '#B49B74', cmyk: null, usage: 'Accent, on dark only', group: 'accento' },
     ])
     expect(r.fonts).toEqual([
       { family: 'Cinzel', role: 'display', weights: [700], uppercase: true, letterSpacing: 0.03, usage: '' },
@@ -97,19 +93,19 @@ describe('reading palettes', () => {
   })
 
   it('reads GIMP palettes', () => {
-    const gpl = 'GIMP Palette\nName: GEM\n#\n 20  20  20\tGEM Dark Gray\n180 155 116\tPietra\n'
-    expect(parsePalette('GEM.gpl', Buffer.from(gpl)).colors.map((c) => [c.name, c.hex])).toEqual([
-      ['GEM Dark Gray', '#141414'],
-      ['Pietra', '#B49B74'],
+    const gpl = 'GIMP Palette\nName: Acme\n#\n 20  20  20\tAcme Dark Gray\n180 155 116\tStone\n'
+    expect(parsePalette('Acme.gpl', Buffer.from(gpl)).colors.map((c) => [c.name, c.hex])).toEqual([
+      ['Acme Dark Gray', '#141414'],
+      ['Stone', '#B49B74'],
     ])
   })
 
   it('reads CSS custom properties without their shared prefix, comments as usage', () => {
-    const css = `:root {\n  --gem-dark-gray: #141414; /* Background */\n  --gem-pietra: #B49B74;\n  --gem-font-display: 'Cinzel', serif; /* always UPPERCASE */\n}`
-    const r = parsePalette('gem.css', Buffer.from(css))
+    const css = `:root {\n  --acme-dark-gray: #141414; /* Background */\n  --acme-stone: #B49B74;\n  --acme-font-display: 'Cinzel', serif; /* always UPPERCASE */\n}`
+    const r = parsePalette('acme.css', Buffer.from(css))
     expect(r.colors.map((c) => [c.name, c.hex, c.usage])).toEqual([
       ['Dark Gray', '#141414', 'Background'],
-      ['Pietra', '#B49B74', ''],
+      ['Stone', '#B49B74', ''],
     ])
     expect(r.fonts[0]).toMatchObject({ family: 'Cinzel', role: 'display' })
   })
@@ -148,25 +144,25 @@ describe('reading palettes', () => {
     const ase = Buffer.concat([
       head,
       block(0xc001, name('Core')),
-      rgb('GEM Dark Gray', 20 / 255, 20 / 255, 20 / 255),
+      rgb('Acme Dark Gray', 20 / 255, 20 / 255, 20 / 255),
       block(0xc002, Buffer.alloc(0)),
       cmyk('Black', 0, 0, 0, 1),
     ])
     expect(parseAse(ase)).toEqual([
-      { name: 'GEM Dark Gray', hex: '#141414', cmyk: null, usage: '', group: 'Core' },
+      { name: 'Acme Dark Gray', hex: '#141414', cmyk: null, usage: '', group: 'Core' },
       { name: 'Black', hex: '#000000', cmyk: 'C0 M0 Y0 K100', usage: '', group: '' },
     ])
   })
 
   it('joins the same colours from several files, keeping the best of each', () => {
-    let colors = mergeColors([], parsePalette('gem-tokens.json', tokens).colors)
+    let colors = mergeColors([], parsePalette('acme-tokens.json', tokens).colors)
     colors = mergeColors(colors, [
-      { name: 'GEM Dark Gray', hex: '#141414', cmyk: null, usage: '', group: '' },
+      { name: 'Acme Dark Gray', hex: '#141414', cmyk: null, usage: '', group: '' },
       { name: 'Ulivo', hex: '#7E8468', cmyk: null, usage: '', group: '' },
     ])
     expect(colors.map((c) => [c.id, c.name, c.cmyk, c.group])).toEqual([
-      ['dark-gray', 'GEM Dark Gray', 'C73 M67 Y65 K80', 'core'],
-      ['pietra', 'Pietra', null, 'accento'],
+      ['dark-gray', 'Acme Dark Gray', 'C73 M67 Y65 K80', 'core'],
+      ['stone', 'Stone', null, 'accento'],
       ['ulivo', 'Ulivo', null, ''],
     ])
     const fonts = mergeFonts(
@@ -218,14 +214,14 @@ describe('the main logo', () => {
   it('is the horizontal lockup made for the card’s background, vector first, never an original', () => {
     const cands = [
       c('logo-long-white.png', 'Originali (non modificati)', false, 'dark'),
-      c('GEM-Studio-avatar-scuro.png', 'Profilo social', false, null),
-      c('GEM-Studio-tempio-bianco.svg', 'Studio Associato GEM › Vettoriale (SVG)', true, 'dark'),
-      c('GEM-Studio-orizzontale-nero.svg', 'Studio Associato GEM › Vettoriale (SVG)', true, 'light'),
-      c('GEM-Studio-orizzontale-bianco.png', 'Studio Associato GEM', false, 'dark'),
-      c('GEM-Studio-orizzontale-bianco.svg', 'Studio Associato GEM › Vettoriale (SVG)', true, 'dark'),
+      c('Acme-Studio-avatar-scuro.png', 'Profilo social', false, null),
+      c('Acme-Studio-tempio-bianco.svg', 'Acme Studio › Vettoriale (SVG)', true, 'dark'),
+      c('Acme-Studio-orizzontale-nero.svg', 'Acme Studio › Vettoriale (SVG)', true, 'light'),
+      c('Acme-Studio-orizzontale-bianco.png', 'Acme Studio', false, 'dark'),
+      c('Acme-Studio-orizzontale-bianco.svg', 'Acme Studio › Vettoriale (SVG)', true, 'dark'),
     ]
-    expect(pickLogo(cands, 'dark')?.mediaId).toBe('GEM-Studio-orizzontale-bianco.svg')
-    expect(pickLogo(cands, 'light')?.mediaId).toBe('GEM-Studio-orizzontale-nero.svg')
+    expect(pickLogo(cands, 'dark')?.mediaId).toBe('Acme-Studio-orizzontale-bianco.svg')
+    expect(pickLogo(cands, 'light')?.mediaId).toBe('Acme-Studio-orizzontale-nero.svg')
     expect(pickLogo([], 'dark')).toBeNull()
   })
 })
@@ -233,11 +229,11 @@ describe('the main logo', () => {
 describe('the kit’s description from its README', () => {
   it('is the first paragraph under the title, without Markdown', () => {
     const md =
-      '# Studio Associato GEM — Brand Kit 2026\n\nIl kit del marchio per il rilancio di GEM. Due colori, due ' +
-      'caratteri, pochi segni presi dalla pietra pugliese.\n**Prima di tutto**, apri il PDF.\n\n## Cosa c’è\n\n| a | b |'
+      '# Acme Studio — Brand Kit 2026\n\nIl kit del marchio per il rilancio di Acme. Due colori, due ' +
+      'caratteri, pochi segni presi dalla pietra locale.\n**Prima di tutto**, apri il PDF.\n\n## Cosa c’è\n\n| a | b |'
     expect(firstParagraph(md)).toBe(
-      'Il kit del marchio per il rilancio di GEM. Due colori, due caratteri, pochi segni presi dalla pietra ' +
-        'pugliese. Prima di tutto, apri il PDF.',
+      'Il kit del marchio per il rilancio di Acme. Due colori, due caratteri, pochi segni presi dalla pietra ' +
+        'locale. Prima di tutto, apri il PDF.',
     )
     expect(firstParagraph('# Title\n\n| only | a table |')).toBe('')
   })

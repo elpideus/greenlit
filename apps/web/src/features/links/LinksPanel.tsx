@@ -71,6 +71,8 @@ const SIDES: Side[] = Relations.options.flatMap<Side>((relation) =>
         { relation, forward: false },
       ],
 )
+/** A side as a plain string, for the Link to… dialog's relation picker. */
+const sideKey = (s: Side) => `${s.relation}:${s.forward ? 'from' : 'to'}`
 const sameSide = (a: Side, b: Side) =>
   a.relation === b.relation && (a.relation === 'related' || a.forward === b.forward)
 type Item = { link: LinkT; other: LinkT['from']; forward: boolean }
@@ -334,7 +336,9 @@ function AddLink({
   const [openProject, setOpenProject] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const query = useDeferredValue(q)
-  const [relation, setRelation] = useState<LinkRelation>('related')
+  // The same relations as Change relation: from this item's side, so "Made from" links the picks to it.
+  const [relation, setRelation] = useState(sideKey({ relation: 'related', forward: true }))
+  const side = SIDES.find((s) => sideKey(s) === relation) ?? { relation: 'related', forward: true }
   const [view, setView] = useStoredState<'grid' | 'list'>('links.view', 'grid')
   const [picked, setPicked] = useState<Map<string, Candidate>>(new Map())
   const [busy, setBusy] = useState(false)
@@ -463,7 +467,12 @@ function AddLink({
     if (!chosen.length || busy) return
     setBusy(true)
     const results = await Promise.allSettled(
-      chosen.map((c) => api.post('/links', { from, to: { type: c.type, id: c.id }, relation })),
+      chosen.map((c) => {
+        const other = { type: c.type, id: c.id }
+        return side.forward
+          ? api.post('/links', { from, to: other, relation: side.relation })
+          : api.post('/links', { from: other, to: from, relation: side.relation })
+      }),
     )
     setBusy(false)
     const done = chosen.filter((_, i) => results[i]!.status === 'fulfilled')
@@ -491,11 +500,14 @@ function AddLink({
         <>
           <span className="mr-auto flex items-center gap-2">
             <span className="t-label max-sm:hidden">{t('relation')}</span>
-            <Select<LinkRelation>
+            <Select
               size="sm"
               value={relation}
               onChange={setRelation}
-              options={Relations.options.map((r) => ({ value: r, label: t(`relations.${r}.forward`) }))}
+              options={SIDES.map((s) => ({
+                value: sideKey(s),
+                label: t(`relations.${s.relation}.${s.forward ? 'forward' : 'inverse'}`),
+              }))}
             />
           </span>
           {picked.size > 0 && (

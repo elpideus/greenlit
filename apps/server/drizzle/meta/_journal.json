@@ -71,6 +71,34 @@
       "when": 1795445570176,
       "tag": "0009_brand_kits",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795541464363,
+      "tag": "0010_post_covers",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795556130387,
+      "tag": "0011_usernames",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795558713318,
+      "tag": "0012_web_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795564644059,
+      "tag": "0013_slides",
+      "breakpoints": true
     }
   ]
 }

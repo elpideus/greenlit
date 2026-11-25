@@ -109,5 +109,28 @@
   "notUploaded": "{{version}} non c’è ancora",
   "uploadVersion": "Carica {{version}}…",
   "showVersion": "Mostra {{version}}",
-  "makeMainNamed": "Rendi {{version}} la versione principale"
+  "makeMainNamed": "Rendi {{version}} la versione principale",
+  "slides": {
+    "count_one": "{{count}} slide",
+    "count_other": "{{count}} slide",
+    "slideOf": "Slide {{position}} di {{total}}",
+    "openAlone": "Apri da sola",
+    "none": "Nessuna slide",
+    "add": "Aggiungi slide",
+    "fromLibrary": "Dalla libreria…",
+    "upload": "Carica foto…",
+    "pickTitle": "Aggiungi slide dalla libreria",
+    "pickConfirm": "Aggiungi",
+    "added_one": "Slide aggiunta",
+    "added_other": "{{count}} slide aggiunte",
+    "moveLeft": "Sposta a sinistra",
+    "moveRight": "Sposta a destra",
+    "remove": "Togli da queste slide",
+    "removed": "{{title}} è di nuovo nella libreria",
+    "onlyPictures": "Le slide sono foto e video",
+    "full": "Al massimo {{max}} slide",
+    "someFailed": "Alcuni file non sono stati caricati",
+    "emptyTitle": "Ancora nessuna slide",
+    "emptyBody": "Aggiungi foto dalla libreria con +, o trascina qui i file. Ognuna resta un elemento a sé, con le sue versioni e note."
+  }
 }

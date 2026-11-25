@@ -16,7 +16,7 @@ import {
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { menuEntries } from '@/app/registry'
-import { type BulkAction, formatByKey, useBulkMedia } from '@/data/media'
+import { type BulkAction, expandSlides, formatByKey, useBulkMedia } from '@/data/media'
 import { useReviewers } from '@/data/people'
 import { useProjects } from '@/data/projects'
 import { useTags } from '@/data/tags'
@@ -113,8 +113,13 @@ export function useMediaActions({
       t('done.hidden'),
     )
 
-  const download = (items: Media[]) => {
-    for (const m of items) {
+  // A Slides item downloads its pages.
+  const download = async (items: Media[]) => {
+    const files = await expandSlides(items).catch((err) => {
+      toast.error(err)
+      return [] as Media[]
+    })
+    for (const m of files) {
       const f = formatByKey(m, null)
       if (!f) continue
       const a = document.createElement('a')

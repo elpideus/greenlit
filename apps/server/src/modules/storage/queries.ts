@@ -1,6 +1,6 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { type ArchivePolicy, type ArchiveStrategy, type MediaKind, mediaKindFromMime } from '@greenlit/shared'
+import { type ArchivePolicy, type ArchiveStrategy, type FileKind, mediaKindFromMime } from '@greenlit/shared'
 import { sql } from 'drizzle-orm'
 import type { ModuleContext } from '../../core/module.ts'
 import { blobs } from '../files/schema.ts'
@@ -12,11 +12,11 @@ export interface Candidate {
   filename: string
   mime: string
   size: number
-  kind: MediaKind
+  kind: FileKind
   lastUsed: Date
 }
 
-const KINDS = new Set<MediaKind>(['video', 'image', 'audio', 'document', 'design', 'other'])
+const KINDS = new Set<FileKind>(['video', 'image', 'audio', 'document', 'design', 'other'])
 
 /**
  * Hot media blobs old enough to archive. "Old" is measured from the last use we can see: the newest of the
@@ -63,7 +63,7 @@ export async function archiveCandidates(
     order by last_used asc
     ${opts.limit ? sql`limit ${opts.limit}` : sql``}`)
   let list: Candidate[] = rows.map((r) => {
-    const kind = r.kind && KINDS.has(r.kind as MediaKind) ? (r.kind as MediaKind) : mediaKindFromMime(r.mime)
+    const kind = r.kind && KINDS.has(r.kind as FileKind) ? (r.kind as FileKind) : mediaKindFromMime(r.mime)
     return {
       id: r.id,
       filename: r.filename,

@@ -44,6 +44,7 @@
     "targets": "platforms",
     "document": "edit",
     "name": "name",
-    "media": "media"
+    "media": "media",
+    "webLinks": "links"
   }
 }

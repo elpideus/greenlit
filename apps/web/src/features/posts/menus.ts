@@ -92,7 +92,8 @@ export function postMenuOwnItems(post: Post, me: Me, t: TFunction): { order: num
 /** "Create post" on media (one item or a selection). */
 export function mediaMenuItems({ items, me }: { items: Media[]; me: Me }, t: TFunction): MenuEntry[] {
   if (!can(me, 'posts.edit')) return []
-  const usable = items.filter((m) => m.kind === 'video' || m.kind === 'image')
+  // A Slides item is one carousel: the post gets its pages.
+  const usable = items.filter((m) => m.kind === 'video' || m.kind === 'image' || m.kind === 'slides')
   if (!usable.length) return []
   return [
     {

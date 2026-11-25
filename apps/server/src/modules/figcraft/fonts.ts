@@ -4,7 +4,7 @@ import { extname, join } from 'node:path'
 export { type FontNames, readFontNames } from '../../lib/fonts.ts'
 
 /**
- * Font files for design documents. FigCraft ships a few dozen open fonts; brand fonts (Cinzel, Jost for GEM) have
+ * Font files for design documents. FigCraft ships a few dozen open fonts; brand fonts (Cinzel, Jost for a brand kit) have
  * to come from somewhere, so Greenlit keeps the ones people add: the browser build loads them when a document asks
  * for their family, and figcraft-cli finds them in `$XDG_DATA_HOME/fonts` when it renders thumbnails.
  */

@@ -825,7 +825,7 @@ export function firstParagraph(md: string) {
   return ''
 }
 
-/** The background kit cards sit on: the kit's first core colour (dark for GEM), else dark. */
+/** The background kit cards sit on: the kit's first core colour (dark for a brand kit), else dark. */
 function cardSurface(colors: BrandColor[]): 'dark' | 'light' {
   const core = colors.find((c) => colorGroupKey(c.group) === 'core') ?? colors[0]
   return core && luminance(core.hex) > 0.5 ? 'light' : 'dark'

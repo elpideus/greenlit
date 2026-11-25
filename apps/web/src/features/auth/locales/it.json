@@ -3,10 +3,11 @@
   "signInTo": "Accedi a {{name}}",
   "welcome": "Riprese, revisioni e pubblicazioni per uno studio che filma il proprio lavoro.",
   "email": "Email",
+  "login": "Email o nome utente",
   "password": "Password",
   "remember": "Resta connesso",
   "signingIn": "Accesso…",
-  "wrong": "Email e password non corrispondono a nessun account.",
+  "wrong": "Nome utente o email e password non corrispondono a nessun account.",
   "setup": {
     "title": "Configura {{name}}",
     "body": "Diventi l'amministratore. Potrai invitare i revisori subito dopo.",

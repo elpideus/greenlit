@@ -15,7 +15,7 @@ const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')
 const DRONE = id(1)
 const INTERIOR = id(2)
 const MUSIC = id(3)
-const LOGO = id(4) // a file of the "Studio Associato GEM" brand kit
+const LOGO = id(4) // a file of the "Acme Studio" brand kit
 const UNUSED = id(5)
 const OUTPUT = id(9)
 const KIT = new Set([LOGO])

@@ -46,7 +46,7 @@ under it (`Account.signIn`).
 
 ### One account through two connectors
 
-The same account reached by two connectors — the GEM Page through facebook.com and through Business Suite, an
+The same account reached by two connectors — a Page through facebook.com and through Business Suite, an
 Instagram account through instagram.com and through Business Suite — is **one account** (`merge.ts`). They are told
 apart by the ids each reads (a Page's classic id, which facebook.com keeps as `delegate_page_id`; Instagram's
 `fbid_v2`, Business Suite's `igUserId`; a YouTube channel id), never by name. The platform's own connector leads;
@@ -68,12 +68,15 @@ as "Scheduled in Greenlit", and `posts.due` (every minute) sends it when its tim
 if Greenlit is running at that time; one the platform keeps goes out even if Greenlit is off. A dry run of a held
 version says so in its first step and rehearses the publish as it will be sent then.
 
-| Connector           | Kept on the platform                 | Held by Greenlit                 |
-| ------------------- | ------------------------------------ | -------------------------------- |
-| `facebook` (a Page) | feed posts at least 10 minutes ahead | reels, and anything sooner       |
-| `instagram`         | nothing yet                          | feed posts, reels and stories    |
-| `tiktok`            | videos 15 minutes to 10 days ahead   | a time sooner or later than that |
-| `youtube`           | videos and Shorts                    | nothing                          |
+| Connector           | Kept on the platform                   | Held by Greenlit                  |
+| ------------------- | -------------------------------------- | --------------------------------- |
+| `facebook` (a Page) | feed posts 10 minutes to 28 days ahead | reels, and a time sooner or later |
+| `instagram`         | nothing yet                            | feed posts, reels and stories     |
+| `tiktok`            | videos 15 minutes to 10 days ahead     | a time sooner or later than that  |
+| `youtube`           | videos and Shorts                      | nothing                           |
+
+Facebook's own limit is not published: on 25 Nov 2026 it took a feed post 28 days 3 hours ahead and refused one 35
+days ahead ("A server error field_exception occured"), so Greenlit holds anything past 28 days (`FB_FEED_SCHEDULE`).
 
 Capabilities are saved on each account by its checks; when the server starts they are brought up to what the
 connectors of that version do, so a change like this one applies at once.
@@ -137,6 +140,19 @@ publishing is not switched on yet.
   So the `youtube` connector writes in Studio itself, in the sign-in's own browser profile: it hands the page the
   session API Anything keeps current, switches to the channel (`youtube.com/signin?pageid=…`), then runs Studio's
   upload, details and delete steps (`drivers/youtube.ts`). Reads stay plain requests.
+- **The browser owns the sign-in.** API Anything and the browser profile hold the same sign-in, and Google rotates
+  its session cookies (`__Secure-1PSIDTS`…) and sets consistency cookies (`SIDCC`…) for each client that uses them.
+  So, as in any browser, nothing is ever written into the profile's cookies from outside: API Anything only takes a
+  copy of them after each browser step (once its tabs are closed) and from the sign-in window when it closes. Writing
+  API Anything's copy into the page before each step made Google end the YouTube session over and over (25 Nov 2026).
+  Chromium's home (its NSS key store) is on the data volume too (`/data/sessions/.home`).
+- **The browser itself is never signed in to Google.** By default a Google sign-in on a web page also signs Chromium
+  in (DICE). Debian's Chromium has no Google API keys, so that half fails ("Missing authorization code due to OAuth
+  outage in Dice", in the profile's Preferences), and at its next start Chromium signs the broken account out, web
+  sign-in included: YouTube asked to sign in again at the first step after every restart or idle close (25 Nov 2026).
+  The image sets Chrome's `BrowserSignin: 0` policy (`/etc/chromium/policies/managed/greenlit.json`) and the browsers
+  run with `--allow-browser-signin=false`, so the web sign-in stays an ordinary one. They also run with
+  `--restore-last-session` (saved tabs cleared first), so session cookies survive a reopen as in Chrome.
 
 ### Learning an operation
 
@@ -349,11 +365,11 @@ publish requests held, so nothing was posted, and the held posts discarded in th
   (`sec-fetch-*`, which Node's `fetch` adds) with "SecFetch Policy violation": a carousel's Share is sent as an
   app-style request (API Anything's `cookies: false`, which also strips those headers, see below).
 - Tested for real (Nov 2026): a picture, a carousel (a picture and a video), a picture story and a video story
-  went up on the account, were checked in the app (the carousel's two items, both stories), left GEM's Facebook
+  went up on the account, were checked in the app (the carousel's two items, both stories), left a Facebook
   Page untouched, and were deleted (the carousel through Greenlit, the stories in the app).
 
 **Facebook reels and sounds** (in `aa/sites/facebook.json`, recorded from Meta Business Suite's reel composer as
-the GEM Page, Nov 2026, with every write but the video upload aborted, so nothing was posted). They go with the
+a Page, Nov 2026, with every write but the video upload aborted, so nothing was posted). They go with the
 `facebook` connector's own login, as the Page: `av` is the Page's classic id (Business Suite's `asset_id`), sent
 as the login itself (not the Page's profile session facebook.com's own posts use).
 
@@ -412,7 +428,7 @@ so nothing was posted; sent as the Page in its own session, as the Page's posts 
   feed's encrypted tracking, in every variant tried for real (Nov 2026), so it is not used.
 
 **Facebook Page stories** (`createStory` in `aa/sites/facebook.json`, recorded from Meta Business Suite's "Create
-story" as the GEM Page, Nov 2026, with every write but the picture upload aborted, so nothing was posted): the
+story" as a Page, Nov 2026, with every write but the picture upload aborted, so nothing was posted): the
 picture goes up with `uploadPhoto` as the Page (an upload makes no story, and the composer's own upload is the same
 request), then `createStory` is the composer's Share: the same `BusinessComposerStoryCreationMutation` document as a
 reel's, with the picture named in the attachment, its original and burned-in copies and the Facebook story's own
@@ -430,7 +446,7 @@ then `createVideoStory` is the same Share with the video as the attachment (60 s
 names no post for keeps `story:<id>` (picture or video). Tested for real (Nov 2026): the 1 kHz test video went up as the Page's story; deleted on the
 Page.
 
-**TikTok sounds and posts** (recorded from TikTok Studio's upload page and video editor as GEM's TikTok, Nov 2026,
+**TikTok sounds and posts** (recorded from TikTok Studio's upload page and video editor as a TikTok account, Nov 2026,
 with every write but the video upload aborted). TikTok Studio's own requests are signed in the page (`msToken`,
 `X-Bogus`, `X-Gnarly` and the `tt-ticket-guard-*` keys of its Post); Greenlit does not make those anywhere else. So:
 
@@ -440,6 +456,11 @@ with every write but the video upload aborted). TikTok Studio's own requests are
 - Posts are made in TikTok Studio itself, in the account's own signed-in browser profile (`run.api.browser`, as
   YouTube Studio's writes are), with the TikTok Studio steps of `drivers/tiktok.ts`: the upload, the caption, who
   can see it, the switches, the sound, the schedule, then Post. The page signs its own requests, as for a person.
+- The schedule (Nov 2026 layout): the "Schedule" radio is drawn over by its own circle, so its label is clicked
+  (`checkInput`); then the "Select date" calendar (month by month, the day button) and the "Select time" Hours and
+  Minutes wheels, in the browser's time zone (Greenlit's; the time zone picker stays on local time). What the
+  pickers show is read back and must be the time asked for. TikTok does not schedule a post only you can see: the
+  radio is greyed out and the publish fails with that reason.
 - The sound is added in the video editor (`chooseSound`): its Sounds panel is searched by the sound's title and
   artist, the result whose id is the chosen sound's (read from the search's own answer) is added with its "+",
   then each track's volume is set in the Audio panel in dB (−60 to +20; 1 is 0 dB, half is −6 dB), the video's own

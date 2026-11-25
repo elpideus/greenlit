@@ -84,7 +84,8 @@ function MediaBin() {
   const readOnly = useEditor((s) => s.readOnly)
   const [picker, setPicker] = useState(false)
   const list = useMediaList(
-    { projectId: projectId ?? undefined, sort: 'recent', limit: 120 },
+    // Slides' pages are pictures an edit can use one by one.
+    { projectId: projectId ?? undefined, sort: 'recent', limit: 120, withSlides: true },
     { enabled: !!projectId },
   )
   const items = useMemo(

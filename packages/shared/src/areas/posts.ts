@@ -101,6 +101,8 @@ export const PostTarget = z.object({
   stats: z.record(z.string(), z.number()).nullable(),
   /** What the platform did not apply (e.g. a first comment on a scheduled post). */
   notes: z.array(z.string()).default([]),
+  /** The cover the platform shows for it (Greenlit's copy), once the sync has seen it there. */
+  coverUrl: z.string().nullable().default(null),
 })
 export type PostTarget = z.infer<typeof PostTarget>
 
@@ -165,6 +167,17 @@ export const Post = z.object({
   updatedAt: IsoDate,
 })
 export type Post = z.infer<typeof Post>
+
+/** A post's picture: what the platform shows for a post found there; the library item for one made here. */
+export function postThumbnail(p: {
+  origin: Post['origin']
+  media: { thumbnailUrl: string | null; formats: { posterUrl: string | null }[] }[]
+  targets: { coverUrl: string | null }[]
+}): string | null {
+  const cover = p.targets.find((t) => t.coverUrl)?.coverUrl ?? null
+  const own = p.media[0]?.thumbnailUrl ?? p.media[0]?.formats[0]?.posterUrl ?? null
+  return p.origin === 'platform' ? (cover ?? own) : (own ?? cover)
+}
 
 export const TargetInput = z.object({
   id: Id.optional(),

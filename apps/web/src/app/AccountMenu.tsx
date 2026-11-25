@@ -33,7 +33,7 @@ export function AccountMenu() {
           <div className="min-w-0">
             <div className="truncate t-callout font-[550] text-ink">{me.displayName}</div>
             <div className="truncate t-caption text-ink-3">
-              {me.viaShareLink ? t('shell.shareSession') : me.email}
+              {me.viaShareLink ? t('shell.shareSession') : (me.email ?? me.username)}
             </div>
           </div>
         </div>

@@ -44,7 +44,7 @@
     },
     {
       "name": "resolveHandle",
-      "description": "The channel id (UC…) of a channel handle such as @studioassociatogem. Public: no session needed.",
+      "description": "The channel id (UC…) of a channel handle such as @example. Public: no session needed.",
       "readOnly": true,
       "request": {
         "method": "POST",
@@ -123,7 +123,7 @@
           "published=timePublishedSeconds",
           "watchUrl",
           "thumbnail=thumbnailDetails.thumbnails[0].url",
-          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].publishTimeSeconds",
+          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].scheduledTimeSeconds",
           "views=publicMetrics.externalViewCount",
           "likes=publicMetrics.likeCount",
           "comments=publicMetrics.commentCount"
@@ -183,7 +183,7 @@
           "watchUrl",
           "tags=tags",
           "thumbnail=thumbnailDetails.thumbnails[0].url",
-          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].publishTimeSeconds",
+          "scheduledAt=scheduledPublishingDetails.scheduledPublishings[0].scheduledTimeSeconds",
           "views=publicMetrics.externalViewCount",
           "likes=publicMetrics.likeCount",
           "comments=publicMetrics.commentCount"

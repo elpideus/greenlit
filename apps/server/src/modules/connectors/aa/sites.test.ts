@@ -190,7 +190,7 @@ describe('Facebook reel requests', () => {
       }
     }
     const post = {
-      actorId: '100063648724866',
+      actorId: '100000000000001',
       text: 'Villa',
       audience: 'EVERYONE',
       token: '59f2f442-07a4-45ff-bab6-1e00b04fdd21_FEED',
@@ -205,8 +205,8 @@ describe('Facebook reel requests', () => {
     const plain = fb('createPost', post).vars.input
     expect(plain).not.toHaveProperty('explicit_place_id')
     expect(plain).not.toHaveProperty('place_attachment_setting')
-    const search = fb('placeSearch', { actorId: '100063648724866', query: 'Ostuni' })
-    expect(search.form.get('av')).toBe('100063648724866')
+    const search = fb('placeSearch', { actorId: '100000000000001', query: 'Ostuni' })
+    expect(search.form.get('av')).toBe('100000000000001')
     expect(search.form.get('doc_id')).toBe('26544272061837065')
     expect(search.vars.query_data).toMatchObject({ caller_platform: 'FB_COMPOSER_CHECKIN', query: 'Ostuni' })
   })
