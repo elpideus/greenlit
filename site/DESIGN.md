@@ -47,8 +47,10 @@ Giulia, Alex, Sam) and stock footage from Pexels. Nothing of any customer appear
 `scripts/public-release.test.ts` rule applies to this folder too.
 
 Media lives in `public/media` (H.264 loops at 1600×1000, posters as WebP) and screenshots in `src/assets/shots`
-(Astro makes the responsive sizes). The film and the ads are rendered from a Remotion project kept outside the
-repository; only their outputs are committed.
+(Astro makes the responsive sizes). The film, the ads, the recordings and the demo instance they come from live in
+`showcase/` at the repository root, which git ignores: it holds gigabytes of media, licensed music and stock that may
+not be redistributed, and the demo's passwords. Only its outputs are committed (`public/media`, `src/assets/shots`,
+`.github/media`). Its Remotion project installs on its own: `pnpm install --ignore-workspace` in `showcase/film`.
 
 ## Two languages
 

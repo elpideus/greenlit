@@ -13,3 +13,6 @@ test-results/
 .turbo/
 *.tsbuildinfo
 .dev-test-credentials
+
+# The showcase workshop (demo instance, recordings, the film, stock, music): local only, see site/DESIGN.md
+/showcase/

@@ -7,3 +7,6 @@ data
 !.env.example
 **/*.log
 coverage
+
+# the local showcase workshop: gigabytes the app image never needs
+showcase
