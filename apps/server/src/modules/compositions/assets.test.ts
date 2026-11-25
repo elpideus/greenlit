@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -194,9 +195,11 @@ describe('a new main version', () => {
 
 /**
  * Two versions of a video with different pictures (red: the main one, blue: another version) and of a piece of music,
- * drawn the way an export and editor_frame draw them.
+ * drawn the way an export and editor_frame draw them. Needs ffmpeg on the PATH (the app's image has it; CI's
+ * runner does not), so it is skipped without one.
  */
-describe('drawing an edit', () => {
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0
+describe.skipIf(!hasFfmpeg)('drawing an edit', () => {
   let dir: string
   const lib = new Library()
   let masterBlob: string
