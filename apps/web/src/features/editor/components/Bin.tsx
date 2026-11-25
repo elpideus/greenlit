@@ -1,6 +1,18 @@
 import { isActive } from '@greenlit/composition'
 import type { Media } from '@greenlit/shared'
-import { Circle, Code2, Eye, EyeOff, Library, Lock, Plus, Square, SquareDashed, Type } from 'lucide-react'
+import {
+  Circle,
+  Code2,
+  Eye,
+  EyeOff,
+  Layers as LayersIcon,
+  Library,
+  Lock,
+  Plus,
+  Square,
+  SquareDashed,
+  Type,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { MediaPicker } from '@/components/MediaPicker'
 import { MediaThumb } from '@/components/MediaThumb'
@@ -8,8 +20,8 @@ import { useMediaList } from '@/data/media'
 import { cn } from '@/lib/cn'
 import { formatDuration } from '@/lib/format'
 import { useT } from '@/lib/i18n'
-import { Button, EmptyState, Menu, Segmented, Skeleton, toast } from '@/ui'
-import { compositionApi } from '../api'
+import { Button, EmptyState, Menu, type MenuEntry, Segmented, Skeleton, toast, useContextMenu } from '@/ui'
+import { type AssetSource, compositionApi } from '../api'
 import { mediaClipOps } from '../edits'
 import { dispatch, useDoc, useEditor } from '../store'
 import { clipActions } from './actions'
@@ -18,7 +30,7 @@ import { clipLabel, TYPE_LOOK } from './clipLook'
 const get = useEditor.getState
 
 /** Adds library media at the playhead (double-click, the + button, the picker). */
-async function addAtPlayhead(items: { mediaId: string; formatKey?: string }[]) {
+async function addAtPlayhead(items: AssetSource[]) {
   const s = get()
   if (!s.id || !s.doc || s.readOnly) return
   try {
@@ -140,32 +152,70 @@ function MediaBin() {
   )
 }
 
+/** "Add …" for each version of an item (the main one first), when it has several. */
+function versionEntries(media: Media, t: ReturnType<typeof useT>): MenuEntry[] {
+  if (media.versions.length < 2) return []
+  return [
+    { group: t('bin.addVersion') },
+    ...media.versions.map((v) => ({
+      label: v.label || t('bin.mainVersion'),
+      hint: v.key || !v.label ? undefined : t('bin.mainVersion'),
+      onSelect: () => void addAtPlayhead([{ mediaId: media.id, ...(v.key ? { version: v.key } : {}) }]),
+    })),
+  ]
+}
+
 function BinItem({ media, used, readOnly }: { media: Media; used: boolean; readOnly: boolean }) {
+  const t = useT('editor')
+  const versions = media.versions.length
+  const menu = useContextMenu(() => versionEntries(media, t), { disabled: readOnly })
   return (
-    <button
-      type="button"
-      draggable={!readOnly}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'copy'
-        e.dataTransfer.setData(
-          'application/x-greenlit-media',
-          JSON.stringify([{ mediaId: media.id, kind: media.kind }]),
-        )
-      }}
-      onDoubleClick={() => void addAtPlayhead([{ mediaId: media.id }])}
-      className="press group min-w-0 text-left"
-      title={media.title}
-    >
-      <div className="relative">
-        <MediaThumb media={media} className="aspect-video" scrub showDuration />
-        {used && (
-          <span className="absolute top-1.5 left-1.5 size-1.5 rounded-full bg-signal shadow-[0_0_0_1.5px_rgba(0,0,0,.5)]" />
-        )}
-      </div>
-      <div className="mt-1 truncate t-micro text-ink-2 group-hover:text-ink">
-        {media.title || media.formats[0]?.filename}
-      </div>
-    </button>
+    <div className="relative min-w-0">
+      <button
+        type="button"
+        {...menu}
+        draggable={!readOnly}
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'copy'
+          e.dataTransfer.setData(
+            'application/x-greenlit-media',
+            JSON.stringify([{ mediaId: media.id, kind: media.kind }]),
+          )
+        }}
+        onDoubleClick={() => void addAtPlayhead([{ mediaId: media.id }])}
+        className="press group w-full min-w-0 text-left"
+        title={media.title}
+      >
+        <div className="relative">
+          <MediaThumb media={media} className="aspect-video" scrub showDuration />
+          {used && (
+            <span className="absolute top-1.5 left-1.5 size-1.5 rounded-full bg-signal shadow-[0_0_0_1.5px_rgba(0,0,0,.5)]" />
+          )}
+        </div>
+        <div className="mt-1 truncate t-micro text-ink-2 group-hover:text-ink">
+          {media.title || media.formats[0]?.filename}
+        </div>
+      </button>
+      {versions > 1 && (
+        <Menu
+          align="end"
+          width={220}
+          items={versionEntries(media, t)}
+          trigger={
+            <button
+              type="button"
+              disabled={readOnly}
+              aria-label={t('bin.versions', { count: versions })}
+              title={t('bin.versions', { count: versions })}
+              className="force-dark press absolute top-1.5 right-1.5 flex h-[20px] items-center gap-1 rounded-[6px] bg-black/55 px-1.5 t-meta text-[11px] text-white/90 backdrop-blur-md hover:bg-black/75"
+            >
+              <LayersIcon size={11} strokeWidth={2} aria-hidden />
+              {versions}
+            </button>
+          }
+        />
+      )}
+    </div>
   )
 }
 

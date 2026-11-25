@@ -13,6 +13,7 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm'
 import { type Actor, actorUserId, isAdmin } from '../../core/actor.ts'
 import { badRequest, conflict, notFound } from '../../core/errors.ts'
 import type { ModuleContext } from '../../core/module.ts'
+import { keepVersionOps, versionKeyOf } from './assets.ts'
 import { compositionOps, compositions } from './schema.ts'
 
 type Row = typeof compositions.$inferSelect
@@ -236,16 +237,34 @@ export class CompositionsService {
     )
   }
 
-  /** An Asset entry for a media item, ready for an add_asset op. */
-  async assetFor(mediaId: string, formatKey: string | undefined, actor: Actor): Promise<Asset> {
-    const m = await this.ctx.services.media.get(mediaId, actor)
-    const f = m.formats.find((x) => x.key === formatKey) ?? m.formats.find((x) => x.isPrimary) ?? m.formats[0]
-    if (!f) throw badRequest('That media item has no file')
+  /**
+   * An Asset entry for a media item, ready for an add_asset op: one of its versions (a key or a version's name;
+   * absent, '' or `main` = the main version) and one of that version's formats (default: its main one).
+   */
+  async assetFor(
+    input: { mediaId: string; formatKey?: string; version?: string },
+    actor: Actor,
+  ): Promise<Asset> {
+    const m = await this.ctx.services.media.get(input.mediaId, actor)
+    const version = versionKeyOf(m, input.version)
+    if (version === null)
+      throw badRequest(
+        m.versions.length
+          ? `That media item has no version "${input.version}". Its versions: ${m.versions
+              .map((v) => (v.key ? `"${v.key}" (${v.label})` : `"" (${v.label}, the main one)`))
+              .join(', ')}`
+          : `That media item has no version "${input.version}": it has only its main version`,
+      )
+    const formats = version ? (m.versions.find((v) => v.key === version)?.formats ?? []) : m.formats
+    const f = formats.find((x) => x.key === input.formatKey) ?? formats.find((x) => x.isPrimary) ?? formats[0]
+    if (!f)
+      throw badRequest(version ? 'That version of the media item has no file' : 'That media item has no file')
     const kind = f.kind === 'video' || f.kind === 'image' || f.kind === 'audio' ? f.kind : null
     if (!kind) throw badRequest('Only videos, pictures and audio can be used in an edit')
     return {
       id: newId('m'),
-      mediaId,
+      mediaId: input.mediaId,
+      ...(version ? { version } : {}),
       formatKey: f.key,
       kind,
       name: m.title,
@@ -253,6 +272,27 @@ export class CompositionsService {
       width: f.width,
       height: f.height,
       hasAudio: f.hasAudio,
+    }
+  }
+
+  /**
+   * A media item's main version changed: every editing project that uses the item keeps playing the same files
+   * (see keepVersionOps). Recorded and sent to open editors like any edit.
+   */
+  async keepVersions(mediaId: string, promoted: string, demoted: string) {
+    const rows = await this.db
+      .select({ id: compositions.id, document: compositions.document })
+      .from(compositions)
+      .where(
+        and(
+          isNull(compositions.deletedAt),
+          sql`jsonb_path_exists(${compositions.document}, '$.assets.* ? (@.mediaId == $id)', jsonb_build_object('id', ${mediaId}::text))`,
+        ),
+      )
+    const system: Actor = { kind: 'system', source: 'system' }
+    for (const r of rows) {
+      const ops = keepVersionOps(Composition.parse(r.document), mediaId, promoted, demoted)
+      if (ops.length) await this.apply(r.id, ops, system)
     }
   }
 

@@ -375,18 +375,25 @@ export default defineModule({
       method: 'post',
       path: '/compositions/{id}/assets',
       summary: 'Turn library media into assets (returns asset entries to add with add_asset)',
+      description:
+        'Each item may name one of its versions (`version`: its key or name; absent = the main version) and a format of that version (`formatKey`; absent = its main format).',
       tags,
       access: 'compositions.edit',
       params: IdParams,
       body: z.object({
         media: z
-          .array(z.object({ mediaId: z.uuid(), formatKey: z.string().optional() }))
+          .array(
+            z.object({
+              mediaId: z.uuid(),
+              formatKey: z.string().optional(),
+              version: z.string().max(120).optional(),
+            }),
+          )
           .min(1)
           .max(100),
       }),
       response: z.array(z.record(z.string(), z.unknown())),
-      handler: async ({ actor, body }) =>
-        Promise.all(body.media.map((m) => svc.assetFor(m.mediaId, m.formatKey, actor))),
+      handler: async ({ actor, body }) => Promise.all(body.media.map((m) => svc.assetFor(m, actor))),
     })
     route(ctx.api, {
       method: 'post',
@@ -453,6 +460,13 @@ export default defineModule({
       } catch {
         throw notFound()
       }
+    })
+
+    // A media item's main version changed: edits keep the files they chose, as posts do.
+    ctx.events.on('media.mainVersionChanged', async ({ id, promoted, demoted }) => {
+      await svc
+        .keepVersions(id, promoted, demoted)
+        .catch((err) => ctx.log.warn({ err, mediaId: id }, 'could not keep edits on their versions'))
     })
 
     // Posters: refreshed a little after edits stop.
@@ -596,10 +610,15 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'editor_add_media',
       description:
-        'Add library media to an editing project: creates the asset and (unless asClip=false) a clip. For video/audio, duration defaults to the source length from `in`; images default to 5 s. Visual clips go on a new top track unless trackId is given.',
+        "Add library media to an editing project: creates the asset and (unless asClip=false) a clip. `version` picks one of the item's versions (its key or name, as media_get lists them; absent = the main version) and `formatKey` a format of that version (absent = its main format). For video/audio, duration defaults to the source length from `in`; images default to 5 s. Visual clips go on a new top track unless trackId is given.",
       input: {
         id: z.uuid(),
         mediaId: z.uuid(),
+        version: z
+          .string()
+          .max(120)
+          .optional()
+          .describe('A version of the item: its key or name (absent, "" or "main" = the main version)'),
         formatKey: z.string().optional(),
         asClip: z.boolean().optional(),
         trackId: z.string().optional(),
@@ -613,7 +632,7 @@ export default defineModule({
       },
       access: 'compositions.edit',
       handler: async (i, { actor }) => {
-        const asset = await svc.assetFor(i.mediaId, i.formatKey, actor)
+        const asset = await svc.assetFor(i, actor)
         const ops: Op[] = [{ op: 'add_asset', asset }]
         let clipId: string | null = null
         if (i.asClip !== false) {
@@ -641,7 +660,7 @@ export default defineModule({
     ctx.mcp.tool({
       name: 'editor_auto_reframe',
       description:
-        'Make a video clip follow its subject in one format (typically "vertical" from 16:9 footage): samples the clip, finds the person/most important region and writes smoothed focusX (or focusY) keyframes. Check the result with editor_frames on that format; refine keyframes by hand with editor_apply if needed.',
+        'Make a video clip follow its subject in one format (typically "vertical" from 16:9 footage): samples the clip, finds the person/most important region and writes smoothed focusX (or focusY) keyframes. For the design format (the first) they go on the clip itself, which every format without its own also uses; for any other format, into clip.formats[formatId]. Check the result with editor_frames on that format; refine keyframes by hand with editor_apply if needed.',
       input: {
         id: z.uuid(),
         clipId: z.string(),

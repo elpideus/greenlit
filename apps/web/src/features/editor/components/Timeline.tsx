@@ -26,7 +26,7 @@ import { useStoredState } from '@/lib/dom'
 import { formatTimecode } from '@/lib/format'
 import { useT } from '@/lib/i18n'
 import { IconButton, InlineEdit, type MenuEntry, Slider, Tooltip, toast, useContextMenu } from '@/ui'
-import { compositionApi } from '../api'
+import { type AssetSource, compositionApi } from '../api'
 import { freeStart, mediaClipOps, round, trackFits } from '../edits'
 import { dispatch, preview, sendPresence, useDoc, useEditor } from '../store'
 import {
@@ -385,7 +385,7 @@ export function Timeline({ media, height }: { media: Map<string, Media>; height:
     e.preventDefault()
     const s = get()
     if (!s.id || !s.doc) return
-    const items = JSON.parse(raw) as { mediaId: string; formatKey?: string; kind: string }[]
+    const items = JSON.parse(raw) as (AssetSource & { kind: string })[]
     const at = Math.round(timeAt(e.clientX) * s.doc.fps) / s.doc.fps
     const row = rowAt(e.clientY)
     try {

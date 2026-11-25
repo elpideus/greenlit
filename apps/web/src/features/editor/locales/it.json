@@ -75,7 +75,10 @@
     "emptyProject": "Carica dei media nel progetto o aggiungili dalla libreria.",
     "dragHint": "Trascina sulla timeline o fai doppio clic per aggiungere alla testina",
     "noLayers": "Niente in scena alla testina",
-    "layersHint": "Ciò che si vede alla testina, dall'alto"
+    "layersHint": "Ciò che si vede alla testina, dall'alto",
+    "versions": "{{count}} versioni",
+    "addVersion": "Aggiungi una versione alla testina",
+    "mainVersion": "Principale"
   },
   "timeline": {
     "video": "Video",
@@ -119,6 +122,9 @@
     "duration": "Durata",
     "in": "Punto d'ingresso",
     "speed": "Velocità",
+    "source": "Sorgente",
+    "version": "Versione",
+    "versionGone": "L’elemento non ha più questa versione: la clip usa quella principale",
     "transform": "Posizione e dimensioni",
     "x": "X",
     "y": "Y",

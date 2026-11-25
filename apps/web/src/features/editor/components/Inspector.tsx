@@ -1,4 +1,5 @@
 import {
+  type Asset,
   type Clip,
   type Composition,
   type Easing,
@@ -21,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { useMediaItem } from '@/data/media'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { Button, IconButton, InlineEdit, Menu, Textarea, Toggle, toast } from '@/ui'
@@ -185,6 +187,8 @@ function ClipInspector({ clip, format, doc }: { clip: Clip; format: OutputFormat
         )}
       </div>
 
+      {asset && <VersionGroup clip={clip} asset={asset} />}
+
       <Group id="timing" title={t('inspector.timing')}>
         <div className="grid grid-cols-2 gap-1.5">
           <NumberField
@@ -250,6 +254,59 @@ function ClipInspector({ clip, format, doc }: { clip: Clip; format: OutputFormat
       {visual && <TransitionGroup clip={clip} />}
       <AnimationGroup p={p} clip={clip} format={format} doc={doc} />
     </fieldset>
+  )
+}
+
+/**
+ * Makes a media clip play another version of its item. Other clips of the same asset keep theirs; an asset of the
+ * edit that already plays that version is reused, and the old one goes when no clip uses it any more.
+ */
+async function switchVersion(clip: Clip, asset: Asset, version: string) {
+  const s = get()
+  if (!s.id || !s.doc || s.readOnly || (asset.version ?? '') === version) return
+  const ops: Op[] = []
+  let next = Object.values(s.doc.assets).find(
+    (a) => a.mediaId === asset.mediaId && (a.version ?? '') === version && a.formatKey === asset.formatKey,
+  )
+  if (!next) {
+    try {
+      ;[next] = await compositionApi.assets(s.id, [
+        { mediaId: asset.mediaId, formatKey: asset.formatKey, ...(version ? { version } : {}) },
+      ])
+    } catch (err) {
+      toast.error(err)
+      return
+    }
+    if (!next) return
+    ops.push({ op: 'add_asset', asset: next })
+  }
+  ops.push({ op: 'update_clip', id: clip.id, patch: { assetId: next.id } })
+  const doc = get().doc
+  if (!doc?.tracks.some((tr) => tr.clips.some((c) => c.id !== clip.id && c.assetId === asset.id)))
+    ops.push({ op: 'remove_asset', id: asset.id })
+  dispatch(ops, { label: 'Version' })
+}
+
+/** Which version of its item a media clip plays, when the item has several. */
+function VersionGroup({ clip, asset }: { clip: Clip; asset: Asset }) {
+  const t = useT('editor')
+  const { data: media } = useMediaItem(asset.mediaId)
+  if (!media || media.versions.length < 2) return null
+  const current = asset.version ?? ''
+  const known = media.versions.some((v) => v.key === current)
+  return (
+    <Group id="source" title={t('inspector.source')}>
+      <FieldRow label={t('inspector.version')} hint={known ? undefined : t('inspector.versionGone')}>
+        <MiniSelect
+          value={known ? current : ''}
+          options={media.versions.map((v) => ({
+            value: v.key,
+            label: v.key ? v.label : v.label ? `${v.label} · ${t('bin.mainVersion')}` : t('bin.mainVersion'),
+          }))}
+          onChange={(v) => void switchVersion(clip, asset, v)}
+        />
+      </FieldRow>
+    </Group>
   )
 }
 

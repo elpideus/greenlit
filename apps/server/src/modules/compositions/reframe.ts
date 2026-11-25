@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import { badRequest } from '../../core/errors.ts'
 import type { ModuleContext } from '../../core/module.ts'
 import { ffmpeg } from '../../lib/ffmpeg.ts'
+import { assetFile } from './assets.ts'
 
 /**
  * "Follow the subject" for reframing (e.g. 16:9 → 9:16): samples the clip, finds the most important region of
@@ -23,8 +24,7 @@ export async function autoReframe(
   const asset = doc.assets[clip.assetId!]
   const format = doc.formats.find((f) => f.id === formatId)
   if (!asset || !format) throw badRequest('Unknown asset or format')
-  const formats = await ctx.services.media.formatsOf(asset.mediaId)
-  const mf = formats.find((f) => f.key === asset.formatKey) ?? formats.find((f) => f.isPrimary) ?? formats[0]
+  const mf = await assetFile(ctx.services.media, asset)
   if (!mf) throw badRequest('The media file is missing')
   const blob = await ctx.services.files.get(mf.blobId)
   const src = ctx.services.files.hasDerived(blob.id, 'preview.mp4')

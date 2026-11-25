@@ -75,7 +75,10 @@
     "emptyProject": "Upload media to the project, or add from the library.",
     "dragHint": "Drag onto the timeline, or double-click to add at the playhead",
     "noLayers": "Nothing on screen at the playhead",
-    "layersHint": "What is visible at the playhead, top first"
+    "layersHint": "What is visible at the playhead, top first",
+    "versions": "{{count}} versions",
+    "addVersion": "Add a version at the playhead",
+    "mainVersion": "Main"
   },
   "timeline": {
     "video": "Video",
@@ -119,6 +122,9 @@
     "duration": "Length",
     "in": "Source in",
     "speed": "Speed",
+    "source": "Source",
+    "version": "Version",
+    "versionGone": "The item no longer has this version: the clip plays the main one",
     "transform": "Position and size",
     "x": "X",
     "y": "Y",

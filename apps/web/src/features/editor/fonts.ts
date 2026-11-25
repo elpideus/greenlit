@@ -16,10 +16,50 @@ export const BUNDLED_FONTS: Record<string, () => Promise<unknown>> = {
 
 const loaded = new Map<string, Promise<unknown>>()
 
-function ensure(family: string, url?: string) {
-  let p = loaded.get(family)
-  if (p) return p
+/**
+ * Google Fonts stylesheets for a family, best first: the styles the edit uses ("700", "italic 400"), then the
+ * family's regular style. Google refuses a request for a weight the family doesn't have (Cinzel starts at 400, and
+ * asking every family for 100..900 and italics loaded nothing for most of them), so the next one is tried.
+ */
+export function googleFontUrls(family: string, styles: Iterable<string> = []): string[] {
+  const base = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}`
+  const tuples = new Map<string, [number, number]>()
+  for (const s of styles) {
+    const italic = s.startsWith('italic ') ? 1 : 0
+    const w = Math.round(Number(italic ? s.slice(7) : s))
+    const weight = Number.isFinite(w) && w > 0 ? Math.min(1000, w) : 400
+    tuples.set(`${italic},${weight}`, [italic, weight])
+  }
+  // Google wants the tuples sorted.
+  const sorted = [...tuples.values()].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const plain = `${base}&display=block`
+  if (!sorted.length) return [plain]
+  return [`${base}:ital,wght@${sorted.map(([i, w]) => `${i},${w}`).join(';')}&display=block`, plain]
+}
+
+function googleStylesheet(urls: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    const [href, ...rest] = urls
+    if (!href) return resolve()
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = href
+    link.onload = () => resolve()
+    link.onerror = () => {
+      link.remove()
+      void googleStylesheet(rest).then(resolve)
+    }
+    document.head.appendChild(link)
+  })
+}
+
+function ensure(family: string, url?: string, styles: Iterable<string> = []) {
   const bundled = BUNDLED_FONTS[family]
+  const urls = bundled || url ? [] : googleFontUrls(family, styles)
+  // Google stylesheets are per set of styles: a weight used later loads its own.
+  const key = urls[0] ?? family
+  let p = loaded.get(key)
+  if (p) return p
   if (bundled) p = bundled()
   else if (url) {
     const face = new FontFace(family, `url(${url})`)
@@ -27,17 +67,8 @@ function ensure(family: string, url?: string) {
       .load()
       .then((f) => document.fonts.add(f))
       .catch(() => {})
-  } else {
-    p = new Promise<void>((resolve) => {
-      const link = document.createElement('link')
-      link.rel = 'stylesheet'
-      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:ital,wght@0,100..900;1,100..900&display=block`
-      link.onload = () => resolve()
-      link.onerror = () => resolve()
-      document.head.appendChild(link)
-    })
-  }
-  loaded.set(family, p)
+  } else p = googleStylesheet(urls)
+  loaded.set(key, p)
   return p
 }
 
@@ -55,8 +86,8 @@ export async function loadDocumentFonts(doc: Composition) {
     }
   if (!uses.has('Inter Variable')) uses.set('Inter Variable', new Set(['700']))
   const extra = new Map(doc.fonts.map((f) => [f.family, f.url]))
-  await Promise.all([...uses.keys()].map((f) => ensure(f, extra.get(f))))
-  await Promise.all(doc.fonts.map((f) => ensure(f.family, f.url)))
+  await Promise.all([...uses].map(([f, styles]) => ensure(f, extra.get(f), styles)))
+  await Promise.all(doc.fonts.filter((f) => !uses.has(f.family)).map((f) => ensure(f.family, f.url)))
   await Promise.all(
     [...uses].flatMap(([fam, weights]) =>
       [...weights].map((w) => document.fonts.load(`${w} 64px "${fam}"`).catch(() => [])),

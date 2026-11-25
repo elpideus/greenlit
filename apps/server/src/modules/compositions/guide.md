@@ -12,8 +12,22 @@ the format with id `main` (or, without one, the first) becomes its `main` format
 - `formats`: the output shapes, e.g. `{id:"main",1920×1080}`, `{id:"vertical",1080×1920}`, `{id:"square",1080×1080}`.
   Positions and sizes are pixels of the format being drawn. The first format is the design format; others reuse
   it and can override per clip under `clip.formats[<formatId>]` (transform, keyframes, text, hidden, crop).
-- `assets`: media from the library used in the edit `{id, mediaId, formatKey, kind, duration, width, height, hasAudio}`.
+  Nothing is scaled between formats: a clip's `x`, `y`, `width` and `height` are the same pixels in every format,
+  so a text box at y=1300 for 1080×1920 falls off a 1080×1080 square. Only a size of 0 adapts (it fills whichever
+  frame is drawn). Give every positioned box (text, shapes, logos, picture-in-picture) a
+  `clip.formats[<formatId>].transform` in each other format, and usually a `text.fontSize` too.
+- `assets`: media from the library used in the edit
+  `{id, mediaId, version?, formatKey, kind, duration, width, height, hasAudio}`.
   Use `editor_add_media` to add a library item as an asset (and optionally a clip) in one step.
+- **Versions**: a library item can have versions (another language, without the watermark, another pitch or a
+  mastered mix: `media_get` lists them under `versions`, each with a `key` and a `label`). An asset plays its
+  `version` (absent = the item's main version), in the format `formatKey` of that version (or its main format).
+  Pass `version` (the key or the label) to `editor_add_media`. Keep one item per piece of content with its variants
+  as versions, and make the cuts here, in the edit. To make a clip play another version, add that version with
+  `asClip: false` and set the clip's `assetId` to the new asset (`update_clip`); `add_asset` with an existing `id`
+  replaces that asset for every clip that uses it. When someone makes another version the item's main one, edits
+  keep playing the files they used (their assets are rewritten to name the version). A version the item no longer
+  has plays the main one.
 - `tracks`: listed **bottom → top**. `kind: visual | audio`. Each has `clips`.
 
 ## Clips
@@ -25,8 +39,14 @@ Common: `id, type, start, duration, name, hidden, locked`.
 - `text`: `text: {content, fontFamily, fontSize, fontWeight, color, align, verticalAlign, lineHeight,
   letterSpacing (em), textTransform, background, padding, strokeColor, strokeWidth, shadow,
   animateIn/animateOut: {preset: fade|rise|drop|pop|typewriter|blur|slide-left|slide-right|scale-up|wipe, by: block|line|word|char, duration, stagger, easing}}`.
-  Bundled fonts: "Inter Variable", "Jost Variable", "Cinzel Variable", "JetBrains Mono Variable"; others can be
-  listed in `fonts` (Google Fonts family names).
+  Bundled fonts: "Inter Variable", "Geist Variable", "Geist Mono Variable", "Jost Variable", "Cinzel Variable",
+  "JetBrains Mono Variable": the same files in the editor and the export, so prefer them. Other families go in the
+  document's `fonts` as objects (a plain string is refused): `{family: "Playfair Display"}` loads it from Google Fonts
+  in the weights and italics the text clips use (the editor and the export need the internet for it), and
+  `{family, url}` loads a font file. `fontFamily` must be that same name.
+  `background` is one band behind the whole text block: as wide as the box (inside `padding`) and as tall as the
+  lines, not a highlight around each line. For a chip or pill, put a `shape` (rect, `style.radius`) sized to the
+  text behind it.
 - `shape`: `shape: {kind: rect|ellipse|line|path|polygon, fill, stroke, strokeWidth, path (SVG d in the box), sides, trim (0..1, animate for draw-on)}`.
 - `solid`: `fill` (any CSS background, gradients included).
 - `html` — **code layer** for motion graphics: `html: {code, props, transparent}`. `code` is an HTML document or
@@ -39,7 +59,10 @@ Common: `id, type, start, duration, name, hidden, locked`.
 Every clip has `transform: {x, y, width, height, rotation, scale, anchorX, anchorY, opacity}` (width/height 0 =
 full frame), `style: {radius, shadow, border, blendMode, filters: {blur, brightness, contrast, saturate, hue,
 grayscale, sepia}, clipPath}`, `audio: {volume 0..2, muted, fadeIn, fadeOut}`,
-`transitionIn` / `transitionOut`: `{type: fade|slide-left|slide-right|slide-up|slide-down|zoom-in|zoom-out|blur|wipe-left|wipe-right|iris, duration, easing}`.
+`transitionIn` / `transitionOut`: `{type: fade|slide-left|slide-right|slide-up|slide-down|zoom-in|zoom-out|blur|wipe-left|wipe-right|iris, duration, easing}`
+(`duration` 0.05 to 10 s).
+`style.shadow` is a box shadow around the clip's box, so behind text it shows as a rectangle: for text use
+`text.shadow` (a CSS text-shadow, e.g. `"0 2px 12px rgba(0,0,0,.5)"`).
 
 **Keyframes**: `keyframes: {"transform.x": [{t: 0, value: 0, easing: "expo-out"}, {t: 1.2, value: 800}]}` — `t` is
 seconds from the clip start; any numeric or colour property path works (`transform.opacity`, `transform.scale`,
@@ -66,9 +89,15 @@ Ops in one call are applied together (all or nothing). The result includes a rea
 ## Good practice
 
 - Keep text inside platform safe areas (vertical: avoid the top ~12% and bottom ~20%, right ~15%).
-- For a 16:9 → 9:16 cut, add a `vertical` format and set `formats.vertical.keyframes.focusX` on video clips to
-  follow the subject, or override transform/fontSize for text.
+- For a 16:9 → 9:16 cut, add a `vertical` format and animate `focusX` for it on video clips
+  (`clip.formats.vertical.keyframes.focusX`), or let `editor_auto_reframe` do it; override transform and fontSize
+  for text. Keyframes on the clip itself (`clip.keyframes.focusX`) belong to the design format and to every format
+  without its own. `editor_auto_reframe` writes those when you give it the design format (the first), and a format
+  override for any other format.
 - Check your work with `editor_frames` at the key moments before exporting.
+- Exporting again updates the same output item: each format gets a new file version (the earlier ones stay in its
+  history), nothing is duplicated. Keep the format with id `main` first, so it is both the design format and the
+  item's main format.
 - The user may be watching in the editor: `editor_state` tells you where their playhead and selection are, and
   `editor_control` can move their playhead to show them something.
 
