@@ -1,0 +1,23 @@
+---
+/** Greenlit's mark as a live signal. data-state: draft | review | changes | greenlit | scheduled. */
+interface Props {
+  state?: 'draft' | 'review' | 'changes' | 'greenlit' | 'scheduled'
+  class?: string
+  label?: string
+}
+const { state = 'draft', class: cls = '', label } = Astro.props
+---
+<svg
+  class={`signal ${cls}`}
+  data-state={state}
+  viewBox="0 0 256 256"
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+>
+  <path class="housing" d="M128 28a59 59 0 0 1 59 59v82a59 59 0 0 1-118 0v-82a59 59 0 0 1 59-59z" />
+  <circle class="ring ring--upper" cx="128" cy="87" r="23" />
+  <circle class="ring ring--lower" cx="128" cy="169" r="23" />
+  <circle class="bulb bulb--upper" cx="128" cy="87" r="32" />
+  <circle class="bulb bulb--lower" cx="128" cy="169" r="32" />
+</svg>

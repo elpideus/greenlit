@@ -1,0 +1,17 @@
+---
+import Btn from '../components/Btn.astro'
+import Signal from '../components/Signal.astro'
+import Base from '../layouts/Base.astro'
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/')
+---
+<Base title="Nothing on this frame · Greenlit" description="This page doesn’t exist. Head back to Greenlit." page="404">
+  <section class="lost">
+    <div class="wrap">
+      <Signal state="changes" label="A signal asking for changes" />
+      <h1 class="h2">Nothing on this frame.</h1>
+      <p class="lede">The page you were after isn’t here. It may have moved, or the link is missing a letter.</p>
+      <Btn href={base} go arrow>Back to Greenlit</Btn>
+    </div>
+  </section>
+</Base>

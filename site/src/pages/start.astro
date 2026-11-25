@@ -1,0 +1,171 @@
+---
+import Btn from '../components/Btn.astro'
+import Base from '../layouts/Base.astro'
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/')
+const repo = 'https://github.com/elpideus/greenlit'
+const site = new URL(base, Astro.site).href
+const steps = [
+  [
+    'Get the code and set two values',
+    'Clone the repository, copy .env.example to .env and set GREENLIT_SECRET and GREENLIT_PUBLIC_URL.',
+  ],
+  [
+    'Start it',
+    'Run docker compose up -d --build. The app, its database and an Android device start together.',
+  ],
+  [
+    'Create the first admin',
+    'Read the one-time setup code with docker compose logs app, open Greenlit and create the admin account.',
+  ],
+  [
+    'Connect Claude Code',
+    'Create a token in Settings → API & MCP and add Greenlit as an MCP server with claude mcp add.',
+  ],
+]
+const schema = [
+  {
+    '@type': 'HowTo',
+    name: 'How to self-host Greenlit with Docker',
+    description:
+      'Run Greenlit on your own server with Docker Compose, create the first admin and connect Claude Code.',
+    totalTime: 'PT15M',
+    tool: [{ '@type': 'HowToTool', name: 'Docker with Compose' }],
+    step: steps.map(([name, text], i) => ({ '@type': 'HowToStep', position: i + 1, name, text })),
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Greenlit', item: site },
+      { '@type': 'ListItem', position: 2, name: 'Get started', item: `${site}start/` },
+    ],
+  },
+]
+const docs = [
+  ['DOCKER.md', 'Running it with Docker', 'Compose, the tunnel, updates and backups.'],
+  [
+    'CONNECTORS.md',
+    'Connecting social accounts',
+    'How Greenlit signs in to Instagram, Facebook, TikTok and YouTube.',
+  ],
+  ['MCP.md', 'Claude and other agents', 'Tokens, the MCP server and what the tools can do.'],
+  ['ARCHITECTURE.md', 'How it’s built', 'Modules, features, services, events and UI slots.'],
+  ['DESIGN.md', 'Design system', 'The signal, colour roles, type, motion and copy.'],
+]
+---
+<Base
+  title="Self-host Greenlit with Docker · Get started"
+  description="Install Greenlit, the open-source video review and social publishing app, on your own server with Docker Compose, then connect Claude Code."
+  page="start"
+  schema={schema}
+>
+  <section class="guide">
+    <div class="wrap">
+      <h1 class="display" data-words>Get started.</h1>
+      <p class="lede" data-reveal>
+        Greenlit runs on a computer you control: a home server, a studio machine or a small VPS. One Docker Compose
+        project brings up everything it needs.
+      </p>
+      <ol class="steps">
+        <li data-reveal>
+          <div>
+            <h2>Get the code and set two values</h2>
+            <p>
+              You need Docker with Compose. The secret signs sessions and encrypts connected accounts; the public URL is
+              the address people will use.
+            </p>
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>Terminal</span>
+              <button class="copy" type="button" data-copy="git clone https://github.com/elpideus/greenlit && cd greenlit && cp .env.example .env">Copy</button>
+            </div>
+            <pre><code>git clone https://github.com/elpideus/greenlit
+cd greenlit
+cp .env.example .env
+<span class="c"># GREENLIT_SECRET:     openssl rand -hex 32</span>
+<span class="c"># GREENLIT_PUBLIC_URL: https://greenlit.your-studio.com</span></code></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>Start it</h2>
+            <p>
+              The app, its database and Greenlit’s own Android device start together and restart by themselves. Add a
+              Cloudflare Tunnel token to <span class="tok">.env</span> to reach it from anywhere without opening a port.
+            </p>
+          </div>
+          <div>
+            <div class="code">
+              <div class="code__bar"><span>Terminal</span><button class="copy" type="button" data-copy="docker compose up -d --build">Copy</button></div>
+              <pre><code>docker compose up -d --build</code></pre>
+            </div>
+            <p class="body" style="margin-top: 14px">Run the same command again after an update.</p>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>Create the first admin</h2>
+            <p>
+              The server prints a one-time setup code until an admin exists. Open Greenlit, enter it, and invite your
+              team and reviewers in Settings → People.
+            </p>
+          </div>
+          <div class="code">
+            <div class="code__bar"><span>Terminal</span><button class="copy" type="button" data-copy='docker compose logs app | grep "setup code"'>Copy</button></div>
+            <pre><code>docker compose logs app | grep <span class="s">"setup code"</span></code></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>Connect Claude Code</h2>
+            <p>
+              Create a token in Settings → API &amp; MCP, then add Greenlit as an MCP server. Ask Claude to cut a teaser
+              and watch the editor.
+            </p>
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>Terminal</span>
+              <button class="copy" type="button" data-copy='claude mcp add --transport http greenlit https://your-greenlit/api/mcp --header "Authorization: Bearer glt_…"'>Copy</button>
+            </div>
+            <pre><code>claude mcp add --transport http greenlit \
+  https://your-greenlit/api/mcp \
+  --header <span class="s">"Authorization: Bearer glt_…"</span></code></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>Work on Greenlit itself</h2>
+            <p>Node 24 and pnpm. Postgres runs in Docker; the API and the web app run on your machine with hot reload.</p>
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>Terminal</span>
+              <button class="copy" type="button" data-copy="pnpm install && docker compose -f docker/compose.dev.yaml up -d && pnpm dev">Copy</button>
+            </div>
+            <pre><code>pnpm install
+docker compose -f docker/compose.dev.yaml up -d   <span class="c"># Postgres on :54329</span>
+pnpm dev                                          <span class="c"># API :4310, web :4300</span></code></pre>
+          </div>
+        </li>
+      </ol>
+
+      <section style="margin-top: clamp(80px, 10vw, 140px)" aria-labelledby="docs-title">
+        <h2 id="docs-title" class="h3">Read more</h2>
+        <div class="docs">
+          {docs.map(([file, title, desc]) => (
+            <a href={`${repo}/blob/main/docs/${file}`} rel="noopener" data-reveal>
+              <b>{title}</b>
+              <span>{desc}</span>
+            </a>
+          ))}
+        </div>
+        <div style="margin-top: 40px; display: flex; flex-wrap: wrap; gap: 10px">
+          <Btn href={repo} go external arrow>Open the repository</Btn>
+          <Btn href={`${base}#contact`} arrow>Ask for help</Btn>
+        </div>
+      </section>
+    </div>
+  </section>
+</Base>

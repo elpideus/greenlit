@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://elpideus.github.io/greenlit/sitemap-index.xml

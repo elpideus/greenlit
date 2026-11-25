@@ -1,0 +1,32 @@
+---
+interface Props {
+  href: string
+  go?: boolean
+  lamp?: boolean
+  arrow?: boolean
+  external?: boolean
+  id?: string
+  button?: boolean
+  play?: boolean
+}
+const { href, go, lamp, arrow, external, id, button, play } = Astro.props
+const Tag = button ? 'button' : 'a'
+const label = await Astro.slots.render('default')
+const attrs = button
+  ? { type: 'button' }
+  : { href, ...(external ? { rel: 'noopener', target: '_blank' } : {}) }
+---
+<Tag class:list={['btn', { 'btn--go': go }]} id={id} {...attrs}>
+  {lamp && <span class="btn__lamp" aria-hidden="true" />}
+  {play && (
+    <svg class="btn__play" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M3.5 2.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L4.4 1.7a.6.6 0 0 0-.9.5z" fill="currentColor" />
+    </svg>
+  )}
+  <span class="btn__roll"><span set:html={label} /><span aria-hidden="true" set:html={label} /></span>
+  {arrow && (
+    <svg class="btn__arrow" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  )}
+</Tag>

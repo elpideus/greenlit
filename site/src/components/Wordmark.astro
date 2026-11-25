@@ -1,0 +1,15 @@
+---
+/** The Greenlit wordmark from brand/, drawn inline so the letters take currentColor and the i's dot can light. */
+import { WORDMARK } from '../data/wordmark'
+
+interface Props {
+  class?: string
+  dot?: string
+}
+const { class: cls = '', dot = '' } = Astro.props
+const { viewBox, d, dot: c } = WORDMARK
+---
+<svg class={`wordmark ${cls}`} viewBox={viewBox} aria-hidden="true" focusable="false">
+  <path d={d} fill="currentColor" />
+  <circle class={`wordmark__dot ${dot}`} cx={c.cx} cy={c.cy} r={c.r} />
+</svg>

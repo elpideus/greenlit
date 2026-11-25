@@ -1,75 +1,109 @@
 <p align="center">
-  <img src="brand/greenlit-mark-on-dark.svg" width="72" alt="Greenlit">
+  <a href="https://elpideus.github.io/greenlit/"><img src=".github/media/banner.png" alt="Greenlit. Self-hosted. Open source. Ready for AI agents." width="100%"></a>
 </p>
 
-<h1 align="center">Greenlit</h1>
+<h3 align="center">Footage, review and publishing for studios that film their work.</h3>
 
-<p align="center"><b>Footage, review and publishing for a studio that films its work.</b><br>
-A self-hosted media library, review room, social publishing desk and live-preview video editor —
-built so people and AI agents (Claude Code first) can work in it side by side.</p>
+<p align="center">
+  A self-hosted media library, review room, social publishing desk and live-preview video editor,<br>
+  built so people and AI agents (Claude Code first) work in it side by side.
+</p>
+
+<p align="center">
+  <a href="https://elpideus.github.io/greenlit/"><b>Website</b></a> ·
+  <a href="https://elpideus.github.io/greenlit/#film">Watch the film</a> ·
+  <a href="https://elpideus.github.io/greenlit/start/">Get started</a> ·
+  <a href="docs/">Docs</a>
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-42D77B?style=flat-square&labelColor=131413"></a>
+  <a href="https://github.com/elpideus/greenlit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/elpideus/greenlit/ci.yml?branch=main&style=flat-square&label=ci&labelColor=131413"></a>
+  <img alt="67 MCP tools" src="https://img.shields.io/badge/MCP-67%20tools-6AA7F4?style=flat-square&labelColor=131413">
+  <img alt="Runs with Docker" src="https://img.shields.io/badge/runs%20with-Docker-F9B73F?style=flat-square&labelColor=131413">
+</p>
+
+<br>
+
+<p align="center">
+  <a href="https://elpideus.github.io/greenlit/#film"><img src=".github/media/film-card.jpg" alt="Play the 50-second Greenlit film on the website" width="88%"></a>
+</p>
 
 ---
 
-## What it does
+## Why
 
-- **Library** — projects with media, edits and posts. Every media item holds several **formats** of the same content
-  (16:9 main, 9:16 vertical, 1:1 square…) instead of near-duplicate files, **versions** of it that combine (Language:
-  Italiano | English × Watermark: with | without, each combination with its own formats) and extra **audio tracks** (a voice-over in another language)
-  that a post can use in place of the video's own sound. Thumbnails, hover-scrub previews,
-  waveforms, EXIF dates and places are made automatically. Token search (`status:`, `kind:`, `#tag`, `project:`),
-  drag-select, bulk actions, drop-to-upload, right-click menus on everything.
-- **Text files** — code opens in the viewer with syntax highlighting (Python, JavaScript/TypeScript, JSON, CSS,
-  HTML, XML, YAML, SQL, shell and about twenty more), line numbers, folding and search; Markdown reads as a page and
-  HTML draws as one (its scripts don't run), each with its source a click away. PDFs fill the viewer.
-- **Designs** — FigCraft files (`.figcraft`) are items like any other: a sharp thumbnail, their pages, frames and
-  fonts in Info, and the file open live in [FigCraft](https://github.com/storytold/figcraft) right in the viewer (View,
-  or Edit with FigCraft's own tools; Save keeps every earlier file version). Frames export to pictures in the project,
-  and Settings → Design fonts holds the brand fonts designs need.
-- **Review** — reviewers click a spot of the frame (or drag an area) at an exact moment of the video to leave a note,
-  attach library media, files or pasted pictures, and greenlight or ask for changes as a checklist. Admins mark notes
-  done, send work for review, approve it themselves, and can hide items from specific reviewers.
-- **Everything is versioned** — titles, notes, tags, formats, files, posts and edits keep a full history you can
-  compare, name, annotate and restore.
-- **Editor** — a lightweight timeline editor where compositions play live in the browser, _without rendering_:
-  video, pictures, audio, text, shapes and code layers (any HTML/CSS/JS animation, seeked frame by frame), keyframes,
-  transitions, per-format reframing. Claude edits the same document through MCP and every open editor updates
-  instantly; the page also exposes `window.greenlit.editor` for browser agents. Exports are frame-exact and land in
-  the library as formats of one item.
-- **Publishing** — posts for Instagram, Facebook, TikTok and YouTube with per-platform captions, titles, tags,
-  covers, translations, music from the platform's own library, audio mix, options, and schedules held **on the
-  platforms themselves**. Files are re-encoded with each placement's preferred settings. Interactive previews emulate
-  each app. A calendar shows everything; edits flow both ways with the platforms. You sign in with the accounts you
-  already use — no developer apps ([docs/CONNECTORS.md](docs/CONNECTORS.md)).
-- **Share links** — single-use links that sign a person in to one post, item or project, with an expiry.
-- **Map & globe** — projects and media on an interactive map with a 3D globe mode and animated search.
-- **Storage** — usage overview and automatic archival of old media (per file, so each stays downloadable, deletable
-  and restorable), keeping thumbnails and previews browsable.
-- **Brand kits** — a project of kind _brand kit_ holds a brand's logos, colours, fonts, graphics, templates, looks
-  and guidelines. Drop the kit's folder (or a .zip of it) and Greenlit sorts every file by its folders, reads the
-  palette (.ase, .gpl, design-token .json, .css) and the fonts, takes the README as the kit's guide, and shows it all
-  as a brand book: the main logo on its colour, swatches with HEX/RGB/CMYK and usage, specimens drawn in the kit's own
-  font files, logos on the background they're made for. Its fonts appear in Settings → Design fonts by themselves,
-  and Claude reads the whole kit through MCP. The files stay ordinary items (viewer, history, share links) and keep
-  out of the library's main grid. Download the kit back as a .zip with its folders as they were added, whole or one
-  section at a time (send a share link and the printer can download it too).
-- **Your brand** — theme packs (palettes, fonts, radius), branding (name,
-  logos, favicon, sign-in picture), platform time zone, English and Italian.
-- **API & MCP** — a documented REST API (OpenAPI at `/api/openapi.json`, reference at `/api/docs`) and an MCP server
-  at `/api/mcp` that exposes the whole platform to Claude Code and other agents.
+Footage sits in one app. Notes arrive in a chat. Edits live somewhere else, and posts go out through four more.
+**Greenlit puts the work, the decisions and the publishing in one quiet room, on your own server.** The name is the
+moment a piece of work is approved and goes out, and the mark is a signal with two lamps: the upper one holds, the
+lower one lights green. The same lamp tells the state of everything in the app.
 
-## Quick start (Docker)
+## Notes land on the frame
+
+<img src=".github/media/review.gif" alt="With her earlier notes done, the reviewer pins a last note on the frame and accepts the cut; the frame turns green" width="100%">
+
+Reviewers click the picture at the exact moment to leave a note, or drag to mark an area. They attach media, files
+or pasted pictures, and greenlight the work or ask for changes as a checklist that can't be sent empty. Admins tick
+notes off, send work for review, approve it themselves and hide items from specific reviewers. A single-use share
+link lets a client review from their phone.
+
+## One shot, every format
+
+<img src=".github/media/formats.gif" alt="One drone shot changes from 16:9 to 9:16 to 1:1, then shows all three" width="100%">
+
+A media item holds every shape of the same content (the 16:9 film, the 9:16 reel, the 1:1 post) instead of
+near-duplicate files. **Versions** combine (Language: English | Italiano × Watermark: with | without, each with its
+own formats) and extra **audio tracks** ride along for a voice-over in another language. Thumbnails, hover-scrub
+previews, waveforms, EXIF dates and places are made on upload. Search understands tokens (`status:`, `kind:`,
+`#tag`, `project:`, `place:`), and everything has a right-click menu.
+
+## Edits play live, with Claude
+
+<img src=".github/media/editor.gif" alt="The Greenlit editor plays a teaser while Claude Code asks for a vertical cut" width="100%">
+
+A lightweight timeline where compositions play in the browser **without rendering**: video, pictures, audio, text,
+shapes and code layers (any HTML, CSS or JS animation, seeked frame by frame), keyframes, transitions and per-format
+reframing. Claude edits the same document through MCP and every open editor updates instantly; the page also exposes
+`window.greenlit.editor` for browser agents. Exports are frame-exact and land in the library as formats of one item.
+
+## Scheduled where your audience is
+
+<img src=".github/media/publish.gif" alt="Four phone previews: Instagram Reel, Facebook Reel, TikTok and YouTube, each scheduled" width="100%">
+
+Posts for **Instagram, Facebook, TikTok and YouTube** with per-platform captions, titles, tags, covers,
+translations, music from each platform's own library, audio mix and options. Files are re-encoded with each
+placement's preferred settings, previews emulate each app, and schedules are held **on the platforms themselves**.
+A calendar shows everything and edits flow both ways. You sign in with the accounts you already use, with no
+developer apps ([docs/CONNECTORS.md](docs/CONNECTORS.md)).
+
+## And everything around the work
+
+|                      |                                                                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **History**          | Titles, notes, tags, formats, files, posts and edits keep a full history you can compare, name, annotate and restore.                                       |
+| **Brand kits**       | Drop a kit's folder or .zip: Greenlit reads its palette, fonts and logos and shows it as a brand book. Claude reads it through MCP.                         |
+| **Map and globe**    | Projects and media where they were shot, on an interactive map with a 3D globe and animated search.                                                         |
+| **Production graph** | Every photo, still, clip and film, and how one became the next.                                                                                             |
+| **Viewers**          | Code with syntax highlighting, Markdown and HTML pages, PDFs, depth maps, and [FigCraft](https://github.com/storytold/figcraft) designs live in the viewer. |
+| **Share links**      | Single-use links that sign a person in to one post, item or project, with an expiry.                                                                        |
+| **Storage**          | A usage overview and automatic archival of old media, one file at a time, keeping thumbnails and previews browsable.                                        |
+| **Your brand**       | Theme packs (palettes, fonts, radius), your name, logos, favicon and sign-in picture, platform time zone, English and Italian.                              |
+| **API and MCP**      | A documented REST API (OpenAPI at `/api/openapi.json`, reference at `/api/docs`) and an MCP server at `/api/mcp` with 67 tools.                             |
+
+## Quick start
 
 ```bash
+git clone https://github.com/elpideus/greenlit && cd greenlit
 cp .env.example .env        # set GREENLIT_SECRET (openssl rand -hex 32), GREENLIT_PUBLIC_URL, CLOUDFLARE_TUNNEL_TOKEN
 docker compose up -d --build
+docker compose logs app | grep "setup code"
 ```
 
 One compose project runs everything: the app, its database, Greenlit's own Android device (an emulator with a
-virtual camera, for what only a platform's Android app does) and, when `.env` has a token, the Cloudflare Tunnel.
-It all restarts by itself; run the same command again after an update. Greenlit publishes no port on the computer: it
-is reachable only through the tunnel. Create the first admin with the one-time setup code from
-`docker compose logs app | grep "setup code"`, then invite people in **Settings → People**. See
-[docs/DOCKER.md](docs/DOCKER.md).
+virtual camera, for what only a platform's Android app does) and, when `.env` has a token, the Cloudflare Tunnel. It
+all restarts by itself; run the same command again after an update. Greenlit publishes no port on the computer: it
+is reachable only through the tunnel. Create the first admin with the one-time setup code, then invite people in
+**Settings → People**. See [docs/DOCKER.md](docs/DOCKER.md).
 
 ### Connect Claude Code
 
@@ -79,7 +113,8 @@ Create a token in **Settings → API & MCP**, then:
 claude mcp add --transport http greenlit https://your-greenlit/api/mcp --header "Authorization: Bearer glt_…"
 ```
 
-Ask Claude to "make a 15-second vertical teaser from the drone shots in the Villa project" and watch the editor.
+Ask Claude to "make a 15-second vertical teaser from the drone shots in the Coastline project" and watch the editor.
+More in [docs/MCP.md](docs/MCP.md).
 
 ## Development
 
@@ -92,8 +127,8 @@ pnpm dev                                           # API on :4310, web on :4300
 Or everything in containers, with hot reload: `docker compose -f docker/compose.dev.yaml --profile app up`.
 
 Greenlit is built to be changed one part at a time. The server is made of **modules** and the web app of
-**features**, each one folder, discovered automatically and talking to the rest only through services, hooks, events,
-UI slots and menu contributions — add, change or remove a part without touching the others
+**features**, each one folder, discovered automatically and talking to the rest only through services, hooks,
+events, UI slots and menu contributions: add, change or remove a part without touching the others
 ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The design system and brand rules are in
 [docs/DESIGN.md](docs/DESIGN.md).
 
@@ -105,8 +140,15 @@ UI slots and menu contributions — add, change or remove a part without touchin
 | `packages/player`       | the stage that draws compositions (preview and export)                                                                           |
 | `packages/platforms`    | social platform specs, limits and encoding presets                                                                               |
 | `packages/api-anything` | a fork of [api-anything](https://github.com/goodnight000/api-anything) (MIT) with uploads: the platforms' own requests over HTTP |
+| `site`                  | the website, an Astro project published to GitHub Pages                                                                          |
 | `themes/`               | built-in theme packs                                                                                                             |
 | `brand/`                | the Greenlit brand kit                                                                                                           |
+
+## Say hello
+
+Want Greenlit running for your studio, a feature built for your team, or just to say hi? Get in touch through
+[the website](https://elpideus.github.io/greenlit/#contact), [elpideus.com](https://elpideus.com) or
+[Instagram](https://instagram.com/elpideus).
 
 ## License
 
@@ -118,3 +160,7 @@ later version**. See [LICENSE](LICENSE).
 
 The Docker image includes [FigCraft](https://github.com/storytold/figcraft)'s browser build and `figcraft-cli`
 (MIT OR Apache-2.0, with fonts under the SIL Open Font License), unmodified, with their licences in `/opt/figcraft`.
+The footage in the screenshots and films is stock from [Pexels](https://www.pexels.com) under the Pexels licence;
+the studio, people and accounts shown are fictional. The film's music is "Tech Background Music for Product Videos &
+Commercials" by Music_Mania on [Pixabay](https://pixabay.com/music/build-up-scenes-tech-background-music-for-product-videos-amp-commercials-383623/)
+(Pixabay Content License); its sound effects are recorded Foley from Pixabay.
