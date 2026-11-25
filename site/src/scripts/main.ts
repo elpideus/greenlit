@@ -16,6 +16,7 @@ export function boot() {
   header(lenis)
   reveals()
   copyButtons()
+  languages()
   menu()
   film()
   autoplay(motion)
@@ -226,7 +227,8 @@ function review() {
   const sig = $('.status .signal')
   const texts = $$('[data-status]')
   if (!v || !frame) return
-  const ACCEPT = 9.8
+  // when Giulia's Accept click lands in this language's clip
+  const ACCEPT = Number(v.dataset.accept ?? 9.8)
   let state: State = 'review'
   const set = (s: State) => {
     if (s === state) return
@@ -304,7 +306,7 @@ function moment(motion: boolean) {
   })
 }
 
-// ── Claude types in the terminal when it comes into view ─────────────────
+// ── the agent types in the terminal when it comes into view ──────────────
 function terminal(motion: boolean) {
   const t = $('[data-term]')
   if (!t) return
@@ -387,20 +389,42 @@ function menu() {
   })
 }
 
+const WORDS = {
+  en: { copy: 'Copy', copied: 'Copied', select: 'Select and copy' },
+  it: { copy: 'Copia', copied: 'Copiato', select: 'Seleziona e copia' },
+}
+const words = () => (document.documentElement.lang === 'it' ? WORDS.it : WORDS.en)
+
 function copyButtons() {
+  const w = words()
   for (const b of $$<HTMLButtonElement>('[data-copy]')) {
     b.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(b.dataset.copy ?? '')
         b.dataset.done = ''
-        b.textContent = 'Copied'
+        b.textContent = w.copied
         setTimeout(() => {
           delete b.dataset.done
-          b.textContent = 'Copy'
+          b.textContent = w.copy
         }, 1600)
       } catch {
-        b.textContent = 'Select and copy'
+        b.textContent = w.select
       }
+    })
+  }
+}
+
+// ── the language switch: remembered, and it keeps the section you were reading ─
+function languages() {
+  for (const a of $$<HTMLAnchorElement>('[data-lang-switch]')) {
+    a.addEventListener('click', () => {
+      try {
+        localStorage.setItem('gl.lang', a.dataset.langSwitch ?? 'en')
+      } catch {}
+      const section = $$<HTMLElement>('main section[id]').find(
+        (s) => s.getBoundingClientRect().bottom > innerHeight * 0.4,
+      )
+      if (section && scrollY > innerHeight * 0.5) a.hash = section.id
     })
   }
 }

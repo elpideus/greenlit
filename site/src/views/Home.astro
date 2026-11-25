@@ -1,0 +1,385 @@
+---
+import { Image } from 'astro:assets'
+import brandLightEn from '../assets/shots/brand-light.webp'
+import calendarEn from '../assets/shots/calendar.webp'
+import globeEn from '../assets/shots/globe.webp'
+import graphEn from '../assets/shots/graph.webp'
+import historyEn from '../assets/shots/history.webp'
+import brandLightIt from '../assets/shots/it/brand-light.webp'
+import calendarIt from '../assets/shots/it/calendar.webp'
+import globeIt from '../assets/shots/it/globe.webp'
+import graphIt from '../assets/shots/it/graph.webp'
+import historyIt from '../assets/shots/it/history.webp'
+import mReviewIt from '../assets/shots/it/m-review.webp'
+import mReviewEn from '../assets/shots/m-review.webp'
+import Btn from '../components/Btn.astro'
+import Signal from '../components/Signal.astro'
+import Wordmark from '../components/Wordmark.astro'
+import { contactEmail, links } from '../data/contact'
+import { mcpConfig, mcpConfigHtml } from '../data/mcp'
+import { dicts, fill, href, type Lang, media } from '../i18n'
+import Base from '../layouts/Base.astro'
+
+interface Props {
+  lang: Lang
+}
+const { lang } = Astro.props
+const t = dicts[lang]
+const h = t.home
+const m = (file: string) => media(lang, file)
+const shared = (file: string) => media(lang, file, true)
+const shots =
+  lang === 'it'
+    ? {
+        brandLight: brandLightIt,
+        calendar: calendarIt,
+        globe: globeIt,
+        graph: graphIt,
+        history: historyIt,
+        mReview: mReviewIt,
+      }
+    : {
+        brandLight: brandLightEn,
+        calendar: calendarEn,
+        globe: globeEn,
+        graph: graphEn,
+        history: historyEn,
+        mReview: mReviewEn,
+      }
+/** where Giulia's Accept click lands in each language's review clip (s) */
+const accept = lang === 'it' ? 9.82 : 9.8
+
+const words = h.statement.split(' ')
+const green = new Set(['Greenlit'])
+const arrow =
+  '<svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 3v11M4 9.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>'
+const delay = (i: number) => (i ? `--d:${(i * 0.08).toFixed(2)}s` : undefined)
+
+const schema = [
+  {
+    '@type': 'FAQPage',
+    inLanguage: lang,
+    mainEntity: t.faq.map(({ q, a }) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  },
+]
+---
+<Base lang={lang} path="" schema={schema}>
+  <!-- ── hero ──────────────────────────────────────────────────────────── -->
+  <section class="hero" aria-labelledby="hero-title" data-chapter="draft">
+    <div class="wrap hero__grid">
+      <div class="hero__lead">
+        <h1 id="hero-title" class="hero__title">
+          <span class="sr-only">{h.hero.sr}</span>
+          <Wordmark class="hero__wm" dot="hero__dot" />
+        </h1>
+        <div class="hero__copy">
+          <p class="lede" data-reveal style="--d: .35s">{h.hero.lede}</p>
+          <div class="hero__actions" data-reveal style="--d: .5s">
+            <Btn href={href(lang, 'start/')} go arrow>{h.hero.start}</Btn>
+            <Btn href="#film" button id="play-film" play>{h.hero.film}</Btn>
+          </div>
+          <ul class="hero__facts" data-reveal style="--d: .62s">
+            {h.hero.facts.map((f) => <li>{f}</li>)}
+          </ul>
+        </div>
+      </div>
+      <div class="comp" aria-hidden="true">
+        <div class="comp__col" data-comp="col">
+          <Signal state="draft" class="comp__sig" />
+          <Signal state="draft" class="comp__sig" />
+        </div>
+        <div class="comp__panel" data-comp="panel"><Signal state="draft" class="comp__sig" /></div>
+        <div class="comp__tile" data-comp="tile"></div>
+        <div class="comp__sq" data-comp="sq"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" aria-label={h.stage.label}>
+    <div class="wrap">
+      <div class="window" data-stage>
+        <video autoplay muted loop playsinline preload="metadata" poster={m('library-poster.webp')} data-autoplay>
+          <source src={m('library.mp4')} type="video/mp4" />
+        </video>
+      </div>
+      <div class="stage__caption">
+        <span>{h.stage.caption}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── statement ─────────────────────────────────────────────────────── -->
+  <section class="statement" aria-label={h.statementLabel}>
+    <div class="wrap">
+      <p data-statement>
+        {words.map((w) => <span class:list={['w', { g: green.has(w.replace(/[.,]/g, '')) }]}>{w} </span>)}
+      </p>
+    </div>
+  </section>
+
+  <!-- ── library ───────────────────────────────────────────────────────── -->
+  <section class="chapter" id="library" data-chapter="draft" aria-labelledby="library-title">
+    <div class="wrap">
+      <div class="chapter__head">
+        <div>
+          <p class="state" data-reveal><Signal state="draft" />{h.library.state}</p>
+          <h2 id="library-title" class="h2 split-words" data-words>{h.library.title}</h2>
+        </div>
+        <p class="lede" data-reveal style="--d: .15s">{h.library.lede}</p>
+      </div>
+      <div class="formats">
+        {[
+          ['16 / 9', '16:9'],
+          ['9 / 16', '9:16'],
+          ['1 / 1', '1:1'],
+        ].map(([ar, k], i) => (
+          <figure data-reveal style={`--d: ${i * 0.12}s`}>
+            <div class="frame" style={`aspect-ratio: ${ar}`}>
+              <video autoplay muted loop playsinline preload="none" poster={shared('coast-poster.webp')} data-autoplay aria-hidden="true">
+                <source src={shared('coast.mp4')} type="video/mp4" />
+              </video>
+            </div>
+            <figcaption><b>{k}</b><span>{h.library.formats[i]}</span></figcaption>
+          </figure>
+        ))}
+      </div>
+      <ul class="points">
+        {h.library.points.map(([b, p], i) => <li data-reveal style={delay(i)}><b>{b}</b><Fragment set:html={p} /></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── editor ────────────────────────────────────────────────────────── -->
+  <section class="chapter" id="editor" data-chapter="draft" aria-labelledby="editor-title">
+    <div class="wrap">
+      <div class="chapter__head chapter__head--center">
+        <p class="state" data-reveal><Signal state="draft" />{h.editor.state}</p>
+        <h2 id="editor-title" class="h2 split-words" data-words>{h.editor.title}</h2>
+        <p class="lede" data-reveal style="--d: .15s">{h.editor.lede}</p>
+      </div>
+      <div class="editor-grid" data-reveal>
+        <div class="window" style="aspect-ratio: 16 / 10">
+          <video autoplay muted loop playsinline preload="none" poster={m('editor-poster.webp')} data-autoplay aria-label={h.editor.video}>
+            <source src={m('editor.mp4')} type="video/mp4" />
+          </video>
+        </div>
+        <div class="term" data-term aria-label={h.editor.term}>
+          <div class="term__bar"><i></i><i></i><i></i><span>agent · greenlit</span></div>
+          <div class="term__body">
+            <div class="term__line" data-line="prompt"><span class="m">&gt;</span><span>{h.editor.prompt}</span></div>
+            {h.editor.tools.map((l) => <div class="term__line tool" data-line><span class="m">●</span><span>{l}</span></div>)}
+            <div class="term__line ok" data-line><span class="m">✓</span><span>{h.editor.done}</span></div>
+          </div>
+        </div>
+      </div>
+      <ul class="points" style="margin-top: clamp(96px, 10vw, 140px)">
+        {h.editor.points.map(([b, p], i) => <li data-reveal style={delay(i)}><b>{b}</b>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── review ────────────────────────────────────────────────────────── -->
+  <section class="chapter" id="review" data-chapter="review" aria-labelledby="review-title">
+    <div class="wrap">
+      <div class="chapter__head">
+        <div>
+          <p class="state" data-reveal><Signal state="review" />{h.review.state}</p>
+          <h2 id="review-title" class="h2 split-words" data-words>{h.review.title}</h2>
+        </div>
+        <p class="lede" data-reveal style="--d: .15s">{h.review.lede}</p>
+      </div>
+      <div class="review-stage" data-reveal>
+        <div class="sframe" data-state="review" data-review-frame>
+          <div class="window">
+            <video muted playsinline preload="none" poster={m('review-poster.webp')} data-review-video data-accept={accept} aria-label={h.review.video}>
+              <source src={m('review.mp4')} type="video/mp4" />
+            </video>
+          </div>
+        </div>
+        <div class="sframe__bar">
+          <p class="status" aria-live="polite">
+            <Signal state="review" class="status__signal" />
+            <span class="status__text">
+              <span data-status="review">{h.review.waiting}</span>
+              <span data-status="greenlit" aria-hidden="true">{h.review.greenlit}</span>
+            </span>
+          </p>
+          <span class="mono muted">{h.review.meta}</span>
+        </div>
+      </div>
+      <ul class="points">
+        {h.review.points.map(([b, p], i) => <li data-reveal style={delay(i)}><b>{b}</b>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── the greenlit moment ───────────────────────────────────────────── -->
+  <section class="moment" data-moment data-chapter="greenlit" aria-labelledby="moment-title">
+    <div class="moment__pin">
+      <h2 id="moment-title" class="moment__word">
+        <span class="sr-only">Greenlit</span>
+        <Wordmark class="moment__wm" dot="moment__dot" />
+      </h2>
+      <p class="moment__line">{h.moment.line}</p>
+      <a class="moment__cue" href="#publishing"><span class="moment__cue-label">{h.moment.cue}</span><span class="moment__cue-arrow" aria-hidden="true" set:html={arrow} /></a>
+      <div class="moment__field" data-moment-field aria-hidden="true">
+        <div class="moment__word"><Wordmark class="moment__wm" /></div>
+        <p class="moment__line" data-copy-of={h.moment.line}></p>
+        <span class="moment__cue"><span class="moment__cue-label" data-copy-of={h.moment.cue}></span><span class="moment__cue-arrow" set:html={arrow} /></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── publishing ────────────────────────────────────────────────────── -->
+  <section class="chapter" id="publishing" data-chapter="scheduled" aria-labelledby="publishing-title">
+    <div class="wrap">
+      <div class="chapter__head chapter__head--center">
+        <p class="state" data-reveal><Signal state="scheduled" />{h.publishing.state}</p>
+        <h2 id="publishing-title" class="h2 split-words" data-words>{h.publishing.title}</h2>
+        <p class="lede" data-reveal style="--d: .15s">{h.publishing.lede}</p>
+      </div>
+      <div class="phones">
+        {h.publishing.phones.map(([id, name, when], i) => (
+          <figure class="phone" data-reveal style={`--d: ${[0, 0.14, 0.24, 0.3][i]}s`}>
+            <div class="phone__screen">
+              <video autoplay muted loop playsinline preload="none" poster={m(`phone-${id}-poster.webp`)} data-autoplay aria-hidden="true">
+                <source src={m(`phone-${id}.mp4`)} type="video/mp4" />
+              </video>
+            </div>
+            <figcaption>{name}<span>{when}</span></figcaption>
+          </figure>
+        ))}
+      </div>
+      <div class="window cal" data-reveal>
+        <Image src={shots.calendar} widths={[800, 1400, 2000, 2400]} sizes="(min-width: 1400px) 1360px, 100vw" alt={h.publishing.calendar} loading="lazy" />
+      </div>
+      <ul class="points">
+        {h.publishing.points.map(([b, p], i) => <li data-reveal style={delay(i)}><b>{b}</b>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── everything else ───────────────────────────────────────────────── -->
+  <section class="chapter light" id="more" aria-labelledby="more-title">
+    <div class="wrap">
+      <div class="chapter__head">
+        <h2 id="more-title" class="h2 split-words" data-words>{h.more.title}</h2>
+        <p class="lede" data-reveal style="--d: .15s">{h.more.lede}</p>
+      </div>
+      <div class="bento">
+        <article class="card card--wide card--dark" data-reveal>
+          <div class="card__text"><h3 class="h3">{h.more.map[0]}</h3><p set:html={h.more.map[1]} /></div>
+          <div class="card__media"><Image src={shots.globe} widths={[700, 1200, 1700]} sizes="(min-width: 960px) 66vw, 100vw" alt={h.more.map[2]} loading="lazy" /></div>
+        </article>
+        <article class="card card--dark card--phone" data-reveal style="--d:.1s">
+          <div class="card__text"><h3 class="h3">{h.more.phone[0]}</h3><p>{h.more.phone[1]}</p></div>
+          <div class="card__media"><Image src={shots.mReview} widths={[400, 700]} sizes="(min-width: 960px) 22vw, 60vw" alt={h.more.phone[2]} loading="lazy" /></div>
+        </article>
+        <article class="card card--half card--dark card--center" data-reveal>
+          <div class="card__text"><h3 class="h3">{h.more.graph[0]}</h3><p>{h.more.graph[1]}</p></div>
+          <div class="card__media"><Image src={shots.graph} widths={[600, 1000, 1400]} sizes="(min-width: 960px) 50vw, 100vw" alt={h.more.graph[2]} loading="lazy" /></div>
+        </article>
+        <article class="card card--half" data-reveal style="--d:.1s">
+          <div class="card__text"><h3 class="h3">{h.more.brand[0]}</h3><p>{h.more.brand[1]}</p></div>
+          <div class="card__media"><Image src={shots.brandLight} widths={[600, 1000, 1400]} sizes="(min-width: 960px) 50vw, 100vw" alt={h.more.brand[2]} loading="lazy" /></div>
+        </article>
+        <article class="card card--dark card--right" data-reveal>
+          <div class="card__text"><h3 class="h3">{h.more.history[0]}</h3><p>{h.more.history[1]}</p></div>
+          <div class="card__media"><Image src={shots.history} widths={[500, 900, 1300]} sizes="(min-width: 960px) 33vw, 100vw" alt={h.more.history[2]} loading="lazy" /></div>
+        </article>
+        <article class="card card--list card--wide" data-reveal style="--d:.1s">
+          <div class="card__text"><h3 class="h3">{h.more.also}</h3></div>
+          <ul>
+            {h.more.list.map((l) => <li>{l}</li>)}
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── agents ────────────────────────────────────────────────────────── -->
+  <section class="chapter" id="agents" aria-labelledby="agents-title">
+    <div class="wrap split">
+      <div>
+        <h2 id="agents-title" class="h2 split-words" data-words>{h.agents.title}</h2>
+        <p class="lede" style="margin-top: 28px" data-reveal>{h.agents.lede}</p>
+        <div class="stats">
+          {h.agents.stats.map(([b, s], i) => (
+            <div data-reveal style={delay(i)}>{i === 0 ? <b data-count={b}>{b}</b> : <b>{b}</b>}<span>{s}</span></div>
+          ))}
+        </div>
+      </div>
+      <div data-reveal style="--d:.1s">
+        <div class="code">
+          <div class="code__bar"><span>{h.agents.code}</span><button class="copy" type="button" data-copy={mcpConfig}>{t.chrome.copy}</button></div>
+          <pre><code set:html={mcpConfigHtml} /></pre>
+        </div>
+        <ul class="asks">
+          {h.agents.asks.map((a) => <li>{a}</li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── self-host ─────────────────────────────────────────────────────── -->
+  <section class="chapter" id="self-host" aria-labelledby="self-title">
+    <div class="wrap split">
+      <div>
+        <h2 id="self-title" class="h2 split-words" data-words>{h.self.title}</h2>
+        <p class="lede" style="margin-top: 28px" data-reveal>{h.self.lede}</p>
+        <ul class="points" style="grid-template-columns: 1fr 1fr">
+          {h.self.points.map(([b, p], i) => <li data-reveal style={delay(i)}><b>{b}</b>{p}</li>)}
+        </ul>
+      </div>
+      <div data-reveal style="--d:.1s">
+        <div class="code">
+          <div class="code__bar"><span>{h.self.code}</span><button class="copy" type="button" data-copy="git clone https://github.com/elpideus/greenlit && cd greenlit && cp .env.example .env && docker compose up -d --build">{t.chrome.copy}</button></div>
+          <pre><code>git clone https://github.com/elpideus/greenlit
+cd greenlit
+cp .env.example .env   <span class="c">{h.self.envNote}</span>
+docker compose up -d --build
+docker compose logs app | grep <span class="s">"setup code"</span></code></pre>
+        </div>
+        <p class="body" style="margin-top: 18px" set:html={fill(h.self.after, { start: href(lang, 'start/') })} />
+      </div>
+    </div>
+  </section>
+
+  <!-- ── questions ─────────────────────────────────────────────────────── -->
+  <section class="chapter" id="faq" aria-labelledby="faq-title">
+    <div class="wrap split">
+      <div>
+        <h2 id="faq-title" class="h2 split-words" data-words>{h.faq.title}</h2>
+        <p class="lede" style="margin-top: 28px" data-reveal>{h.faq.lede}</p>
+      </div>
+      <div class="faq" data-reveal style="--d:.1s">
+        {t.faq.map(({ q, a }, i) => (
+          <details open={i === 0}>
+            <summary><h3>{q}</h3><span class="faq__mark" aria-hidden="true"></span></summary>
+            <p>{a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ── contact ───────────────────────────────────────────────────────── -->
+  <section class="chapter contact" id="contact" aria-labelledby="contact-title">
+    <div class="wrap">
+      <Signal state="greenlit" class="contact__signal" />
+      <h2 id="contact-title" class="h2 split-words" data-words>{h.contact.title}</h2>
+      <p class="lede" data-reveal>{h.contact.lede}</p>
+      <div class="contact__links" data-reveal style="--d:.1s">
+        {contactEmail && <Btn href={`mailto:${contactEmail}`} go lamp>{contactEmail}</Btn>}
+        <Btn href={links.website} go={!contactEmail} external arrow>elpideus.com</Btn>
+        <Btn href={links.instagram} external arrow>Instagram</Btn>
+        <Btn href={links.github} external arrow>GitHub</Btn>
+        <Btn href={links.youtube} external arrow>YouTube</Btn>
+      </div>
+    </div>
+  </section>
+</Base>

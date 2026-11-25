@@ -50,12 +50,26 @@ Media lives in `public/media` (H.264 loops at 1600×1000, posters as WebP) and s
 (Astro makes the responsive sizes). The film and the ads are rendered from a Remotion project kept outside the
 repository; only their outputs are committed.
 
+## Two languages
+
+English lives at the root, Italian under `/it/`. Every word is in `src/i18n/en.ts` and `src/i18n/it.ts` (the same
+shape; `it.ts` is typed by `en.ts`, so a missing string fails the build), and the pages are thin: `src/pages/index.astro`
+and `src/pages/it/index.astro` both render `src/views/Home.astro` with their language, the guide likewise. The Italian
+page shows Italian footage too: the app recorded in Italian on an Italian copy of the demo, in `public/media/it` and
+`src/assets/shots/it` (stock footage is shared). Server-written text in the app (history summaries, notifications) is
+still English there, as it is in the app today.
+
+The header switch shows the other language, keeps the section you were reading and remembers the choice
+(`localStorage` `gl.lang`); an Italian browser opens the Italian page on its first visit. Search engines get
+`hreflang` alternates (with `x-default` on English), `og:locale` and its alternate, `inLanguage` in the schema, and
+the sitemap's `xhtml:link` pairs. The 404 page carries both languages and shows Italian under `/it/`.
+
 ## SEO
 
 Unique titles and descriptions per page, canonical URLs, Open Graph and Twitter cards (with the film as `og:video`),
 a web manifest, a sitemap with dates (`@astrojs/sitemap`), and one schema.org graph per page: `WebSite`, `Person`,
 `SoftwareApplication` (features, screenshots, the film as `VideoObject`), plus `FAQPage` on the home page (from
-`src/data/faq.ts`, the same questions shown on the page) and `HowTo` + `BreadcrumbList` on the guide. Decorative copies
+the `faq` list in `src/i18n`, the same questions shown on the page) and `HowTo` + `BreadcrumbList` on the guide. Decorative copies
 of text carry it in a `data-copy-of` attribute so each sentence appears once in the page text. Optional:
 `PUBLIC_GOOGLE_SITE_VERIFICATION` adds the Search Console verification tag. GitHub project pages can't serve a
 domain-root `robots.txt`, so submit `https://elpideus.github.io/greenlit/sitemap-index.xml` in Search Console.

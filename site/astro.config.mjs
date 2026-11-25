@@ -9,11 +9,13 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: (page) => !page.includes('/404'),
+      // each page lists its other language (xhtml:link hreflang)
+      i18n: { defaultLocale: 'en', locales: { en: 'en', it: 'it' } },
       serialize: (item) => ({
         ...item,
         lastmod: new Date().toISOString(),
         changefreq: 'weekly',
-        priority: item.url.endsWith('/greenlit/') ? 1.0 : 0.8,
+        priority: /\/greenlit\/(it\/)?$/.test(item.url) ? 1.0 : 0.8,
       }),
     }),
   ],

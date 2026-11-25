@@ -2021,3 +2021,58 @@ a.moment__cue .moment__cue-arrow {
 .film:focus-visible {
   outline: none;
 }
+
+/* ── language switch: the other language's code beside a globe, and both names in the footer ── */
+.langs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  text-decoration: none;
+  font: 500 13px / 1 var(--mono);
+  letter-spacing: 0.04em;
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+.langs:hover {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+}
+.langs svg {
+  transition: transform 0.6s var(--ease);
+}
+.langs:hover svg {
+  transform: rotate(-40deg);
+}
+.foot__langs {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 40px;
+  margin-top: -16px;
+}
+.foot__langs a {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  text-decoration: none;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+.foot__langs a:hover {
+  color: var(--ink);
+}
+.foot__langs a[aria-current] {
+  color: var(--ink);
+  border-color: color-mix(in oklab, var(--ink) 34%, transparent);
+}
+@media (max-width: 420px) {
+  .top__end .gh {
+    display: none;
+  }
+}

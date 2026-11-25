@@ -1,0 +1,134 @@
+---
+import Btn from '../components/Btn.astro'
+import { mcpConfig, mcpConfigHtml } from '../data/mcp'
+import { dicts, href, type Lang } from '../i18n'
+import Base from '../layouts/Base.astro'
+
+interface Props {
+  lang: Lang
+}
+const { lang } = Astro.props
+const t = dicts[lang]
+const s = t.start
+const repo = 'https://github.com/elpideus/greenlit'
+const home = new URL(href(lang), Astro.site).href
+const [get, run, admin, agent, dev] = s.steps
+const schema = [
+  {
+    '@type': 'HowTo',
+    inLanguage: lang,
+    name: s.howTo.name,
+    description: s.howTo.description,
+    totalTime: 'PT15M',
+    tool: [{ '@type': 'HowToTool', name: s.howTo.tool }],
+    step: [get, run, admin, agent].map(([name, , text], i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name,
+      text,
+    })),
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Greenlit', item: home },
+      { '@type': 'ListItem', position: 2, name: t.chrome.start, item: `${home}start/` },
+    ],
+  },
+]
+---
+<Base lang={lang} path="start/" title={s.title} description={s.description} page="start" schema={schema}>
+  <section class="guide">
+    <div class="wrap">
+      <h1 class="display" data-words>{s.h1}</h1>
+      <p class="lede" data-reveal>{s.lede}</p>
+      <ol class="steps">
+        <li data-reveal>
+          <div>
+            <h2>{get[0]}</h2>
+            <p set:html={get[1]} />
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>{s.terminal}</span>
+              <button class="copy" type="button" data-copy="git clone https://github.com/elpideus/greenlit && cd greenlit && cp .env.example .env">{t.chrome.copy}</button>
+            </div>
+            <pre><code>git clone https://github.com/elpideus/greenlit
+cd greenlit
+cp .env.example .env
+<span class="c"># GREENLIT_SECRET:     openssl rand -hex 32</span>
+<span class="c"># GREENLIT_PUBLIC_URL: https://greenlit.your-studio.com</span></code></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>{run[0]}</h2>
+            <p set:html={run[1]} />
+          </div>
+          <div>
+            <div class="code">
+              <div class="code__bar"><span>{s.terminal}</span><button class="copy" type="button" data-copy="docker compose up -d --build">{t.chrome.copy}</button></div>
+              <pre><code>docker compose up -d --build</code></pre>
+            </div>
+            <p class="body" style="margin-top: 14px">{s.again}</p>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>{admin[0]}</h2>
+            <p set:html={admin[1]} />
+          </div>
+          <div class="code">
+            <div class="code__bar"><span>{s.terminal}</span><button class="copy" type="button" data-copy='docker compose logs app | grep "setup code"'>{t.chrome.copy}</button></div>
+            <pre><code>docker compose logs app | grep <span class="s">"setup code"</span></code></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>{agent[0]}</h2>
+            <p set:html={agent[1]} />
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>{s.mcp}</span>
+              <button class="copy" type="button" data-copy={mcpConfig}>{t.chrome.copy}</button>
+            </div>
+            <pre><code set:html={mcpConfigHtml} /></pre>
+          </div>
+        </li>
+        <li data-reveal>
+          <div>
+            <h2>{dev[0]}</h2>
+            <p set:html={dev[1]} />
+          </div>
+          <div class="code">
+            <div class="code__bar">
+              <span>{s.terminal}</span>
+              <button class="copy" type="button" data-copy="pnpm install && docker compose -f docker/compose.dev.yaml up -d && pnpm dev">{t.chrome.copy}</button>
+            </div>
+            <pre><code>pnpm install
+docker compose -f docker/compose.dev.yaml up -d   <span class="c">{s.devComments[0]}</span>
+pnpm dev                                          <span class="c">{s.devComments[1]}</span></code></pre>
+          </div>
+        </li>
+      </ol>
+
+      <section style="margin-top: clamp(80px, 10vw, 140px)" aria-labelledby="docs-title">
+        <h2 id="docs-title" class="h3">{s.more}</h2>
+        {s.docsNote && <p class="body" style="margin-top: 10px">{s.docsNote}</p>}
+        <div class="docs">
+          {s.docs.map(([file, title, desc]) => (
+            <a href={`${repo}/blob/main/docs/${file}`} rel="noopener" hreflang="en" data-reveal>
+              <b>{title}</b>
+              <span>{desc}</span>
+            </a>
+          ))}
+        </div>
+        <div style="margin-top: 40px; display: flex; flex-wrap: wrap; gap: 10px">
+          <Btn href={repo} go external arrow>{s.repo}</Btn>
+          <Btn href={`${href(lang)}#contact`} arrow>{s.help}</Btn>
+        </div>
+      </section>
+    </div>
+  </section>
+</Base>

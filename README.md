@@ -6,26 +6,27 @@
 
 <p align="center">
   A self-hosted media library, review room, social publishing desk and live-preview video editor,<br>
-  built so people and AI agents (Claude Code first) work in it side by side.
+  built so people and AI agents work in it side by side.
 </p>
 
 <p align="center">
   <a href="https://elpideus.github.io/greenlit/"><b>Website</b></a> ·
   <a href="https://elpideus.github.io/greenlit/#film">Watch the film</a> ·
   <a href="https://elpideus.github.io/greenlit/start/">Get started</a> ·
-  <a href="docs/">Docs</a>
+  <a href="docs/">Docs</a> ·
+  <a href="https://elpideus.github.io/greenlit/it/" hreflang="it">Italiano</a>
 </p>
 
 <p align="center">
-  <a href="https://elpideus.github.io/greenlit/"><img alt="Website" src="https://img.shields.io/badge/website-elpideus.github.io%2Fgreenlit-007F3D?style=for-the-badge&labelColor=131413&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBmaWxsPSIjRURFRkVEIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMjggMTljMzcuNTYgMCA2OCAzMC40NCA2OCA2OHY4MmMwIDM3LjU2LTMwLjQ0IDY4LTY4IDY4cy02OC0zMC40NC02OC02OFY4N2MwLTM3LjU2IDMwLjQ0LTY4IDY4LTY4Wm0wIDE4Yy0yNy42MSAwLTUwIDIyLjM5LTUwIDUwdjgyYzAgMjcuNjEgMjIuMzkgNTAgNTAgNTBzNTAtMjIuMzkgNTAtNTBWODdjMC0yNy42MS0yMi4zOS01MC01MC01MFoiLz48cGF0aCBmaWxsPSIjRURFRkVEIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMjggNTVhMzIgMzIgMCAxIDEgMCA2NCAzMiAzMiAwIDAgMSAwLTY0Wm0wIDE4YTE0IDE0IDAgMSAwIDAgMjggMTQgMTQgMCAwIDAgMC0yOFoiLz48Y2lyY2xlIGN4PSIxMjgiIGN5PSIxNjkiIHI9IjMyIiBmaWxsPSIjNDJENzdCIi8%2BPC9zdmc%2BCg%3D%3D"></a>
-  <a href="https://elpideus.github.io/greenlit/#film"><img alt="Watch the film" src="https://img.shields.io/badge/film-watch%200%3A50-007F3D?style=for-the-badge&labelColor=131413&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTcgNC42djE0LjhhMSAxIDAgMCAwIDEuNS44NmwxMi4yLTcuNGExIDEgMCAwIDAgMC0xLjcyTDguNSAzLjc0QTEgMSAwIDAgMCA3IDQuNnoiLz48L3N2Zz4%3D"></a>
+  <a href="https://elpideus.github.io/greenlit/"><img alt="Visit elpideus.github.io/greenlit" src=".github/media/badges/website.svg" height="28"></a>
+  <a href="https://elpideus.github.io/greenlit/#film"><img alt="Watch the film, 0:50" src=".github/media/badges/film.svg" height="28"></a>
   <br>
-  <a href="LICENSE"><img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-EDEFED?style=for-the-badge&logoColor=white&labelColor=131413&logo=gnu"></a>
-  <a href="https://github.com/elpideus/greenlit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/elpideus/greenlit/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=ci&labelColor=131413&color=007F3D"></a>
-  <a href="docs/MCP.md"><img alt="MCP: 67 tools" src="https://img.shields.io/badge/MCP-67%20tools-1C65C8?style=for-the-badge&logoColor=white&labelColor=131413&logo=modelcontextprotocol"></a>
-  <a href="docs/MCP.md"><img alt="Built for Claude Code" src="https://img.shields.io/badge/built%20for-Claude%20Code-1C65C8?style=for-the-badge&logoColor=white&labelColor=131413&logo=claude"></a>
-  <a href="docs/DOCKER.md"><img alt="Runs with Docker" src="https://img.shields.io/badge/runs%20with-Docker-A35F00?style=for-the-badge&logoColor=white&labelColor=131413&logo=docker"></a>
-  <img alt="TypeScript" src="https://img.shields.io/badge/made%20with-TypeScript-A35F00?style=for-the-badge&logoColor=white&labelColor=131413&logo=typescript">
+  <a href="LICENSE"><img alt="Licensed GPL-3.0-or-later" src=".github/media/badges/licence.svg" height="28"></a>
+  <a href="https://github.com/elpideus/greenlit/actions/workflows/ci.yml"><img alt="Tested on" src=".github/media/badges/ci-label.svg" height="28"><img alt="GitHub Actions: CI status" src="https://img.shields.io/github/actions/workflow/status/elpideus/greenlit/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=&color=0969DA" height="28"></a>
+  <a href="docs/MCP.md"><img alt="Agents via MCP, 67 tools" src=".github/media/badges/mcp.svg" height="28"></a>
+  <br>
+  <a href="docs/DOCKER.md"><img alt="Runs on Docker" src=".github/media/badges/docker.svg" height="28"></a>
+  <img alt="Built with TypeScript" src=".github/media/badges/typescript.svg" height="28">
 </p>
 
 <br>
@@ -62,13 +63,13 @@ own formats) and extra **audio tracks** ride along for a voice-over in another l
 previews, waveforms, EXIF dates and places are made on upload. Search understands tokens (`status:`, `kind:`,
 `#tag`, `project:`, `place:`), and everything has a right-click menu.
 
-## Edits play live, with Claude
+## Edits play live, with people and agents
 
-<img src=".github/media/editor.gif" alt="The Greenlit editor plays a teaser while Claude Code asks for a vertical cut" width="100%">
+<img src=".github/media/editor.gif" alt="The Greenlit editor plays a teaser while an AI agent asks for a vertical cut" width="100%">
 
 A lightweight timeline where compositions play in the browser **without rendering**: video, pictures, audio, text,
 shapes and code layers (any HTML, CSS or JS animation, seeked frame by frame), keyframes, transitions and per-format
-reframing. Claude edits the same document through MCP and every open editor updates instantly; the page also exposes
+reframing. AI agents edit the same document through MCP and every open editor updates instantly; the page also exposes
 `window.greenlit.editor` for browser agents. Exports are frame-exact and land in the library as formats of one item.
 
 ## Scheduled where your audience is
@@ -86,7 +87,7 @@ developer apps ([docs/CONNECTORS.md](docs/CONNECTORS.md)).
 |                      |                                                                                                                                                             |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **History**          | Titles, notes, tags, formats, files, posts and edits keep a full history you can compare, name, annotate and restore.                                       |
-| **Brand kits**       | Drop a kit's folder or .zip: Greenlit reads its palette, fonts and logos and shows it as a brand book. Claude reads it through MCP.                         |
+| **Brand kits**       | Drop a kit's folder or .zip: Greenlit reads its palette, fonts and logos and shows it as a brand book. Agents read it through MCP.                          |
 | **Map and globe**    | Projects and media where they were shot, on an interactive map with a 3D globe and animated search.                                                         |
 | **Production graph** | Every photo, still, clip and film, and how one became the next.                                                                                             |
 | **Viewers**          | Code with syntax highlighting, Markdown and HTML pages, PDFs, depth maps, and [FigCraft](https://github.com/storytold/figcraft) designs live in the viewer. |
@@ -110,16 +111,26 @@ all restarts by itself; run the same command again after an update. Greenlit pub
 is reachable only through the tunnel. Create the first admin with the one-time setup code, then invite people in
 **Settings → People**. See [docs/DOCKER.md](docs/DOCKER.md).
 
-### Connect Claude Code
+### Connect an AI agent
 
-Create a token in **Settings → API & MCP**, then:
+Greenlit speaks MCP over Streamable HTTP, so any MCP client can use it: Claude Code, Codex, Cursor and the rest.
+Create a token in **Settings → API & MCP** and point the client at `/api/mcp` with the token as a bearer header. In
+most clients' JSON config that is:
 
-```bash
-claude mcp add --transport http greenlit https://your-greenlit/api/mcp --header "Authorization: Bearer glt_…"
+```json
+{
+  "mcpServers": {
+    "greenlit": {
+      "type": "http",
+      "url": "https://your-greenlit/api/mcp",
+      "headers": { "Authorization": "Bearer glt_…" }
+    }
+  }
+}
 ```
 
-Ask Claude to "make a 15-second vertical teaser from the drone shots in the Coastline project" and watch the editor.
-More in [docs/MCP.md](docs/MCP.md).
+Ask for "a 15-second vertical teaser from the drone shots in the Coastline project" and watch the editor. More in
+[docs/MCP.md](docs/MCP.md).
 
 ## Development
 
