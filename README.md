@@ -17,10 +17,15 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-42D77B?style=flat-square&labelColor=131413"></a>
-  <a href="https://github.com/elpideus/greenlit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/elpideus/greenlit/ci.yml?branch=main&style=flat-square&label=ci&labelColor=131413"></a>
-  <img alt="67 MCP tools" src="https://img.shields.io/badge/MCP-67%20tools-6AA7F4?style=flat-square&labelColor=131413">
-  <img alt="Runs with Docker" src="https://img.shields.io/badge/runs%20with-Docker-F9B73F?style=flat-square&labelColor=131413">
+  <a href="https://elpideus.github.io/greenlit/"><img alt="Website" src="https://img.shields.io/badge/website-elpideus.github.io%2Fgreenlit-007F3D?style=for-the-badge&labelColor=131413&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBmaWxsPSIjRURFRkVEIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMjggMTljMzcuNTYgMCA2OCAzMC40NCA2OCA2OHY4MmMwIDM3LjU2LTMwLjQ0IDY4LTY4IDY4cy02OC0zMC40NC02OC02OFY4N2MwLTM3LjU2IDMwLjQ0LTY4IDY4LTY4Wm0wIDE4Yy0yNy42MSAwLTUwIDIyLjM5LTUwIDUwdjgyYzAgMjcuNjEgMjIuMzkgNTAgNTAgNTBzNTAtMjIuMzkgNTAtNTBWODdjMC0yNy42MS0yMi4zOS01MC01MC01MFoiLz48cGF0aCBmaWxsPSIjRURFRkVEIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMjggNTVhMzIgMzIgMCAxIDEgMCA2NCAzMiAzMiAwIDAgMSAwLTY0Wm0wIDE4YTE0IDE0IDAgMSAwIDAgMjggMTQgMTQgMCAwIDAgMC0yOFoiLz48Y2lyY2xlIGN4PSIxMjgiIGN5PSIxNjkiIHI9IjMyIiBmaWxsPSIjNDJENzdCIi8%2BPC9zdmc%2BCg%3D%3D"></a>
+  <a href="https://elpideus.github.io/greenlit/#film"><img alt="Watch the film" src="https://img.shields.io/badge/film-watch%200%3A50-007F3D?style=for-the-badge&labelColor=131413&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTcgNC42djE0LjhhMSAxIDAgMCAwIDEuNS44NmwxMi4yLTcuNGExIDEgMCAwIDAgMC0xLjcyTDguNSAzLjc0QTEgMSAwIDAgMCA3IDQuNnoiLz48L3N2Zz4%3D"></a>
+  <br>
+  <a href="LICENSE"><img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-EDEFED?style=for-the-badge&logoColor=white&labelColor=131413&logo=gnu"></a>
+  <a href="https://github.com/elpideus/greenlit/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/elpideus/greenlit/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=ci&labelColor=131413&color=007F3D"></a>
+  <a href="docs/MCP.md"><img alt="MCP: 67 tools" src="https://img.shields.io/badge/MCP-67%20tools-1C65C8?style=for-the-badge&logoColor=white&labelColor=131413&logo=modelcontextprotocol"></a>
+  <a href="docs/MCP.md"><img alt="Built for Claude Code" src="https://img.shields.io/badge/built%20for-Claude%20Code-1C65C8?style=for-the-badge&logoColor=white&labelColor=131413&logo=claude"></a>
+  <a href="docs/DOCKER.md"><img alt="Runs with Docker" src="https://img.shields.io/badge/runs%20with-Docker-A35F00?style=for-the-badge&logoColor=white&labelColor=131413&logo=docker"></a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/made%20with-TypeScript-A35F00?style=for-the-badge&logoColor=white&labelColor=131413&logo=typescript">
 </p>
 
 <br>

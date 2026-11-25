@@ -405,21 +405,53 @@ function copyButtons() {
   }
 }
 
+// ── the film: opens from its buttons and from any link to #film (the README's) ─
 function film() {
   const d = $<HTMLDialogElement>('#film')
   const v = $<HTMLVideoElement>('[data-film-video]')
+  const sound = $<HTMLButtonElement>('[data-film-sound]')
   if (!d || !v) return
+  const hideSound = () => sound?.setAttribute('hidden', '')
+  const open = async () => {
+    if (!d.open) d.showModal()
+    v.currentTime = 0
+    v.muted = false
+    hideSound()
+    try {
+      await v.play()
+    } catch {
+      // Opened from a link, before any click on the page: browsers only allow muted playback until then.
+      v.muted = true
+      try {
+        await v.play()
+        sound?.removeAttribute('hidden')
+      } catch {}
+    }
+  }
   for (const b of $$('#play-film, [data-play-film]')) {
     b.addEventListener('click', (e) => {
       e.preventDefault()
-      d.showModal()
-      v.currentTime = 0
-      v.play().catch(() => {})
+      open()
     })
   }
+  sound?.addEventListener('click', () => {
+    v.muted = false
+    hideSound()
+    v.play().catch(() => {})
+  })
+  v.addEventListener('volumechange', () => {
+    if (!v.muted) hideSound()
+  })
   $('[data-film-close]', d)?.addEventListener('click', () => d.close())
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close()
   })
-  d.addEventListener('close', () => v.pause())
+  d.addEventListener('close', () => {
+    v.pause()
+    if (location.hash === '#film') history.replaceState(null, '', location.pathname + location.search)
+  })
+  if (location.hash === '#film') open()
+  addEventListener('hashchange', () => {
+    if (location.hash === '#film') open()
+  })
 }
