@@ -1567,7 +1567,7 @@
     },
     {
       "name": "configureSidecar",
-      "description": "Publishes uploaded pictures and videos as one carousel post, as the app's Share does (media/configure_sidecar/): the carousel's id (its items' upload session), the caption, its items (children_metadata, in order: each item's upload id, size and edits as the app writes them) and the AI label when asked. Sent without Node's sec-fetch headers (secFetch: false) but with the session's cookies: with the sec-fetch headers Instagram answers \"SecFetch Policy violation\" (Nov 2026), and without the cookies it ended the session (logout_reason 3, each time on 25 Nov 2026).",
+      "description": "Publishes uploaded pictures and videos as one carousel post, as the app's Share does (media/configure_sidecar/): the carousel's id (its items' upload session), the caption, its items (children_metadata, in order: each item's upload id, size and edits as the app writes them) and the AI label when asked. Sent without Node's sec-fetch headers (secFetch: false) but with the session's cookies: with the sec-fetch headers Instagram answers \"SecFetch Policy violation\" (Nov 2026), and without the cookies it ended the session (logout_reason 3, each time on 25 Nov 2026). Greenlit does not send it: the same request worked on 22 Nov 2026, then ended the instagram.com sign-in's session on all 4 carousels of 25 Nov, and editMedia sent with the cookies ended it too (26 Nov; instagram-api.ts APP_ONLY_WRITES).",
       "readOnly": false,
       "learnedLoggedIn": true,
       "secFetch": false,
@@ -2533,7 +2533,7 @@
     },
     {
       "name": "editMedia",
-      "description": "Changes a post's caption, as the app's Edit does on the account's own post (media/<media id>/edit_media/, signed_body=SIGNATURE.{json}); the app's own request with the sign-in's session as its IGT header. It also names the post's AI label (the app sends the current state, so the label is kept, not cleared). Left out: the device's and session's ids and navigation.",
+      "description": "Changes a post's caption, as the app's Edit does on the account's own post (media/<media id>/edit_media/, signed_body=SIGNATURE.{json}); the app's own request with the sign-in's session as its IGT header. It also names the post's AI label (the app sends the current state, so the label is kept, not cleared). Left out: the device's and session's ids and navigation. Greenlit does not send it: since 26 Nov 2026 it ends the instagram.com sign-in's session (403 login_required, logout_reason 3), with or without the session's cookies (it worked on 22 Nov 2026; instagram-api.ts APP_ONLY_WRITES).",
       "readOnly": false,
       "learnedLoggedIn": true,
       "request": {

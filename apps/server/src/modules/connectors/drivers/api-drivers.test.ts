@@ -13,10 +13,13 @@ import {
   storyIdOf,
 } from './facebook-api.ts'
 import {
+  APP_ONLY_WRITES,
   carouselChild,
+  editPost,
   FIND_REEL,
   igSoundToTrack,
   instagramApi,
+  publishCarousel,
   SHARE_RETRY,
   stillSigned,
   volumeData,
@@ -1565,10 +1568,30 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(plain.calls[1]!.args.aiLabel).toBe('')
   })
 
-  it('posts a carousel: every item uploaded into it (a video with its first frame as cover), then shared in order', async () => {
+  it('refuses a carousel before anything is uploaded: its Share ends the sign-in’s session', async () => {
+    const { run, calls } = igRun(shared)
+    const carousel = request({
+      files: [
+        { path: picture, mime: 'image/jpeg', kind: 'image' },
+        { path: video, mime: 'video/mp4', kind: 'video' },
+      ],
+    })
+    const refused = instagramApi.publish(run, account, carousel)
+    await expect(refused).rejects.toThrow(APP_ONLY_WRITES.configureSidecar)
+    await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
+    // a dry run says the same
+    const dry = igRun(shared)
+    ;(dry.run.api as { dryRun: boolean }).dryRun = true
+    await expect(instagramApi.publish(dry.run, account, carousel)).rejects.toThrow(
+      /share the carousel in the Instagram app/,
+    )
+    expect([...calls, ...dry.calls]).toEqual([])
+  })
+
+  it('builds a carousel as the app does (not sent): every item uploaded into it (a video with its first frame as cover), then shared in order', async () => {
     mixes.length = 0
     const { run, calls } = igRun(shared)
-    const out = await instagramApi.publish(
+    const out = await publishCarousel(
       run,
       account,
       request({
@@ -1775,7 +1798,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     await instagramApi.publish(on.run, account, request())
     expect(on.calls[1]!.args).toMatchObject({ disableComments: '0' })
     const car = igRun(shared)
-    await instagramApi.publish(
+    await publishCarousel(
       car.run,
       account,
       request({ files: [...request().files, ...request().files], options: { allowComments: false } }),
@@ -2040,39 +2063,48 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(picture.warnings.join(' ')).toMatch(/a picture of your own is not set/)
   })
 
-  it('changes a post’s caption as the app’s Edit does, keeping its AI label; stories and unnamed posts are refused', async () => {
+  it('refuses to change a published post, sending nothing: the app’s Edit ends the sign-in’s session', async () => {
+    const mediaId = '4040123456789012345_31000000001'
+    const ed = igRun({ editMedia: () => ({ status: 'ok' }), disableComments: () => ({ status: 'ok' }) })
+    const refused = instagramApi.update(ed.run, account, mediaId, {
+      caption: 'Nuovo testo',
+      options: { allowComments: false },
+    })
+    await expect(refused).rejects.toThrow(APP_ONLY_WRITES.editMedia)
+    // the post keeps its new text in Greenlit and says why: never retried
+    await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
+    expect(ed.calls).toEqual([])
+    expect(instagramApi.capabilities('instagram').editAfterPublish).toBe(false)
+  })
+
+  it('builds the app’s Edit (not sent): the caption, keeping its AI label; stories and unnamed posts are refused', async () => {
     const mediaId = '4040123456789012345_31000000001'
     const ed = igRun({ editMedia: () => ({ status: 'ok' }) })
-    await instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo', options: {} })
+    await editPost(ed.run, mediaId, { caption: 'Nuovo testo', options: {} })
     expect(ed.calls[0]).toMatchObject({
       op: 'editMedia',
       args: { mediaId, caption: 'Nuovo testo', aiMethod: 'NONE' },
     })
     const ai = igRun({ editMedia: () => ({ status: 'ok' }) })
-    await instagramApi.update(ai.run, account, mediaId, {
+    await editPost(ai.run, mediaId, {
       caption: 'Nuovo testo',
       options: { aiGenerated: true },
     })
     expect(ai.calls[0]!.args).toMatchObject({ aiMethod: 'SELF_DISCLOSURE_FLOW' })
     const refused = igRun({ editMedia: () => ({ status: 'fail', message: 'Try again later' }) })
-    await expect(instagramApi.update(refused.run, account, mediaId, { caption: 'x' })).rejects.toThrow(
-      /Try again later/,
+    await expect(editPost(refused.run, mediaId, { caption: 'x' })).rejects.toThrow(/Try again later/)
+    await expect(editPost(ed.run, 'upload:1795373844416', { caption: 'x' })).rejects.toThrow(
+      /did not name it/,
     )
-    await expect(
-      instagramApi.update(ed.run, account, 'upload:1795373844416', { caption: 'x' }),
-    ).rejects.toThrow(/did not name it/)
-    await expect(instagramApi.update(ed.run, account, mediaId, { title: 'x' })).rejects.toThrow(
-      /caption, place and comments/,
-    )
-    expect(instagramApi.capabilities('instagram').editAfterPublish).toBe(true)
+    await expect(editPost(ed.run, mediaId, { title: 'x' })).rejects.toThrow(/caption, place and comments/)
     // the same caption twice is two edits (A, B, then A again must go out), each with its own key
     const twice = igRun({ editMedia: () => ({ status: 'ok' }) })
-    await instagramApi.update(twice.run, account, mediaId, { caption: 'A' })
-    await instagramApi.update(twice.run, account, mediaId, { caption: 'A' })
+    await editPost(twice.run, mediaId, { caption: 'A' })
+    await editPost(twice.run, mediaId, { caption: 'A' })
     expect(twice.calls[0]!.key).not.toBe(twice.calls[1]!.key)
   })
 
-  it('edits a post’s place with its caption, and turns its comments off or on, as the app does', async () => {
+  it('builds the app’s Edit of a post’s place with its caption, and its comments switch (not sent)', async () => {
     const mediaId = '4040123456789012345_31000000001'
     const places = [{ placeId: '529415319299814', name: 'Ostuni', subtitle: '0.9mi', lat: 40.72, lng: 17.58 }]
     const ed = igRun({
@@ -2081,7 +2113,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
       disableComments: () => ({ status: 'ok' }),
       enableComments: () => ({ status: 'ok' }),
     })
-    await instagramApi.update(ed.run, account, mediaId, {
+    await editPost(ed.run, mediaId, {
       caption: 'Nuovo',
       location: { name: 'Ostuni', platformId: null },
       options: { allowComments: false },
@@ -2090,7 +2122,7 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(JSON.parse(String(ed.calls[1]!.args.location)).meta_place_id).toBe('529415319299814')
     expect(ed.calls[2]!.args).toEqual({ mediaId })
     const on = igRun({ editMedia: () => ({ status: 'ok' }), enableComments: () => ({ status: 'ok' }) })
-    await instagramApi.update(on.run, account, mediaId, {
+    await editPost(on.run, mediaId, {
       caption: 'Nuovo',
       options: { allowComments: true },
     })
@@ -2098,13 +2130,13 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(on.calls[0]!.args.location).toBe('')
     // no comments choice: no switch sent
     const plain = igRun({ editMedia: () => ({ status: 'ok' }) })
-    await instagramApi.update(plain.run, account, mediaId, { caption: 'Nuovo', options: {} })
+    await editPost(plain.run, mediaId, { caption: 'Nuovo', options: {} })
     expect(plain.calls.map((c) => c.op)).toEqual(['editMedia'])
   })
 
   it('says what feed posts leave out, and refuses what Instagram takes no part of', async () => {
     const { run, warnings, calls } = igRun(shared)
-    await instagramApi.publish(
+    await publishCarousel(
       run,
       account,
       request({
@@ -2127,7 +2159,10 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
       mime: 'image/jpeg',
       kind: 'image' as const,
     }))
-    await expect(instagramApi.publish(run, account, request({ files: eleven }))).rejects.toThrow(/at most 10/)
+    await expect(publishCarousel(run, account, request({ files: eleven }))).rejects.toThrow(/at most 10/)
+    await expect(instagramApi.publish(run, account, request({ files: eleven }))).rejects.toThrow(
+      /share the carousel/,
+    )
     await expect(
       instagramApi.publish(
         run,

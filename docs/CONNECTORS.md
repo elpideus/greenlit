@@ -227,7 +227,19 @@ session, in the header form the app uses (`Authorization: Bearer IGT:2:<base64 o
 Anything's `gen: igt`). The app's attestation header (`x-meta-zca`), its device ids and its upload provenance data
 are left out; Instagram takes the requests without them. An op marked `cookies: false` goes without the session's
 Cookie header and without the browser's `sec-fetch-*` headers, as the app's own request does (an endpoint may
-refuse a cookie- or sec-fetch-carrying request as not its app's); its cookie-ref slots still read the session.
+refuse a cookie- or sec-fetch-carrying request as not its app's); its cookie-ref slots still read the session. One
+marked `secFetch: false` goes without the `sec-fetch-*` headers but with the cookies.
+
+**Two of the app's requests are not sent** (`APP_ONLY_WRITES` in `drivers/instagram-api.ts`): the carousel's Share
+(`configure_sidecar`) and the Edit of a published post (`edit_media`). Instagram holds both to its own app: with
+the `sec-fetch-*` headers Node's `fetch` adds it refuses them ("SecFetch Policy violation"), and without them it
+now ends the instagram.com sign-in's session (403 `login_required`, `logout_reason` 3, then every request logged
+out, `logout_reason` 8). Both worked that way on 22 Nov 2026; every one sent since ended the session: the 4
+carousels of 25 Nov (sent without the cookies) and a caption edit on 26 Nov (sent with them, `secFetch: false`).
+The requests that carry the `sec-fetch-*` headers (the sound search, the uploads) keep the session. So Greenlit
+refuses a carousel before uploading anything and does not change a published post (`editAfterPublish` is off):
+the post says to share the carousel, or change the caption, in the Instagram app. The requests stay in the spec
+and in `editPost` / `publishCarousel`, tested, as they were learned.
 
 - `musicSearch` is the reel audio picker's search (`music/search_v2`): each sound has two ids (its asset and its
   cluster, both named by a reel; Greenlit's track id is `<asset>-<cluster>`), its title, artist, cover, length and
@@ -264,18 +276,21 @@ refuse a cookie- or sec-fetch-carrying request as not its app's); its cookie-ref
 - A **paid partnership** label is not offered by the app on this account (neither on the Share screen nor in More
   options: it needs "branded content tools" turned on in the account's settings, which Greenlit does not change),
   so there is no request to learn; Greenlit says it was left out.
-- **Editing a post** (the caption): the app's Edit on its own post is `media/<id>/edit_media/` (`editMedia`,
+- **Editing a post** (the caption) is **not sent** since 26 Nov 2026: it ends the sign-in's session (see "Two of
+  the app's requests are not sent" above). Changing a published post's text in Greenlit keeps it in Greenlit, and
+  the post says to change the caption in the Instagram app. What was learned, in `editPost`: the app's Edit on its
+  own post is `media/<id>/edit_media/` (`editMedia`,
   recorded with the send held on a cached copy of a deleted test post, so nothing was changed). It carries the new
   `caption_text` and names the post's AI label as it is (`gen_ai_detection_method`: `NONE`, or the label while it
-  is on), so an edit does not clear the label: Greenlit gives it the post's "made with AI" option. Changing a
-  published post's text in Greenlit edits it on Instagram too (feed posts and reels; a story has nothing to
-  edit). Only the caption: other changes are refused with a reason. Tested for real (Nov 2026): a feed picture's
+  is on), so an edit does not clear the label: Greenlit gave it the post's "made with AI" option. Only the
+  caption: other changes were refused with a reason. Tested for real (22 Nov 2026): a feed picture's
   caption was changed from Greenlit and the public page showed the new text, then the post was deleted. Like the
-  carousel's Share, this request refuses a browser's `sec-fetch-*` headers ("SecFetch Policy violation"), so it is
-  sent app-style (`cookies: false`). An edit that repeats the caption Instagram already has is refused.
+  carousel's Share, this request refuses a browser's `sec-fetch-*` headers ("SecFetch Policy violation"), so it was
+  sent app-style (`cookies: false`, then `secFetch: false`). An edit that repeats the caption Instagram already has
+  is refused.
 - An edit also changes the post's **location** (edit_media's `location`, recorded with the send held) and its
   **comments**: the post menu's "Turn off commenting" is `media/<id>/disable_comments/` (`disableComments`, the
-  device id only; `enableComments` turns them back on). Greenlit sends the comments switch when the post's option
+  device id only; `enableComments` turns them back on). `editPost` sends the comments switch when the post's option
   is set.
   Tested for real (Nov 2026): a feed picture's caption and place were changed from Greenlit (the public page showed
   both) and its comments turned off; deleted through Greenlit.
@@ -286,10 +301,13 @@ refuse a cookie- or sec-fetch-carrying request as not its app's); its cookie-ref
 publish requests held, so nothing was posted, and the held posts discarded in the app).
 
 - A feed picture: `uploadPhoto` (`rupload_igphoto/<upload id>_0_<n>`, a JPEG with its size), then `configurePhoto`
-  (`media/configure/`). A carousel of 2 to 10 pictures and videos: each item uploaded with the carousel's id as
-  its session (`is_sidecar`), a video with its first frame uploaded as its cover, then `configureSidecar`
-  (`media/configure_sidecar/`, the items in order as the app writes them in `children_metadata`). One video in
-  the feed is a reel on Instagram, shown in the grid.
+  (`media/configure/`). One video in the feed is a reel on Instagram, shown in the grid.
+- A carousel is **not sent** since 25 Nov 2026: its Share ends the sign-in's session (see "Two of the app's
+  requests are not sent" above), so Greenlit refuses it before uploading anything and the post says to share it in
+  the Instagram app. What was learned, in `publishCarousel`: 2 to 10 pictures and videos, each item uploaded with
+  the carousel's id as its session (`is_sidecar`), a video with its first frame uploaded as its cover, then
+  `configureSidecar` (`media/configure_sidecar/`, the items in order as the app writes them in
+  `children_metadata`).
 - A story: `uploadPhoto` or `uploadVideo` (`share_type: stories`; Instagram makes a video's cover), then
   `configureStoryPhoto` or `configureStoryVideo` (`media/configure_to_story/`). A story has no caption.
 - The app adds a Facebook cross-post to these by itself (`share_to_facebook` and the linked Page's id); the
@@ -362,9 +380,10 @@ publish requests held, so nothing was posted, and the held posts discarded in th
   with a pinned first comment went up and the comment showed pinned; deleted through Greenlit and gone.
 - Not set through these requests yet: a paid partnership (see the reels' note). A time is kept by Greenlit, as for reels.
 - `media/configure_sidecar/` refuses a request that carries a browser's Fetch Metadata headers
-  (`sec-fetch-*`, which Node's `fetch` adds) with "SecFetch Policy violation": a carousel's Share is sent as an
-  app-style request (API Anything's `cookies: false`, which also strips those headers, see below).
-- Tested for real (Nov 2026): a picture, a carousel (a picture and a video), a picture story and a video story
+  (`sec-fetch-*`, which Node's `fetch` adds) with "SecFetch Policy violation": a carousel's Share was sent as an
+  app-style request (API Anything's `cookies: false`, which also strips those headers), until that ended the
+  session (25 Nov 2026: not sent any more, see "Two of the app's requests are not sent").
+- Tested for real (22 Nov 2026): a picture, a carousel (a picture and a video), a picture story and a video story
   went up on the account, were checked in the app (the carousel's two items, both stories), left a Facebook
   Page untouched, and were deleted (the carousel through Greenlit, the stories in the app).
 

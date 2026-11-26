@@ -29,7 +29,8 @@ import { cookie } from './util.ts'
  * session in the app's header form (`Bearer IGT:2`, API Anything's `gen: igt`): the app's sound search, its video
  * upload and its Share. As the app does, the sound is mixed into the video before it is uploaded (sound-mix.ts) and
  * Instagram links it to the reel (music_params). Feed posts (a picture or a carousel) and stories are the app's
- * own requests too, recorded with the publish held so nothing was posted.
+ * own requests too, recorded with the publish held so nothing was posted. A carousel's Share and the Edit of a
+ * published post are not sent: Instagram ends the session for them (APP_ONLY_WRITES).
  */
 
 const capabilities = {
@@ -45,13 +46,29 @@ const capabilities = {
   // A place from Instagram's own search: in feed posts' and reels' Share, as a story's location sticker.
   location: true,
   firstComment: true,
-  // The caption, as the app's Edit changes it.
-  editAfterPublish: true,
+  // Not sent: Instagram ends the sign-in's session for the app's Edit (APP_ONLY_WRITES).
+  editAfterPublish: false,
   // A cover that is a frame of the video (reels); a picture of its own is not set.
   thumbnail: true,
   sync: true,
   stats: true,
 }
+
+/**
+ * The app's requests Greenlit does not send, and why. Instagram holds these two to its own app: sent with the
+ * `sec-fetch-*` headers Node's fetch adds, they are refused ("SecFetch Policy violation"); sent without them, as the
+ * app sends them, they now end the instagram.com sign-in's session (403 login_required, logout_reason 3, then every
+ * request logged out). They worked that way until 22 Nov 2026; every one sent since has ended the session: the 4
+ * carousels of 25 Nov (without the session's cookies) and the caption edit of 26 Nov (with them), so the cookies are
+ * not what decides it. The app's requests that carry the sec-fetch headers (sound search, uploads) keep the session.
+ * The requests are kept as learned (`editPost`, `publishCarousel`); the driver refuses before anything is sent.
+ */
+export const APP_ONLY_WRITES = {
+  editMedia:
+    'Instagram signs Greenlit out when it changes a caption with the app’s Edit, so Greenlit does not send it: change the caption in the Instagram app',
+  configureSidecar:
+    'Instagram signs Greenlit out when it shares a carousel with the app’s request, so Greenlit does not send it: share the carousel in the Instagram app',
+} as const
 
 /** The longest reel the app makes. */
 const REEL_MAX_SECONDS = 180
@@ -290,49 +307,9 @@ export const instagramApi: Driver = {
       : publishFeed(run, account, req))
     return commentOn(run, req, out)
   },
-  /**
-   * Changes a post as the app's Edit does: its caption and place (edit_media, which names the post's AI label as it
-   * is, so it stays), and comments on or off (the post menu's switch). A story has nothing to edit here.
-   */
-  async update(run, _account, remoteId, patch) {
-    if (!MEDIA_ID.test(remoteId))
-      throw new ConnectorUnsupported('update', 'Greenlit cannot edit this post: Instagram did not name it')
-    if (patch.caption === undefined)
-      throw new ConnectorUnsupported(
-        'update',
-        'Instagram posts are edited here by their caption, place and comments',
-      )
-    const asked = patch.location?.name.trim() ? (patch as PublishRequest) : null
-    const location = asked ? await placeFor(run, asked) : ''
-    const r = await api(run).call<{ status?: string; message?: string }>(
-      'editMedia',
-      {
-        mediaId: remoteId,
-        caption: patch.caption.slice(0, 2200),
-        aiMethod: patch.options?.aiGenerated === true ? 'SELF_DISCLOSURE_FLOW' : 'NONE',
-        location,
-      },
-      // One key per edit: an edit is safe to send again, and a key already used is never sent twice (editing A, then
-      // B, then back to A would otherwise leave B).
-      { write: true, maxTier: 1, key: `ig-edit:${remoteId}:${randomUUID()}` },
-    )
-    if (r?.status !== 'ok')
-      throw new Error(`Instagram did not change the caption${r?.message ? `: ${r.message}` : ''}`)
-    run.step(location ? 'Caption and place changed' : 'Caption changed')
-    const comments = patch.options?.allowComments
-    if (typeof comments === 'boolean') {
-      const op = comments ? 'enableComments' : 'disableComments'
-      const c = await api(run).call<{ status?: string; message?: string }>(
-        op,
-        { mediaId: remoteId },
-        { write: true, maxTier: 1, key: `ig-${op}:${remoteId}:${randomUUID()}` },
-      )
-      if (c?.status !== 'ok')
-        run.warn(
-          `The caption changed, but comments were not turned ${comments ? 'on' : 'off'}${c?.message ? `: ${c.message}` : ''}`,
-        )
-      else run.step(`Comments ${comments ? 'on' : 'off'}`)
-    }
+  /** A published post is not changed from Greenlit: the app's Edit ends the sign-in's session (APP_ONLY_WRITES). */
+  async update() {
+    throw new ConnectorUnsupported('update', APP_ONLY_WRITES.editMedia)
   },
   /** Deletes a post as the app's Delete does: it goes to Recently deleted, where it can be restored for 30 days. */
   async remove(run, account, remoteId) {
@@ -780,9 +757,56 @@ async function feedOutcome(
 }
 
 /**
- * A feed post, made as the app makes it: one picture (uploadPhoto, then configurePhoto) or a carousel of 2 to 10
- * pictures and videos (each uploaded as an item of the carousel, a video with its first frame as its cover, then
- * configureSidecar). A feed post of one video is a reel on Instagram (publishReel, shown in the grid).
+ * Changes a post as the app's Edit does: its caption and place (edit_media, which names the post's AI label as it
+ * is, so it stays), and comments on or off (the post menu's switch). A story has nothing to edit here.
+ *
+ * Not called by the driver (APP_ONLY_WRITES: Instagram ends the sign-in's session for it).
+ */
+export async function editPost(run: DriverRun, remoteId: string, patch: Partial<PublishRequest>) {
+  if (!MEDIA_ID.test(remoteId))
+    throw new ConnectorUnsupported('update', 'Greenlit cannot edit this post: Instagram did not name it')
+  if (patch.caption === undefined)
+    throw new ConnectorUnsupported(
+      'update',
+      'Instagram posts are edited here by their caption, place and comments',
+    )
+  const asked = patch.location?.name.trim() ? (patch as PublishRequest) : null
+  const location = asked ? await placeFor(run, asked) : ''
+  const r = await api(run).call<{ status?: string; message?: string }>(
+    'editMedia',
+    {
+      mediaId: remoteId,
+      caption: patch.caption.slice(0, 2200),
+      aiMethod: patch.options?.aiGenerated === true ? 'SELF_DISCLOSURE_FLOW' : 'NONE',
+      location,
+    },
+    // One key per edit: an edit is safe to send again, and a key already used is never sent twice (editing A, then
+    // B, then back to A would otherwise leave B).
+    { write: true, maxTier: 1, key: `ig-edit:${remoteId}:${randomUUID()}` },
+  )
+  if (r?.status !== 'ok')
+    throw new Error(`Instagram did not change the caption${r?.message ? `: ${r.message}` : ''}`)
+  run.step(location ? 'Caption and place changed' : 'Caption changed')
+  const comments = patch.options?.allowComments
+  if (typeof comments === 'boolean') {
+    const op = comments ? 'enableComments' : 'disableComments'
+    const c = await api(run).call<{ status?: string; message?: string }>(
+      op,
+      { mediaId: remoteId },
+      { write: true, maxTier: 1, key: `ig-${op}:${remoteId}:${randomUUID()}` },
+    )
+    if (c?.status !== 'ok')
+      run.warn(
+        `The caption changed, but comments were not turned ${comments ? 'on' : 'off'}${c?.message ? `: ${c.message}` : ''}`,
+      )
+    else run.step(`Comments ${comments ? 'on' : 'off'}`)
+  }
+}
+
+/**
+ * A feed post, made as the app makes it: one picture (uploadPhoto, then configurePhoto). A feed post of one video
+ * is a reel on Instagram (publishReel, shown in the grid). A carousel is refused before anything is uploaded
+ * (APP_ONLY_WRITES: its Share ends the sign-in's session).
  */
 export async function publishFeed(
   run: DriverRun,
@@ -793,8 +817,8 @@ export async function publishFeed(
   const files = req.files.filter((f) => f.kind === 'image' || f.kind === 'video')
   if (!files.length)
     throw new ConnectorUnsupported('placement', 'A feed post has at least one picture or video')
-  if (files.length > 10) throw new ConnectorUnsupported('placement', 'A carousel has at most 10 items')
-  if (files.length === 1 && files[0]!.kind === 'video') {
+  if (files.length > 1) throw new ConnectorUnsupported('placement', APP_ONLY_WRITES.configureSidecar)
+  if (files[0]!.kind === 'video') {
     run.step('Instagram posts a single video as a reel, shown in the grid')
     return publishReel(run, account, {
       ...req,
@@ -802,7 +826,7 @@ export async function publishFeed(
       options: { ...req.options, shareToFeed: true },
     })
   }
-  if (files.length === 1 && req.music) {
+  if (req.music) {
     // Instagram makes a picture with a sound into a reel (its editor says "New reel"): the picture becomes a
     // silent video of a few seconds (STILL_SECONDS, or the post's stillSeconds) and goes out as a reel with the sound.
     const asked = Number(req.options.stillSeconds)
@@ -828,39 +852,58 @@ export async function publishFeed(
   const started = Date.now()
   const caption = req.caption.slice(0, 2200)
 
-  if (files.length === 1) {
-    const uploadId = next()
-    const attempt = `ig-${uploadId}`
-    const { width, height } = await pictureSize(files[0]!.path)
-    await sendPhoto(run, {
-      path: files[0]!.path,
+  const uploadId = next()
+  const attempt = `ig-${uploadId}`
+  const { width, height } = await pictureSize(files[0]!.path)
+  await sendPhoto(run, {
+    path: files[0]!.path,
+    uploadId,
+    sessionId: uploadId,
+    shareType: 'feed',
+    width,
+    height,
+    key: `${attempt}:photo`,
+  })
+  if (!api(run).dryRun) run.step('Picture sent to Instagram')
+  const done = await share(
+    run,
+    'configurePhoto',
+    {
       uploadId,
-      sessionId: uploadId,
-      shareType: 'feed',
+      caption,
+      widthText: String(width),
+      heightText: String(height),
       width,
       height,
-      key: `${attempt}:photo`,
-    })
-    if (!api(run).dryRun) run.step('Picture sent to Instagram')
-    const done = await share(
-      run,
-      'configurePhoto',
-      {
-        uploadId,
-        caption,
-        widthText: String(width),
-        heightText: String(height),
-        width,
-        height,
-        aiLabel: aiLabel(req),
-        disableComments: commentsOff(req),
-        location: await placeFor(run, req),
-      },
-      attempt,
-      'post',
-    )
-    return feedOutcome(run, account, req, done, started, uploadId)
-  }
+      aiLabel: aiLabel(req),
+      disableComments: commentsOff(req),
+      location: await placeFor(run, req),
+    },
+    attempt,
+    'post',
+  )
+  return feedOutcome(run, account, req, done, started, uploadId)
+}
+
+/**
+ * A carousel of 2 to 10 pictures and videos, made as the app makes it: each uploaded as an item of the carousel (a
+ * video with its first frame as its cover), then configureSidecar.
+ *
+ * Not called by the driver (APP_ONLY_WRITES: Instagram ends the sign-in's session for its Share).
+ */
+export async function publishCarousel(
+  run: DriverRun,
+  account: DriverAccount,
+  req: PublishRequest,
+): Promise<PublishOutcome> {
+  refuseSchedule(req)
+  const files = req.files.filter((f) => f.kind === 'image' || f.kind === 'video')
+  if (files.length < 2) throw new ConnectorUnsupported('placement', 'A carousel has at least 2 items')
+  if (files.length > 10) throw new ConnectorUnsupported('placement', 'A carousel has at most 10 items')
+  warnFeed(run, req, 'post')
+  const next = uploadIds()
+  const started = Date.now()
+  const caption = req.caption.slice(0, 2200)
 
   // A carousel: its own id is its items' upload session.
   const sidecarId = next()
