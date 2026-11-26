@@ -291,8 +291,9 @@ and in `editPost` / `publishCarousel`, tested, as they were learned.
   while the post has it or Greenlit's post says "made with AI" (so an edit never clears it), and a label Instagram
   set some other way (not `SELF_DISCLOSURE_FLOW`), or a post not among the account's latest 50, is refused with
   the reason. The comments switch is not sent once a post is up. Tested for real (26 Nov 2026): a carousel's
-  caption got one character added from Greenlit, then its original text back; the grid read showed each, and the
-  sign-in stayed connected (web reads, the app-style sound search and the account check all fine afterwards).
+  caption, and a reel's with a place, each got one character added from Greenlit, then their original text back;
+  the grid read showed each step, the reel kept its place, and the sign-in stayed connected (web reads, the
+  app-style sound search and the account check all fine afterwards).
 - **The app's Edit is not sent** since 26 Nov 2026: it ends the sign-in's session (see "Two of the app's requests
   are not sent" above). What was learned, in `editPost`: the app's Edit on its own post is `media/<id>/edit_media/` (`editMedia`,
   recorded with the send held on a cached copy of a deleted test post, so nothing was changed). It carries the new
