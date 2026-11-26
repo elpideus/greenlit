@@ -184,7 +184,10 @@
           "mediaType=media_type",
           "image=image_versions2.candidates[0].url",
           "likes=like_count",
-          "comments=comment_count"
+          "comments=comment_count",
+          "items=carousel_media[*].id",
+          "place=location.pk",
+          "aiMethod=ai_label_info.gen_ai_detection_method"
         ]
       }
     },
@@ -2616,6 +2619,112 @@
         "pick": ["status", "message"]
       },
       "secFetch": false
+    },
+    {
+      "name": "editMediaWeb",
+      "description": "Changes a carousel's caption as instagram.com's own Edit does (recorded 26 Nov 2026 in the sign-in's own browser, the send aborted): POST www.instagram.com/api/v1/media/<pk>/edit_media/ with a JSON body: the new caption, no co-author changes, no tag changes on any of its items (children_usertags: each item's id, as the grid names them, with an empty change), the page's form token (fb_dtsg, looked up in instagram.com's own page as the profile reads do) and jazoest (made from it). A web request with the web sign-in's cookies and CSRF token, as the page sends it; the app's editMedia ends this session. Recorded on a carousel with no place and no AI label: a single picture, a reel, or a post with a place or a label may send more and is not learned yet. Left out: x-ig-www-claim, x-web-session-id and the browser's client hints.",
+      "readOnly": false,
+      "learnedLoggedIn": true,
+      "request": {
+        "method": "POST",
+        "url": "https://www.instagram.com/api/v1/media/x/edit_media/",
+        "headers": {
+          "accept": "*/*",
+          "content-type": "application/json",
+          "origin": "https://www.instagram.com",
+          "referer": "https://www.instagram.com/p/x/",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "x-asbd-id": "359341",
+          "x-ig-app-id": "936619743392459",
+          "x-ig-max-touch-points": "0",
+          "x-instagram-ajax": "1056347016",
+          "x-requested-with": "XMLHttpRequest"
+        },
+        "body": "{\"caption_text\":\"x\",\"coauthor_invites\":\"{\\\"added\\\":[],\\\"in\\\":[],\\\"removed\\\":[]}\",\"children_usertags\":\"{}\",\"jazoest\":\"0\",\"fb_dtsg\":\"x\"}"
+      },
+      "slots": [
+        {
+          "param": "pk",
+          "at": ["path:3"]
+        },
+        {
+          "param": "code",
+          "at": ["header:referer"],
+          "template": "https://www.instagram.com/p/{code}/"
+        },
+        {
+          "ref": "cookie:csrftoken",
+          "at": ["header:x-csrftoken"]
+        },
+        {
+          "param": "caption",
+          "at": ["body", "json:/caption_text"]
+        },
+        {
+          "param": "childrenUsertags",
+          "at": ["body", "json:/children_usertags"]
+        },
+        {
+          "at": ["body", "json:/fb_dtsg"],
+          "from": {
+            "request": {
+              "method": "GET",
+              "url": "https://www.instagram.com/",
+              "headers": {
+                "accept": "text/html",
+                "sec-fetch-site": "none",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-dest": "document"
+              }
+            },
+            "response": {
+              "format": "embedded",
+              "embedded": {
+                "regex": "\"DTSGInitialData\",\\[\\],(\\{)"
+              }
+            }
+          },
+          "path": "token"
+        },
+        {
+          "gen": "jazoest",
+          "of": ["body", "json:/fb_dtsg"],
+          "at": ["body", "json:/jazoest"]
+        }
+      ],
+      "params": [
+        {
+          "name": "pk",
+          "pattern": "^\\d{4,25}$",
+          "description": "The post's own id (its pk, without the account's id)"
+        },
+        {
+          "name": "code",
+          "pattern": "^[A-Za-z0-9_-]{5,40}$",
+          "description": "The post's short code, as in its address (instagram.com/p/<code>/)"
+        },
+        {
+          "name": "caption"
+        },
+        {
+          "name": "childrenUsertags",
+          "description": "Each item's id (<pk>_<account id>, as the grid names them) with an empty change, as the page writes it: a JSON object as a string, each value the string {\"added\":[],\"in\":[],\"removed\":[]}"
+        }
+      ],
+      "trigger": {
+        "url": "https://www.instagram.com/"
+      },
+      "match": {
+        "method": "POST",
+        "host": "www.instagram.com",
+        "path": "/api/v1/media/"
+      },
+      "response": {
+        "format": "json",
+        "pick": ["status", "message"]
+      }
     },
     {
       "name": "configureStoryVideoWithSound",

@@ -29,6 +29,11 @@ so this fork adds, at tier 1 only:
   the template lacks is added (a number param as a varint, anything else as bytes). `response.format:
   "protobuf"` reads an answer as JSON keyed by field number (`protobufJson`, also exported for dry
   runs). For apps that speak protobuf (YouTube's Android app).
+- **Meta's jazoest** — a slot `{ gen: "jazoest", of: [<the form token's leaf>], at: [...] }` writes
+  "2" and the sum of the token's character codes, read from the request as it stands (after a lookup
+  filled the token), as Meta's pages send it beside `fb_dtsg` (instagram.com's Edit, Nov 2026).
+- **judge** is exported beside `classify`, so a site spec's tests can read an answer as a call would
+  (extract and pick).
 
 Operations using any of these never go above tier 1, and shared specs (pulled or published)
 may not use them. Everything else is upstream's code. Changes are marked `greenlit fork:`.

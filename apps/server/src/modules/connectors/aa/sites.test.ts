@@ -1,7 +1,7 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { localOnly, parseSite, plan, saveSite } from 'api-anything'
+import { judge, localOnly, parseSite, plan, saveSite } from 'api-anything'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const dir = join(import.meta.dirname, 'sites')
@@ -601,6 +601,96 @@ describe('Instagram reel requests', () => {
         .slice(10),
     )
     expect(none.gen_ai_detection_method).toBe('NONE')
+  })
+
+  it('instagram.com’s own Edit: a web request by the post’s pk, its JSON body as the page sends it', () => {
+    const items = '{"4040123456789000001_31000000001":"{\\"added\\":[],\\"in\\":[],\\"removed\\":[]}"}'
+    const r = plan('ig-plan-test', 'editMediaWeb', {
+      pk: '4040123456789012345',
+      code: 'DCa1xyz',
+      caption: 'Nuovo testo',
+      childrenUsertags: items,
+    }).request
+    expect(r.method).toBe('POST')
+    expect(r.url).toBe('https://www.instagram.com/api/v1/media/4040123456789012345/edit_media/')
+    expect(r.headers).toMatchObject({
+      'content-type': 'application/json',
+      origin: 'https://www.instagram.com',
+      referer: 'https://www.instagram.com/p/DCa1xyz/',
+      'x-ig-app-id': '936619743392459',
+      'x-requested-with': 'XMLHttpRequest',
+      'sec-fetch-site': 'same-origin',
+    })
+    // the web sign-in as the page uses it: no app authorization, no app user agent
+    expect(r.headers).not.toHaveProperty('authorization')
+    expect(r.headers['user-agent'] ?? '').not.toMatch(/Instagram \d/)
+    const j = JSON.parse(r.body!)
+    expect(Object.keys(j)).toEqual([
+      'caption_text',
+      'coauthor_invites',
+      'children_usertags',
+      'jazoest',
+      'fb_dtsg',
+    ])
+    expect(j).toMatchObject({
+      caption_text: 'Nuovo testo',
+      coauthor_invites: '{"added":[],"in":[],"removed":[]}',
+      children_usertags: items,
+    })
+    // jazoest is made from the form token the request holds ("x" in a plan; the page's token when sent)
+    expect(j.jazoest).toBe(`2${'x'.charCodeAt(0)}`)
+    const op = parseSite({ ...spec, name: 'ig-web' }).operations.find((o) => o.name === 'editMediaWeb')!
+    expect(op.slots.find((s) => s.at.join() === 'body,json:/fb_dtsg')?.from?.request.url).toBe(
+      'https://www.instagram.com/',
+    )
+    expect(op.secFetch).toBeUndefined()
+    expect(op.cookies).toBeUndefined()
+  })
+
+  it('the grid names a carousel’s items, a post’s place and its AI label', () => {
+    const op = parseSite({ ...spec, name: 'ig-grid' }).operations.find((o) => o.name === 'posts')!
+    const node = (n: object) => ({
+      node: { caption: { text: 'x' }, ai_label_info: { gen_ai_detection_method: 'NONE' }, ...n },
+    })
+    const answer = {
+      data: {
+        xdt_api__v1__feed__user_timeline_graphql_connection: {
+          edges: [
+            node({
+              id: '4040123456789012345_31000000001',
+              code: 'DCa1xyz',
+              media_type: 8,
+              location: null,
+              carousel_media: [
+                { id: '4040123456789000001_31000000001' },
+                { id: '4040123456789000002_31000000001' },
+              ],
+            }),
+            node({
+              id: '4040123456789012346_31000000001',
+              code: 'DPh1xyz',
+              media_type: 1,
+              location: { pk: 238580062 },
+            }),
+          ],
+        },
+      },
+    }
+    const got = judge(op, {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(answer),
+    })
+    expect(got.data).toEqual([
+      expect.objectContaining({
+        code: 'DCa1xyz',
+        items: ['4040123456789000001_31000000001', '4040123456789000002_31000000001'],
+        aiMethod: 'NONE',
+      }),
+      expect.objectContaining({ code: 'DPh1xyz', place: 238580062, aiMethod: 'NONE' }),
+    ])
+    expect((got.data as object[])[0]).not.toHaveProperty('place')
+    expect((got.data as object[])[1]).not.toHaveProperty('items')
   })
 
   it('comments are turned off or on by the post’s address; an edit and a reel name their place', () => {

@@ -107,7 +107,12 @@ export const SlotSchema = SlotFields.extend({
    * a value the page makes for each request (an idempotency key from crypto.randomUUID()): a new one
    * per call, the same on that call's retries, derived from the caller's idempotency key when given
    */
-  gen: z.enum(["uuid", "sapisidhash", "igt"]).optional(),
+  gen: z.enum(["uuid", "sapisidhash", "igt", "jazoest"]).optional(),
+  /**
+   * greenlit fork: with gen "jazoest", the leaf holding the form token it is made from (Meta's pages send `jazoest`,
+   * "2" and the sum of the token's character codes, beside `fb_dtsg`)
+   */
+  of: z.array(Step).min(1).optional(),
   /** a value an earlier request looks up (a slug's id): sent first at tiers 1 and 2, its answer read at `path` */
   from: LookupSchema.optional(),
   /** with `from`: where the lookup's JSON answer holds the value (`product.id`) */
@@ -118,6 +123,7 @@ export const SlotSchema = SlotFields.extend({
     "a slot needs exactly one of param, ref or gen, or from for a derived slot",
   )
   .refine((s) => s.gen === undefined || s.template === undefined, "a gen slot fills its whole leaf: no template")
+  .refine((s) => (s.gen === "jazoest") === (s.of !== undefined), "a jazoest slot, and only one, names the token it is made of")
   .refine((s) => (s.from === undefined) === (s.path === undefined), "a derived slot has both from and path")
   .refine(
     (s) => s.from === undefined || (s.template === undefined && s.transform === undefined && s.escape === undefined),

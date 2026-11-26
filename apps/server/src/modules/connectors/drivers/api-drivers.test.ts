@@ -2063,18 +2063,91 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
     expect(picture.warnings.join(' ')).toMatch(/a picture of your own is not set/)
   })
 
-  it('refuses to change a published post, sending nothing: the app’s Edit ends the sign-in’s session', async () => {
+  describe('a published post’s caption, as instagram.com’s own Edit changes it', () => {
     const mediaId = '4040123456789012345_31000000001'
-    const ed = igRun({ editMedia: () => ({ status: 'ok' }), disableComments: () => ({ status: 'ok' }) })
-    const refused = instagramApi.update(ed.run, account, mediaId, {
-      caption: 'Nuovo testo',
-      options: { allowComments: false },
+    const items = ['4040123456789000001_31000000001', '4040123456789000002_31000000001']
+    const carousel = {
+      id: mediaId,
+      code: 'DCa1xyz',
+      text: 'Vecchio testo',
+      kind: 'carousel_container',
+      mediaType: 8,
+      items,
+      aiMethod: 'NONE',
+    }
+    const grid = (...posts: object[]) => ({
+      posts: () => [{ id: '4040000000000000009_31000000001', code: 'DOther1', text: 'x' }, ...posts],
+      editMediaWeb: () => ({ status: 'ok' }),
+      editMedia: () => ({ status: 'ok' }),
     })
-    await expect(refused).rejects.toThrow(APP_ONLY_WRITES.editMedia)
-    // the post keeps its new text in Greenlit and says why: never retried
-    await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
-    expect(ed.calls).toEqual([])
-    expect(instagramApi.capabilities('instagram').editAfterPublish).toBe(false)
+
+    it('a carousel: read from the grid, then the web Edit with its code, the caption and each item untouched', async () => {
+      const ed = igRun(grid(carousel))
+      await instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo', options: {} })
+      expect(ed.calls.map((c) => c.op)).toEqual(['posts', 'editMediaWeb'])
+      expect(ed.calls[0]!.args).toEqual({ username: 'acme_studio', count: 50 })
+      const sent = ed.calls[1]!
+      expect(sent.args).toMatchObject({ pk: '4040123456789012345', code: 'DCa1xyz', caption: 'Nuovo testo' })
+      expect(JSON.parse(String(sent.args.childrenUsertags))).toEqual({
+        [items[0]!]: '{"added":[],"in":[],"removed":[]}',
+        [items[1]!]: '{"added":[],"in":[],"removed":[]}',
+      })
+      // the same caption twice is two edits (A, B, then A again must go out), each with its own key
+      const again = igRun(grid(carousel))
+      await instagramApi.update(again.run, account, mediaId, { caption: 'Nuovo testo' })
+      expect(again.calls[1]!.key).not.toBe(sent.key)
+      expect(instagramApi.capabilities('instagram').editAfterPublish).toBe(true)
+    })
+
+    it('never sends the app’s Edit, and nothing when Instagram already shows the caption', async () => {
+      const same = igRun(grid({ ...carousel, text: 'Nuovo  testo\n' }))
+      await instagramApi.update(same.run, account, mediaId, { caption: 'Nuovo testo' })
+      expect(same.calls.map((c) => c.op)).toEqual(['posts'])
+      const ed = igRun(grid(carousel))
+      await instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo' })
+      expect(ed.calls.map((c) => c.op)).not.toContain('editMedia')
+    })
+
+    it('refuses, with the reason and no edit sent, what instagram.com’s Edit was not recorded on', async () => {
+      const cases: [object, RegExp][] = [
+        [{ ...carousel, items: undefined, kind: 'feed', mediaType: 1 }, /a single picture or a reel/],
+        [{ ...carousel, items: undefined, kind: 'clips', mediaType: 2 }, /a single picture or a reel/],
+        [{ ...carousel, place: 238580062 }, /a post with a place/],
+        [{ ...carousel, aiMethod: 'SELF_DISCLOSURE_FLOW' }, /a post with an AI label/],
+      ]
+      for (const [post, why] of cases) {
+        const ed = igRun(grid(post))
+        const refused = instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo' })
+        await expect(refused).rejects.toThrow(why)
+        await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
+        expect(ed.calls.map((c) => c.op)).toEqual(['posts'])
+      }
+      // not among the latest 50: not edited
+      const gone = igRun(grid())
+      await expect(instagramApi.update(gone.run, account, mediaId, { caption: 'x' })).rejects.toThrow(
+        /latest 50/,
+      )
+      // another account's post, an unnamed one, and no caption: nothing read or sent
+      const none = igRun(grid(carousel))
+      await expect(
+        instagramApi.update(none.run, account, '4040123456789012345_31000000002', { caption: 'x' }),
+      ).rejects.toThrow(/another Instagram account/)
+      await expect(
+        instagramApi.update(none.run, account, 'upload:1795373844416', { caption: 'x' }),
+      ).rejects.toThrow(/did not name it/)
+      await expect(instagramApi.update(none.run, account, mediaId, { title: 'x' })).rejects.toThrow(/caption/)
+      expect(none.calls).toEqual([])
+    })
+
+    it('says so when Instagram does not take the edit', async () => {
+      const ed = igRun({
+        ...grid(carousel),
+        editMediaWeb: () => ({ status: 'fail', message: 'Try again later' }),
+      })
+      await expect(instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo' })).rejects.toThrow(
+        /did not change the caption: Try again later/,
+      )
+    })
   })
 
   it('builds the app’s Edit (not sent): the caption, keeping its AI label; stories and unnamed posts are refused', async () => {

@@ -6,7 +6,7 @@ import { lookup } from "node:dns/promises";
 import { isIPv4, isIPv6 } from "node:net";
 import * as zlib from "node:zlib";
 import type { SendBudget } from "./budget.js";
-import { asText, fillSlotTemplate, removeAt, setAt, templateRefs, walk } from "./codec.js";
+import { asText, fillSlotTemplate, getAt, removeAt, setAt, templateRefs, walk } from "./codec.js";
 import { matches } from "./learn.js";
 import { appFetch, CleartextRefused, refuseCleartext, siteFetch } from "./proxy.js";
 import { cookieHeaderFor, cookieValue, insecureSet, parseSetCookie, type Session } from "./session.js";
@@ -409,6 +409,16 @@ export function igtHeader(session: Session, req: Request): string | undefined {
   return `Bearer IGT:2:${Buffer.from(JSON.stringify({ ds_user_id: uid, sessionid })).toString("base64")}`;
 }
 
+/**
+ * greenlit fork: the `jazoest` Meta's pages send beside their form token (fb_dtsg): "2" and the sum of the token's
+ * character codes (an Instagram web Edit, Nov 2026, sent 26378 for its token: the same sum).
+ */
+export function jazoest(token: string): string {
+  let sum = 0;
+  for (const ch of token) sum += ch.charCodeAt(0);
+  return `2${sum}`;
+}
+
 function generated(seed: string | undefined, at: string[]): string {
   if (seed === undefined) return randomUUID();
   const b = createHash("sha256")
@@ -497,6 +507,12 @@ export function buildRequest(op: Operation, args: Record<string, unknown>, sessi
     if (slot.gen === "igt") {
       const h = igtHeader(session, req);
       if (h) req = setAt(req, slot.at, h);
+      continue;
+    }
+    // greenlit fork: Meta's jazoest, made from the form token as it stands in this request (a lookup filled it)
+    if (slot.gen === "jazoest") {
+      const token = getAt(req, slot.of!);
+      req = setAt(req, slot.at, jazoest(typeof token === "string" ? token : ""));
       continue;
     }
     if (slot.gen) {

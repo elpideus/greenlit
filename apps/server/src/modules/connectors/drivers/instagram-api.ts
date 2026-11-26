@@ -46,8 +46,8 @@ const capabilities = {
   // A place from Instagram's own search: in feed posts' and reels' Share, as a story's location sticker.
   location: true,
   firstComment: true,
-  // Not sent: Instagram ends the sign-in's session for the app's Edit (APP_ONLY_WRITES).
-  editAfterPublish: false,
+  // A carousel's caption, as instagram.com's own Edit changes it (editCaption); other posts are refused with a reason.
+  editAfterPublish: true,
   // A cover that is a frame of the video (reels); a picture of its own is not set.
   thumbnail: true,
   sync: true,
@@ -61,7 +61,8 @@ const capabilities = {
  * request logged out). They worked that way until 22 Nov 2026; every one sent since has ended the session: the 4
  * carousels of 25 Nov (without the session's cookies) and the caption edit of 26 Nov (with them), so the cookies are
  * not what decides it. The app's requests that carry the sec-fetch headers (sound search, uploads) keep the session.
- * The requests are kept as learned (`editPost`, `publishCarousel`); the driver refuses before anything is sent.
+ * The requests are kept as learned (`editPost`, `publishCarousel`); the driver refuses before anything is sent. A
+ * caption is changed instead as instagram.com's own Edit does it (`editCaption`).
  */
 export const APP_ONLY_WRITES = {
   editMedia:
@@ -99,6 +100,12 @@ interface GridPost {
   image?: string
   likes?: number
   comments?: number
+  /** A carousel's items, each `<pk>_<account id>` */
+  items?: string[]
+  /** The place's id, when the post has one */
+  place?: string | number
+  /** The post's AI label: NONE, or how it was set */
+  aiMethod?: string
 }
 
 /** A sound as the app's sound search answers (musicSearch). */
@@ -268,11 +275,7 @@ export const instagramApi: Driver = {
 
   /** The latest posts of the account's grid, read back for the sync. */
   async list(run, account, opts) {
-    let username = account.platformIds.username
-    if (!username) {
-      const u = await api(run).call<User>('profile', { userId: account.externalId }, { maxTier: 1 })
-      username = u?.username
-    }
+    const username = await usernameOf(run, account)
     if (!username) return []
     const posts = (await api(run).call<GridPost[]>('posts', { username, count: 24 }, { maxTier: 1 })) ?? []
     const since = opts.since ? opts.since.getTime() / 1000 : 0
@@ -307,9 +310,15 @@ export const instagramApi: Driver = {
       : publishFeed(run, account, req))
     return commentOn(run, req, out)
   },
-  /** A published post is not changed from Greenlit: the app's Edit ends the sign-in's session (APP_ONLY_WRITES). */
-  async update() {
-    throw new ConnectorUnsupported('update', APP_ONLY_WRITES.editMedia)
+  /** A published post's caption, as instagram.com's own Edit changes it (editCaption; not the app's, APP_ONLY_WRITES). */
+  async update(run, account, remoteId, patch) {
+    if (!MEDIA_ID.test(remoteId))
+      throw new ConnectorUnsupported('update', 'Greenlit cannot edit this post: Instagram did not name it')
+    if (!remoteId.endsWith(`_${account.externalId}`))
+      throw new Error('This post belongs to another Instagram account')
+    if (patch.caption === undefined)
+      throw new ConnectorUnsupported('update', 'Instagram posts are edited here by their caption')
+    await editCaption(run, account, remoteId, patch.caption)
   },
   /** Deletes a post as the app's Delete does: it goes to Recently deleted, where it can be restored for 30 days. */
   async remove(run, account, remoteId) {
@@ -754,6 +763,66 @@ async function feedOutcome(
     url: post?.code ? `https://www.instagram.com/p/${post.code}/` : null,
     state: 'published',
   }
+}
+
+/** No change to a carousel item's people tags, as instagram.com's Edit writes it for each item. */
+const NO_TAG_CHANGE = '{"added":[],"in":[],"removed":[]}'
+
+/** Why a post is not edited from Greenlit: instagram.com's Edit was recorded on a carousel with no place or label. */
+const notLearned = (what: string) =>
+  `Greenlit has not learned instagram.com’s Edit for ${what} yet, so it does not send it: change the caption in the Instagram app`
+
+/**
+ * Changes a post's caption as instagram.com's own Edit does (editMediaWeb: a web request with the web sign-in, as
+ * the page sends it; the app's Edit ends this session, APP_ONLY_WRITES). The post is read from the grid first: its
+ * code, its items, its place and AI label. Only what was recorded is sent: a carousel with no place and no AI label
+ * (a single picture, a reel, a place or a label may change the request and are refused with a reason). A caption
+ * Instagram already shows is not sent again (Instagram refuses an edit that repeats it).
+ */
+export async function editCaption(run: DriverRun, account: DriverAccount, remoteId: string, text: string) {
+  const caption = text.slice(0, 2200)
+  const username = await usernameOf(run, account)
+  const grid = username
+    ? ((await api(run).call<GridPost[]>('posts', { username, count: 50 }, { maxTier: 1 })) ?? [])
+    : []
+  const post = grid.find((p) => p.id === remoteId)
+  if (!post?.code)
+    throw new ConnectorUnsupported(
+      'update',
+      'Greenlit did not find this post among the account’s latest 50 on Instagram, so it does not edit it: change the caption in the Instagram app',
+    )
+  const same = (a: string) => a.replace(/\s+/g, ' ').trim()
+  if (same(post.text ?? '') === same(caption)) {
+    run.step('Instagram already shows this caption')
+    return
+  }
+  if (!post.items?.length) throw new ConnectorUnsupported('update', notLearned('a single picture or a reel'))
+  if (post.place !== undefined && post.place !== null)
+    throw new ConnectorUnsupported('update', notLearned('a post with a place'))
+  if (post.aiMethod && post.aiMethod !== 'NONE')
+    throw new ConnectorUnsupported('update', notLearned('a post with an AI label'))
+  const r = await api(run).call<{ status?: string; message?: string }>(
+    'editMediaWeb',
+    {
+      pk: remoteId.split('_')[0],
+      code: post.code,
+      caption,
+      childrenUsertags: JSON.stringify(Object.fromEntries(post.items.map((id) => [id, NO_TAG_CHANGE]))),
+    },
+    // One key per edit, as editPost: editing A, then B, then back to A must send A again.
+    { write: true, maxTier: 1, key: `ig-web-edit:${remoteId}:${randomUUID()}` },
+  )
+  if (r?.status !== 'ok')
+    throw new Error(`Instagram did not change the caption${r?.message ? `: ${r.message}` : ''}`)
+  run.step('Caption changed')
+}
+
+/** The account's username, for its grid: kept with the account, else read from its profile. */
+async function usernameOf(run: DriverRun, account: DriverAccount): Promise<string | undefined> {
+  const kept = account.platformIds.username
+  if (kept) return kept
+  const u = await api(run).call<User>('profile', { userId: account.externalId }, { maxTier: 1 })
+  return u?.username
 }
 
 /**

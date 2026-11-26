@@ -2,7 +2,8 @@
 
 export { type BatchItem, type BatchOptions, type BatchResult, callReads } from "./batch.js";
 export { browserAvailable, browserChoice, closeBrowser } from "./browser.js";
-export { classify } from "./classify.js";
+// greenlit fork: judge (the picked data of an answer) for the site specs’ tests
+export { classify, judge } from "./classify.js";
 export { describeOperation, type OperationDescription } from "./describe.js";
 export {
   type CallOptions,

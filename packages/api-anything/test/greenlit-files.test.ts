@@ -394,6 +394,40 @@ test("instagram: a prefix: step reaches JSON behind SIGNATURE., and gen igt send
   assert.equal(JSON.parse(j.clips_audio_metadata).song.volume_level, 0.4);
 });
 
+// greenlit fork: Meta's jazoest, made from the form token the request holds (a JSON body, as instagram.com's Edit).
+test("gen jazoest: 2 and the sum of the token's character codes, read where `of` says; `of` goes with it", async () => {
+  const { jazoest } = await import("../src/http.js");
+  assert.equal(jazoest("abc"), "2294");
+  assert.equal(jazoest(""), "20");
+  const op = OperationSchema.parse({
+    name: "editWeb",
+    request: {
+      method: "POST",
+      url: "https://www.instagram.com/api/v1/media/1/edit_media/",
+      headers: { "content-type": "application/json" },
+      body: '{"caption_text":"x","jazoest":"0","fb_dtsg":"NAtoken:1:2"}',
+    },
+    slots: [
+      { param: "caption", at: ["body", "json:/caption_text"] },
+      { gen: "jazoest", of: ["body", "json:/fb_dtsg"], at: ["body", "json:/jazoest"] },
+    ],
+    params: [{ name: "caption" }],
+    response: { format: "json" },
+    trigger: { url: "https://www.instagram.com/" },
+    readOnly: false,
+  });
+  const { seen, fetchImpl } = capture(() => new Response('{"status":"ok"}', { status: 200, headers: { "content-type": "application/json" } }));
+  await send(op, { caption: "Trullo" }, { cookies: [], values: {} }, { site: "ig-web-test", fetchImpl, minIntervalMs: 0 });
+  const body = JSON.parse(String(seen[0]!.body));
+  assert.equal(body.caption_text, "Trullo");
+  assert.equal(body.jazoest, jazoest("NAtoken:1:2"));
+  // a jazoest slot needs the token's leaf, and only it takes one
+  const parses = (slot: object) =>
+    OperationSchema.safeParse({ ...op, slots: [slot] }).success;
+  assert.equal(parses({ gen: "jazoest", at: ["body", "json:/jazoest"] }), false);
+  assert.equal(parses({ gen: "uuid", of: ["body", "json:/fb_dtsg"], at: ["body", "json:/jazoest"] }), false);
+});
+
 // greenlit fork: a field sent only when it applies (Instagram's AI label), left out when its value is empty.
 test("omitEmpty: an empty value leaves the JSON member out; a value writes it", async () => {
   const { withoutMember } = await import("../src/codec.js");

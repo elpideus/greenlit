@@ -237,8 +237,8 @@ now ends the instagram.com sign-in's session (403 `login_required`, `logout_reas
 out, `logout_reason` 8). Both worked that way on 22 Nov 2026; every one sent since ended the session: the 4
 carousels of 25 Nov (sent without the cookies) and a caption edit on 26 Nov (sent with them, `secFetch: false`).
 The requests that carry the `sec-fetch-*` headers (the sound search, the uploads) keep the session. So Greenlit
-refuses a carousel before uploading anything and does not change a published post (`editAfterPublish` is off):
-the post says to share the carousel, or change the caption, in the Instagram app. The requests stay in the spec
+refuses a carousel before uploading anything (the post says to share it in the Instagram app), and changes a
+caption the way instagram.com itself does instead (`editMediaWeb`, below). The app's requests stay in the spec
 and in `editPost` / `publishCarousel`, tested, as they were learned.
 
 - `musicSearch` is the reel audio picker's search (`music/search_v2`): each sound has two ids (its asset and its
@@ -276,10 +276,20 @@ and in `editPost` / `publishCarousel`, tested, as they were learned.
 - A **paid partnership** label is not offered by the app on this account (neither on the Share screen nor in More
   options: it needs "branded content tools" turned on in the account's settings, which Greenlit does not change),
   so there is no request to learn; Greenlit says it was left out.
-- **Editing a post** (the caption) is **not sent** since 26 Nov 2026: it ends the sign-in's session (see "Two of
-  the app's requests are not sent" above). Changing a published post's text in Greenlit keeps it in Greenlit, and
-  the post says to change the caption in the Instagram app. What was learned, in `editPost`: the app's Edit on its
-  own post is `media/<id>/edit_media/` (`editMedia`,
+- **Editing a post's caption** goes the way instagram.com's own Edit does (`editMediaWeb`, `editCaption` in the
+  driver): a web request with the web sign-in's cookies and CSRF token, not the app's. Recorded 26 Nov 2026 in the
+  sign-in's own browser profile (not a copy), with every write after "Done" aborted, so nothing changed:
+  `POST www.instagram.com/api/v1/media/<pk>/edit_media/` (the pk alone), a JSON body with `caption_text`,
+  `coauthor_invites` (no change), `children_usertags` (each carousel item's `<pk>_<account id>` with no tag
+  change), the page's form token `fb_dtsg` (looked up in instagram.com's page, as the profile reads do) and
+  `jazoest` (made from the token: "2" and the sum of its character codes, API Anything's `gen: jazoest`).
+  Before it, the driver reads the post from the grid (`posts`, which now picks a carousel's `items`, a post's
+  `place` and its `aiMethod`): a caption Instagram already shows is not sent again. Only what was recorded is
+  sent, a carousel with no place and no AI label; a single picture, a reel, a post with a place or with an AI
+  label is refused with the reason (its Edit may carry more), and so is a post not among the account's latest 50.
+  The comments switch is not sent once a post is up. Not tested for real yet.
+- **The app's Edit is not sent** since 26 Nov 2026: it ends the sign-in's session (see "Two of the app's requests
+  are not sent" above). What was learned, in `editPost`: the app's Edit on its own post is `media/<id>/edit_media/` (`editMedia`,
   recorded with the send held on a cached copy of a deleted test post, so nothing was changed). It carries the new
   `caption_text` and names the post's AI label as it is (`gen_ai_detection_method`: `NONE`, or the label while it
   is on), so an edit does not clear the label: Greenlit gave it the post's "made with AI" option. Only the
