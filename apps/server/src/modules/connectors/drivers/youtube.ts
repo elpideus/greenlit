@@ -906,45 +906,66 @@ async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
   if (!unset.test(await shown())) return
   const italian = new Intl.DisplayNames(['it'], { type: 'language' }).of(lang) ?? lang
   const english = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang
-  // "Imposta come predefinita per il mio canale" (ticked at first) is unticked before the language is chosen: when
-  // the robot chose the language first and unticked it afterwards, the form was soon back as it came, language unset,
-  // box ticked and Conferma off (26 Nov 2026).
+  // "Imposta come predefinita per il mio canale" (ticked at first) is unticked, so the channel's default stays as it
+  // is. The box's inner element (role=checkbox) sits under its container, which takes the click (26 Nov 2026, a
+  // look at the real page: a click on the inner one never landed): the box's own element is clicked.
   const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
   const ticked = async () =>
     (await asDefault.getAttribute('aria-checked', { timeout: 2000 }).catch(() => null)) === 'true'
   if (await ticked()) {
-    await asDefault.click({ timeout: 5000 }).catch(() => {})
+    const host = page.locator('ytcp-checkbox-lit').filter({ has: asDefault }).first()
+    const why = await ((await host.count()) ? host : asDefault).click({ timeout: 5000 }).then(
+      () => '',
+      (err: Error) => `: ${err.message.split('\n')[0]}`,
+    )
     await sleep(500)
     if (await ticked())
-      run.warn("The video's language may become the channel's default: the box did not untick")
+      run.warn(`The video's language may become the channel's default: the box did not untick${why}`)
   }
-  await trigger.click()
   // The list ("Lingua del video") has every language (238 on 26 Nov 2026, Italian names), each item carrying its code
-  // as `test-id` ("it"); by name when it has none.
+  // as `test-id` ("it"); by name when it has none. A click right after the list opens or scrolls does not choose
+  // (the same look: it took once the list had settled), so the list is given a moment, and a second try.
   const list = page
     .locator('tp-yt-paper-listbox[role=listbox]')
     .filter({ has: page.locator('tp-yt-paper-item') })
-  await list.first().waitFor({ state: 'visible', timeout: 10_000 })
-  const items = list.first().locator('tp-yt-paper-item[role=option]')
-  const byCode = list.first().locator(`tp-yt-paper-item[test-id="${lang}"]`).first()
-  let item = byCode
-  if (!(await byCode.count())) {
-    const at = await items.evaluateAll(
-      (els, names) =>
-        els.findIndex((e) => {
-          // biome-ignore lint/performance/useDomNodeTextContent: the item's lines as shown; its first is the name
-          const first = ((e as HTMLElement).innerText || '').split('\n')[0]!.trim().toLowerCase()
-          return names.includes(first)
-        }),
-      [italian.toLowerCase(), english.toLowerCase()],
-    )
-    if (at < 0) throw new Error(`${english} is not in YouTube's language list`)
-    item = items.nth(at)
+  const open = async () => {
+    await trigger.click()
+    await list.first().waitFor({ state: 'visible', timeout: 10_000 })
+    await sleep(700)
   }
-  await item.scrollIntoViewIfNeeded()
-  await item.click()
-  await sleep(800)
-  if (unset.test(await shown())) throw new Error(`YouTube did not take ${english} as the video's language`)
+  for (let attempt = 0; attempt < 3 && unset.test(await shown()); attempt++) {
+    if (
+      !(await list
+        .first()
+        .isVisible()
+        .catch(() => false))
+    )
+      await open()
+    const items = list.first().locator('tp-yt-paper-item[role=option]')
+    const byCode = list.first().locator(`tp-yt-paper-item[test-id="${lang}"]`).first()
+    let item = byCode
+    if (!(await byCode.count())) {
+      const at = await items.evaluateAll(
+        (els, names) =>
+          els.findIndex((e) => {
+            // biome-ignore lint/performance/useDomNodeTextContent: the item's lines as shown; its first is the name
+            const first = ((e as HTMLElement).innerText || '').split('\n')[0]!.trim().toLowerCase()
+            return names.includes(first)
+          }),
+        [italian.toLowerCase(), english.toLowerCase()],
+      )
+      if (at < 0) throw new Error(`${english} is not in YouTube's language list`)
+      item = items.nth(at)
+    }
+    await item.scrollIntoViewIfNeeded()
+    await sleep(500)
+    await item.click()
+    await sleep(1000)
+  }
+  if (unset.test(await shown())) {
+    await run.snapshot(page, 'language-not-taken')
+    throw new Error(`YouTube did not take ${english} as the video's language`)
+  }
   const confirm = await firstVisible(
     [
       page.locator('ytcp-button#confirm-button'),

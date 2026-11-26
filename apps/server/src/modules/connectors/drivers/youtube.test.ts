@@ -136,11 +136,15 @@ $('#save').onclick = (e) => {
  * page): drawn a moment after it loads, "Lingua del video: Imposta lingua" (`ytcp-form-language-input#language-input`),
  * the ticked "Imposta come predefinita per il mio canale" box (`div#checkbox`) and Conferma (`ytcp-button#confirm-button`,
  * off until a language is chosen). The list is a menu dialog of 238 items with Italian names, each with its code as
- * `test-id`. Changing the box after a language was chosen leaves the form as it came (what the failed run showed).
- * Then Add language, a row per language and its dialog.
+ * `test-id`. What a second look (clicks, no Conferma) showed: the box's inner element sits under its container, which
+ * takes the click (the box's own element unticks it), and a click on an item right after the list opened does not
+ * choose. Then Add language, a row per language and its dialog.
  */
 const languagesPage = `<!doctype html><html><head><meta charset="utf-8"><style>
 tp-yt-paper-listbox, tp-yt-paper-item, ytcp-video-translation-row, ytcp-text-menu, tp-yt-paper-dialog { display: block }
+ytcp-checkbox-lit { display: inline-block }
+#checkbox-container { position: relative; z-index: 0; display: inline-block; width: 18px; height: 18px }
+#checkbox { position: relative; z-index: -1; width: 18px; height: 18px }
 ytcp-button { display: inline-block }
 [hidden] { display: none !important }
 [contenteditable] { border: 1px solid #ccc; min-height: 24px }
@@ -151,7 +155,8 @@ setTimeout(() => {
     <ytcp-form-language-input id="language-input"><ytcp-text-dropdown-trigger id="trigger" role="button">
       Lingua del video Seleziona la lingua principale parlata nel video. <span id="value">Imposta lingua</span>
     </ytcp-text-dropdown-trigger></ytcp-form-language-input>
-    <div id="checkbox" role="checkbox" aria-checked="true" aria-label="Imposta come predefinita per il mio canale">v</div>
+    <ytcp-checkbox-lit><div id="checkbox-container"><div id="checkbox" role="checkbox" aria-checked="true"
+      aria-label="Imposta come predefinita per il mio canale"></div></div> Imposta come predefinita per il mio canale</ytcp-checkbox-lit>
     <ytcp-button id="confirm-button" aria-disabled="true"><button aria-label="Conferma" disabled>Conferma</button></ytcp-button>
   </div>
   <div id="rows"></div>
@@ -174,15 +179,15 @@ setTimeout(() => {
     $('#confirm-button').setAttribute('aria-disabled', String(off))
     $('#confirm-button button').disabled = off
   }
-  $('#trigger').onclick = () => { $('#dialog').hidden = false }
+  let openedAt = 0
+  $('#trigger').onclick = () => { $('#dialog').hidden = false; openedAt = Date.now() }
   for (const item of document.querySelectorAll('#paper-list tp-yt-paper-item'))
-    item.onclick = () => { form.value = item.textContent.trim(); $('#dialog').hidden = true; draw() }
-  $('#checkbox').onclick = () => {
-    // what the failed run showed: changing the box after the language was chosen starts the form over
-    if (form.value !== 'Imposta lingua') { form.value = 'Imposta lingua'; form.asDefault = true }
-    else form.asDefault = !form.asDefault
-    draw()
-  }
+    item.onclick = () => {
+      // still opening: the click closes the list and chooses nothing
+      if (Date.now() - openedAt < 400) { $('#dialog').hidden = true; return }
+      form.value = item.textContent.trim(); $('#dialog').hidden = true; draw()
+    }
+  $('ytcp-checkbox-lit').onclick = () => { form.asDefault = !form.asDefault; draw() }
   $('#confirm-button button').onclick = () => {
     if (form.value === 'Imposta lingua') return
     window.language = { name: form.value, asDefault: form.asDefault }
