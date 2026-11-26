@@ -132,37 +132,61 @@ $('#save').onclick = (e) => {
 }
 
 /**
- * Studio's Languages page of a video with no language of its own, drawn a moment after it loads (as Studio's is):
- * "Lingua del video: Imposta lingua" with Conferma, then Add language, a row per language and its dialog.
+ * Studio's Languages page of a video with no language of its own, as seen on 26 Nov 2026 (read-only look at the real
+ * page): drawn a moment after it loads, "Lingua del video: Imposta lingua" (`ytcp-form-language-input#language-input`),
+ * the ticked "Imposta come predefinita per il mio canale" box (`div#checkbox`) and Conferma (`ytcp-button#confirm-button`,
+ * off until a language is chosen). The list is a menu dialog of 238 items with Italian names, each with its code as
+ * `test-id`. Changing the box after a language was chosen leaves the form as it came (what the failed run showed).
+ * Then Add language, a row per language and its dialog.
  */
 const languagesPage = `<!doctype html><html><head><meta charset="utf-8"><style>
-tp-yt-paper-listbox, tp-yt-paper-item, ytcp-video-translation-row { display: block }
+tp-yt-paper-listbox, tp-yt-paper-item, ytcp-video-translation-row, ytcp-text-menu, tp-yt-paper-dialog { display: block }
+ytcp-button { display: inline-block }
 [hidden] { display: none !important }
 [contenteditable] { border: 1px solid #ccc; min-height: 24px }
-</style></head><body><h1>Lingue</h1><div id="app"></div><script>
-window.calls = []
+</style></head><body><h1>Lingue</h1><main id="main"></main><script>
 setTimeout(() => {
-  app.innerHTML = \`
-  <div id="language-input"><div id="trigger" role="button">Lingua del video <span id="value">Imposta lingua</span></div></div>
-  <tp-yt-paper-listbox id="languages" role="listbox" hidden>
-    <tp-yt-paper-item role="option"><div>Inglese</div><div>English</div></tp-yt-paper-item>
-    <tp-yt-paper-item role="option"><div>Italiano</div><div>Italian</div></tp-yt-paper-item>
-  </tp-yt-paper-listbox>
-  <div id="default" role="checkbox" aria-checked="true" aria-label="Imposta come predefinita per il mio canale">v</div>
-  <button id="confirm">Conferma</button>
+  main.innerHTML = \`
+  <div id="no-language">
+    <ytcp-form-language-input id="language-input"><ytcp-text-dropdown-trigger id="trigger" role="button">
+      Lingua del video Seleziona la lingua principale parlata nel video. <span id="value">Imposta lingua</span>
+    </ytcp-text-dropdown-trigger></ytcp-form-language-input>
+    <div id="checkbox" role="checkbox" aria-checked="true" aria-label="Imposta come predefinita per il mio canale">v</div>
+    <ytcp-button id="confirm-button" aria-disabled="true"><button aria-label="Conferma" disabled>Conferma</button></ytcp-button>
+  </div>
   <div id="rows"></div>
   <button id="add-translations-button" hidden>Aggiungi lingua</button>
   <div id="add-list" role="listbox" hidden><div role="option">Inglese</div><div role="option">Francese</div></div>
-  <div role="dialog" hidden><div contenteditable="true"></div><div contenteditable="true"></div>
+  <div id="translation" role="dialog" hidden><div contenteditable="true"></div><div contenteditable="true"></div>
     <button id="publish-button">Pubblica</button></div>\`
+  document.body.insertAdjacentHTML('beforeend', \`<ytcp-text-menu><tp-yt-paper-dialog id="dialog" role="dialog" hidden>
+    <div><tp-yt-paper-listbox id="paper-list" role="listbox">
+      <tp-yt-paper-item role="option" test-id="ab">Abcaso</tp-yt-paper-item>
+      <tp-yt-paper-item role="option" test-id="en">Inglese</tp-yt-paper-item>
+      <tp-yt-paper-item role="option" test-id="it">Italiano</tp-yt-paper-item>
+    </tp-yt-paper-listbox></div></tp-yt-paper-dialog></ytcp-text-menu>\`)
   const $ = (q) => document.querySelector(q)
-  $('#trigger').onclick = () => { $('#languages').hidden = false }
-  for (const item of document.querySelectorAll('#languages tp-yt-paper-item'))
-    item.onclick = () => { $('#value').textContent = item.firstElementChild.textContent; $('#languages').hidden = true }
-  $('#default').onclick = (e) => e.target.setAttribute('aria-checked', String(e.target.getAttribute('aria-checked') !== 'true'))
-  $('#confirm').onclick = () => {
-    if ($('#value').textContent === 'Imposta lingua') return
-    window.language = { name: $('#value').textContent, asDefault: $('#default').getAttribute('aria-checked') === 'true' }
+  const form = { value: 'Imposta lingua', asDefault: true }
+  const draw = () => {
+    $('#value').textContent = form.value
+    $('#checkbox').setAttribute('aria-checked', String(form.asDefault))
+    const off = form.value === 'Imposta lingua'
+    $('#confirm-button').setAttribute('aria-disabled', String(off))
+    $('#confirm-button button').disabled = off
+  }
+  $('#trigger').onclick = () => { $('#dialog').hidden = false }
+  for (const item of document.querySelectorAll('#paper-list tp-yt-paper-item'))
+    item.onclick = () => { form.value = item.textContent.trim(); $('#dialog').hidden = true; draw() }
+  $('#checkbox').onclick = () => {
+    // what the failed run showed: changing the box after the language was chosen starts the form over
+    if (form.value !== 'Imposta lingua') { form.value = 'Imposta lingua'; form.asDefault = true }
+    else form.asDefault = !form.asDefault
+    draw()
+  }
+  $('#confirm-button button').onclick = () => {
+    if (form.value === 'Imposta lingua') return
+    window.language = { name: form.value, asDefault: form.asDefault }
+    $('#no-language').hidden = true
     $('#add-translations-button').hidden = false
   }
   $('#add-translations-button').onclick = () => { $('#add-list').hidden = false }
@@ -171,13 +195,13 @@ setTimeout(() => {
       $('#add-list').hidden = true
       const row = document.createElement('ytcp-video-translation-row')
       row.innerHTML = o.textContent + ' <div id="metadata-cell"><button>Aggiungi</button></div>'
-      row.querySelector('button').onclick = () => { $('[role=dialog]').hidden = false }
+      row.querySelector('button').onclick = () => { $('#translation').hidden = false }
       $('#rows').append(row)
     }
   $('#publish-button').onclick = () => {
-    const [t, c] = document.querySelectorAll('[role=dialog] [contenteditable]')
+    const [t, c] = document.querySelectorAll('#translation [contenteditable]')
     window.translated = { title: t.innerText.trim(), caption: c.innerText.trim() }
-    $('[role=dialog]').hidden = true
+    $('#translation').hidden = true
   }
 }, 1500)
 </script></body></html>`

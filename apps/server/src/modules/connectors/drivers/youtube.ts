@@ -906,35 +906,73 @@ async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
   if (!unset.test(await shown())) return
   const italian = new Intl.DisplayNames(['it'], { type: 'language' }).of(lang) ?? lang
   const english = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang
+  // "Imposta come predefinita per il mio canale" (ticked at first) is unticked before the language is chosen: when
+  // the robot chose the language first and unticked it afterwards, the form was soon back as it came, language unset,
+  // box ticked and Conferma off (26 Nov 2026).
+  const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
+  const ticked = async () =>
+    (await asDefault.getAttribute('aria-checked', { timeout: 2000 }).catch(() => null)) === 'true'
+  if (await ticked()) {
+    await asDefault.click({ timeout: 5000 }).catch(() => {})
+    await sleep(500)
+    if (await ticked())
+      run.warn("The video's language may become the channel's default: the box did not untick")
+  }
   await trigger.click()
-  // The list ("Lingua del video") has every language, each item showing its name twice (in the page's language
-  // and its own): the item whose first line is the name.
+  // The list ("Lingua del video") has every language (238 on 26 Nov 2026, Italian names), each item carrying its code
+  // as `test-id` ("it"); by name when it has none.
   const list = page
     .locator('tp-yt-paper-listbox[role=listbox]')
     .filter({ has: page.locator('tp-yt-paper-item') })
   await list.first().waitFor({ state: 'visible', timeout: 10_000 })
   const items = list.first().locator('tp-yt-paper-item[role=option]')
-  const at = await items.evaluateAll(
-    (els, names) =>
-      els.findIndex((e) => {
-        // biome-ignore lint/performance/useDomNodeTextContent: the item's lines as shown; its first is the name
-        const first = ((e as HTMLElement).innerText || '').split('\n')[0]!.trim().toLowerCase()
-        return names.includes(first)
-      }),
-    [italian.toLowerCase(), english.toLowerCase()],
-  )
-  if (at < 0) throw new Error(`${english} is not in YouTube's language list`)
-  await items.nth(at).scrollIntoViewIfNeeded()
-  await items.nth(at).click()
+  const byCode = list.first().locator(`tp-yt-paper-item[test-id="${lang}"]`).first()
+  let item = byCode
+  if (!(await byCode.count())) {
+    const at = await items.evaluateAll(
+      (els, names) =>
+        els.findIndex((e) => {
+          // biome-ignore lint/performance/useDomNodeTextContent: the item's lines as shown; its first is the name
+          const first = ((e as HTMLElement).innerText || '').split('\n')[0]!.trim().toLowerCase()
+          return names.includes(first)
+        }),
+      [italian.toLowerCase(), english.toLowerCase()],
+    )
+    if (at < 0) throw new Error(`${english} is not in YouTube's language list`)
+    item = items.nth(at)
+  }
+  await item.scrollIntoViewIfNeeded()
+  await item.click()
   await sleep(800)
   if (unset.test(await shown())) throw new Error(`YouTube did not take ${english} as the video's language`)
-  const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
-  if ((await asDefault.getAttribute('aria-checked').catch(() => null)) === 'true')
-    await asDefault.click().catch(() => {})
-  await clickOne(
-    [page.getByRole('button', { name: label(['Conferma', 'Confirm'], true) })],
-    'Confirm the language',
+  const confirm = await firstVisible(
+    [
+      page.locator('ytcp-button#confirm-button'),
+      page.getByRole('button', { name: label(['Conferma', 'Confirm'], true) }),
+    ],
+    5000,
   )
+  if (!confirm) throw new Error('Could not find Confirm for the language')
+  // Conferma comes on once the language is taken; a picture of the form is kept when it does not.
+  const on = await until(
+    async () =>
+      (await confirm.getAttribute('aria-disabled').catch(() => 'true')) !== 'true' &&
+      (await confirm.isEnabled().catch(() => false)),
+    'Confirm',
+    8000,
+    400,
+  ).then(
+    () => true,
+    () => false,
+  )
+  if (!on) {
+    await run.snapshot(page, 'language-not-taken')
+    const value = (await shown()).split('. ').pop() ?? ''
+    throw new Error(
+      `Confirm stayed off for the video's language (the field shows "${value}", the default box is ${(await ticked()) ? 'ticked' : 'not ticked'})`,
+    )
+  }
+  await confirm.click()
   await sleep(1500)
   run.step(`Video language: ${english}`)
 }
