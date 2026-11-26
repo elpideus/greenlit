@@ -268,9 +268,10 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
   let browser: Browser
   let dataDir: string
   beforeAll(async () => {
-    browser = await chromium.launch({ executablePath: chromiumPath, headless: true })
     dataDir = mkdtempSync(join(tmpdir(), 'greenlit-yt-'))
-  })
+    // A cold Chrome on a busy CI runner (font cache, first profile) takes longer than vitest's 10 s hook limit.
+    browser = await chromium.launch({ executablePath: chromiumPath, headless: true })
+  }, 60_000)
   afterAll(async () => {
     await browser?.close()
     rmSync(dataDir, { recursive: true, force: true })
