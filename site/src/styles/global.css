@@ -1397,12 +1397,12 @@ html.top-away .top {
 }
 
 /* ── reveal: words and blocks come out of focus ───────────────────────── */
-html.motion [data-reveal] {
+html.js [data-reveal] {
   opacity: 0;
   transform: translateY(28px);
   filter: blur(8px);
 }
-html.motion [data-reveal].in {
+html.js [data-reveal].in {
   opacity: 1;
   transform: none;
   filter: none;
@@ -1412,13 +1412,13 @@ html.motion [data-reveal].in {
     filter 0.9s var(--ease);
   transition-delay: var(--d, 0s);
 }
-html.motion .split-words .sw {
+html.js .split-words .sw {
   display: inline-block;
   opacity: 0;
   transform: translateY(0.4em);
   filter: blur(10px);
 }
-html.motion .split-words.in .sw {
+html.js .split-words.in .sw {
   opacity: 1;
   transform: none;
   filter: none;
@@ -1427,27 +1427,6 @@ html.motion .split-words.in .sw {
     transform 0.9s var(--ease),
     filter 0.7s var(--ease);
   transition-delay: calc(var(--i) * 45ms + var(--d, 0s));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.15s !important;
-    scroll-behavior: auto !important;
-  }
-  .moment {
-    height: auto;
-  }
-  .moment__pin {
-    position: relative;
-    height: 80svh;
-  }
-  .moment__field {
-    clip-path: none;
-  }
 }
 
 .contact__signal {

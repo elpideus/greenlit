@@ -11,28 +11,34 @@ const $$ = <T extends Element = HTMLElement>(s: string, r: ParentNode = document
 ]
 
 export function boot() {
-  const motion = document.documentElement.classList.contains('motion')
-  const lenis = motion ? smooth() : null
+  // every visitor gets the same motion, whatever their system's reduced-motion setting says
+  const lenis = smooth()
   header(lenis)
   reveals()
   copyButtons()
   languages()
   menu()
   film()
-  autoplay(motion)
+  autoplay()
   if (document.body.dataset.page !== 'home') return
-  hero(motion)
+  hero()
   chapters()
-  statement(motion)
+  statement()
   review()
-  moment(motion)
-  terminal(motion)
-  if (motion) stage()
+  moment()
+  terminal()
+  stage()
 }
 
 // ── smooth scroll on GSAP's clock ─────────────────────────────────────────
 function smooth() {
-  const lenis = new Lenis({ duration: 1.1, easing: (t) => 1 - (1 - t) ** 4, smoothWheel: true })
+  const lenis = new Lenis({
+    duration: 1.1,
+    easing: (t) => 1 - (1 - t) ** 4,
+    smoothWheel: true,
+    // Lenis would drop smoothing for a reduced-motion system on its own
+    respectReducedMotion: false,
+  })
   lenis.on('scroll', ScrollTrigger.update)
   gsap.ticker.add((t) => lenis.raf(t * 1000))
   gsap.ticker.lagSmoothing(0)
@@ -51,7 +57,7 @@ function smooth() {
 }
 
 // ── header: material once something is under it, steps aside on the way down ─
-function header(lenis: Lenis | null) {
+function header(lenis: Lenis) {
   const root = document.documentElement
   let last = 0
   const onScroll = (y: number) => {
@@ -61,7 +67,7 @@ function header(lenis: Lenis | null) {
       last = y
     }
   }
-  if (lenis) lenis.on('scroll', ({ scroll }: { scroll: number }) => onScroll(scroll))
+  lenis.on('scroll', ({ scroll }: { scroll: number }) => onScroll(scroll))
   // native scroll too: jumps, restores and programmatic scrolls don't always go through Lenis
   addEventListener('scroll', () => onScroll(scrollY), { passive: true })
   onScroll(scrollY)
@@ -102,7 +108,7 @@ function reveals() {
 }
 
 // ── hero: the wordmark wipes in out of focus, its lamp lights, the blocks arrive ─
-function hero(motion: boolean) {
+function hero() {
   const wm = $('.hero__wm')
   const dot = $('.hero__dot')
   const sigs = $$<SVGElement>('.comp .signal')
@@ -110,7 +116,7 @@ function hero(motion: boolean) {
     sigs[0]?.setAttribute('data-state', 'greenlit')
     sigs[2]?.setAttribute('data-state', 'review')
   }
-  if (!wm || !motion) {
+  if (!wm) {
     lightUp()
     return
   }
@@ -198,14 +204,10 @@ function chapters() {
 }
 
 // ── statement: words light one by one as you read ───────────────────────
-function statement(motion: boolean) {
+function statement() {
   const p = $('[data-statement]')
   if (!p) return
   const words = $$('.w', p)
-  if (!motion) {
-    for (const w of words) w.classList.add('on')
-    return
-  }
   ScrollTrigger.create({
     trigger: p,
     start: 'top 78%',
@@ -262,16 +264,11 @@ function review() {
 }
 
 // ── the greenlit moment: the i’s lamp lights, then floods the screen ─────
-function moment(motion: boolean) {
+function moment() {
   const sec = $('[data-moment]')
   const field = $('[data-moment-field]')
   const dot = $<SVGCircleElement>('.moment__dot')
   if (!sec || !field || !dot) return
-  if (!motion) {
-    dot.classList.add('lit')
-    dot.style.setProperty('--s', '1')
-    return
-  }
   const pin = $('.moment__pin', sec)!
   let cx = 0
   let cy = 0
@@ -307,12 +304,11 @@ function moment(motion: boolean) {
 }
 
 // ── the agent types in the terminal when it comes into view ──────────────
-function terminal(motion: boolean) {
+function terminal() {
   const t = $('[data-term]')
   if (!t) return
   const prompt = $('[data-line="prompt"] span:last-child', t)!
   const lines = $$('[data-line]:not([data-line="prompt"])', t)
-  if (!motion) return
   const full = prompt.textContent ?? ''
   prompt.textContent = ''
   for (const l of lines) l.style.opacity = '0'
@@ -350,16 +346,9 @@ function terminal(motion: boolean) {
   ).observe(t)
 }
 
-// ── videos play only while seen; reduced motion keeps the poster ─────────
-function autoplay(motion: boolean) {
+// ── videos play only while seen ──────────────────────────────────────────
+function autoplay() {
   const vids = $$<HTMLVideoElement>('video[data-autoplay]')
-  if (!motion) {
-    for (const v of vids) {
-      v.removeAttribute('autoplay')
-      v.pause()
-    }
-    return
-  }
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {

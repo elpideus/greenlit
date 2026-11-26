@@ -36,8 +36,9 @@ field, which grows as a circle from the lamp, so the light reveals the word.
   never pills.
 - **Motion**: `cubic-bezier(.16,1,.3,1)` for everything that moves, a `linear()` spring with overshoot only for lamps.
   Reveals are opacity + 28 px + blur 8 px on one curve. Lenis drives scroll on GSAP's ticker; ScrollTrigger scrubs
-  the product stage, the statement and the greenlit moment. Under `prefers-reduced-motion` there is no smooth scroll,
-  no scrub, no autoplay, and every element is visible.
+  the product stage, the statement and the greenlit moment. The site ignores `prefers-reduced-motion`: every
+  visitor gets the same motion (Windows reports reduced motion whenever "Animation effects" is off, and visitors
+  saw a still page). Without JavaScript every element is visible.
 - **Idle**: at rest the hero's signals keep cycling through states, slowly.
 
 ## Content

@@ -114,8 +114,8 @@ const graph = {
           if (alt) location.replace(new URL(alt.href).pathname + location.search + location.hash)
         } catch {}
       })()
+      // every visitor gets the same motion, whatever their system's reduced-motion setting says
       document.documentElement.classList.add('js')
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion')
     </script>
     <meta name="theme-color" content="#0c0d0c" />
     <meta name="color-scheme" content="dark" />
