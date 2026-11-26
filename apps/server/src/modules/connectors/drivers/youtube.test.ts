@@ -138,9 +138,12 @@ $('#save').onclick = (e) => {
  * off until a language is chosen). The list is a menu dialog of 238 items with Italian names, each with its code as
  * `test-id`. What a second look (clicks, no Conferma) showed: the box's inner element sits under its container, which
  * takes the click (the box's own element unticks it), and a click on an item right after the list opened does not
- * choose. Then Add language, a row per language and its dialog.
+ * choose. A live run then showed the box not unticking at the first click, right after the form appeared, and the
+ * "Aggiungi lingua" list naming languages in Italian ("Inglese"). Then a row per language and its dialog.
  */
-const languagesPage = `<!doctype html><html><head><meta charset="utf-8"><style>
+const languagesPage = (
+  opts: { boxStuck?: boolean } = {},
+) => `<!doctype html><html><head><meta charset="utf-8"><style>
 tp-yt-paper-listbox, tp-yt-paper-item, ytcp-video-translation-row, ytcp-text-menu, tp-yt-paper-dialog { display: block }
 ytcp-checkbox-lit { display: inline-block }
 #checkbox-container { position: relative; z-index: 0; display: inline-block; width: 18px; height: 18px }
@@ -161,7 +164,12 @@ setTimeout(() => {
   </div>
   <div id="rows"></div>
   <button id="add-translations-button" hidden>Aggiungi lingua</button>
-  <div id="add-list" role="listbox" hidden><div role="option">Inglese</div><div role="option">Francese</div></div>
+  <ytcp-text-menu id="add-menu"><tp-yt-paper-dialog role="dialog" hidden><div>
+    <tp-yt-paper-listbox id="add-list" role="listbox">
+      <tp-yt-paper-item role="option" test-id="ab">Abcaso</tp-yt-paper-item>
+      <tp-yt-paper-item role="option" test-id="fr">Francese</tp-yt-paper-item>
+      <tp-yt-paper-item role="option" test-id="en">Inglese</tp-yt-paper-item>
+    </tp-yt-paper-listbox></div></tp-yt-paper-dialog></ytcp-text-menu>
   <div id="translation" role="dialog" hidden><div contenteditable="true"></div><div contenteditable="true"></div>
     <button id="publish-button">Pubblica</button></div>\`
   document.body.insertAdjacentHTML('beforeend', \`<ytcp-text-menu><tp-yt-paper-dialog id="dialog" role="dialog" hidden>
@@ -187,17 +195,25 @@ setTimeout(() => {
       if (Date.now() - openedAt < 400) { $('#dialog').hidden = true; return }
       form.value = item.textContent.trim(); $('#dialog').hidden = true; draw()
     }
-  $('ytcp-checkbox-lit').onclick = () => { form.asDefault = !form.asDefault; draw() }
+  const drawnAt = Date.now()
+  $('ytcp-checkbox-lit').onclick = () => {
+    // not ready yet right after the form appears (or never, for the stuck box)
+    if (${opts.boxStuck ? 'true' : 'false'} || Date.now() - drawnAt < 1000) return
+    form.asDefault = !form.asDefault; draw()
+  }
   $('#confirm-button button').onclick = () => {
     if (form.value === 'Imposta lingua') return
     window.language = { name: form.value, asDefault: form.asDefault }
     $('#no-language').hidden = true
     $('#add-translations-button').hidden = false
   }
-  $('#add-translations-button').onclick = () => { $('#add-list').hidden = false }
+  const addDialog = $('#add-menu tp-yt-paper-dialog')
+  let addOpenedAt = 0
+  $('#add-translations-button').onclick = () => { addDialog.hidden = false; addOpenedAt = Date.now() }
   for (const o of document.querySelectorAll('#add-list [role=option]'))
     o.onclick = () => {
-      $('#add-list').hidden = true
+      addDialog.hidden = true
+      if (Date.now() - addOpenedAt < 400) return
       const row = document.createElement('ytcp-video-translation-row')
       row.innerHTML = o.textContent + ' <div id="metadata-cell"><button>Aggiungi</button></div>'
       row.querySelector('button').onclick = () => { $('#translation').hidden = false }
@@ -364,7 +380,7 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
   }, 60_000)
 
   it('sets the video’s language once its Languages page has drawn it, then adds the translation', async () => {
-    const s = await studio(studioPage({ scheduled: true }), languagesPage)
+    const s = await studio(studioPage({ scheduled: true }), languagesPage())
     try {
       await youtube.update(s.run, account, 'abcdefghijk', {
         tags: ['house'],
@@ -376,6 +392,21 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
       expect(await s.read('translated', 1)).toEqual({ title: 'Title', caption: 'Text' })
       expect(s.warnings).toEqual([])
       expect(s.steps).toContain('Translation added: English')
+    } finally {
+      await s.close()
+    }
+  }, 60_000)
+
+  it('leaves the language unset when the default box will not untick (the channel’s default is not changed)', async () => {
+    const s = await studio(studioPage({ scheduled: true }), languagesPage({ boxStuck: true }))
+    try {
+      await youtube.update(s.run, account, 'abcdefghijk', {
+        tags: ['house'],
+        translations: { en: { title: 'Title', caption: 'Text' } },
+      })
+      expect(await s.read('saved')).toMatchObject({ tags: ['house'] })
+      expect(await s.read('language', 1)).toBeUndefined()
+      expect(s.warnings).toEqual([expect.stringMatching(/^Translations not added: .*would not untick/)])
     } finally {
       await s.close()
     }

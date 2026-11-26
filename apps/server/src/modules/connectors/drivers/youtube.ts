@@ -912,21 +912,29 @@ async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
   const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
   const ticked = async () =>
     (await asDefault.getAttribute('aria-checked', { timeout: 2000 }).catch(() => null)) === 'true'
-  if (await ticked()) {
-    const host = page.locator('ytcp-checkbox-lit').filter({ has: asDefault }).first()
-    const why = await ((await host.count()) ? host : asDefault).click({ timeout: 5000 }).then(
+  // Right after the form shows, a click on it may not take yet (26 Nov 2026, the first live run with the box's own
+  // element: still ticked): it is tried a few times. A box that stays ticked stops here, before Conferma, so the
+  // channel's default is never changed by Greenlit.
+  const host = page.locator('ytcp-checkbox-lit').filter({ has: asDefault }).first()
+  let why = ''
+  for (let i = 0; i < 4 && (await ticked()); i++) {
+    why = await ((await host.count()) ? host : asDefault).click({ timeout: 5000 }).then(
       () => '',
       (err: Error) => `: ${err.message.split('\n')[0]}`,
     )
-    await sleep(500)
-    if (await ticked())
-      run.warn(`The video's language may become the channel's default: the box did not untick${why}`)
+    await sleep(800)
   }
+  if (await ticked())
+    throw new Error(
+      `The "make it the channel's default" box would not untick${why}; the video's language was left unset`,
+    )
   // The list ("Lingua del video") has every language (238 on 26 Nov 2026, Italian names), each item carrying its code
   // as `test-id` ("it"); by name when it has none. A click right after the list opens or scrolls does not choose
   // (the same look: it took once the list had settled), so the list is given a moment, and a second try.
+  // Only a list that shows: Studio may keep others in the page (the Add language one).
   const list = page
     .locator('tp-yt-paper-listbox[role=listbox]')
+    .filter({ visible: true })
     .filter({ has: page.locator('tp-yt-paper-item') })
   const open = async () => {
     await trigger.click()
@@ -1009,28 +1017,47 @@ async function addTranslations(
   await setVideoLanguage(run, page, 'it')
   for (const [lang, t] of Object.entries(req.translations)) {
     if (!t.title && !t.caption) continue
-    const name = new Intl.DisplayNames([run.locale, 'en'], { type: 'language' }).of(lang) ?? lang
+    // Studio names languages in the account's language (Italian: "Inglese"), whatever the browser's is.
+    const names = [
+      ...new Set(
+        [run.locale, 'it', 'en'].map(
+          (l) => new Intl.DisplayNames([l], { type: 'language' }).of(lang) ?? lang,
+        ),
+      ),
+    ]
     const english = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang
     let row = page
       .locator('ytgn-video-translation-row, ytcp-video-translation-row, [role=row]')
-      .filter({ hasText: label([name, english]) })
+      .filter({ hasText: label(names) })
       .first()
     if (!(await row.isVisible().catch(() => false))) {
       await clickOne(
         [page.locator('#add-translations-button'), page.getByRole('button', { name: L.addLanguage })],
         'Add language',
       )
-      await clickOne(
-        [
-          page.getByRole('option', { name: label([name, english], true) }),
-          page.locator('tp-yt-paper-item').filter({ hasText: label([name, english], true) }),
-        ],
-        `${english} in the language list`,
-      )
+      // The list is the same kind as the video's language list: items with their code as `test-id`, Italian names,
+      // and a click while it is still opening does not choose.
+      const menu = page
+        .locator('tp-yt-paper-listbox[role=listbox]')
+        .filter({ visible: true })
+        .filter({ has: page.locator('tp-yt-paper-item') })
+        .first()
+      await menu.waitFor({ state: 'visible', timeout: 10_000 })
+      await sleep(700)
+      let item = menu.locator(`tp-yt-paper-item[test-id="${lang}"]`).first()
+      if (!(await item.count()))
+        item = menu
+          .locator('tp-yt-paper-item')
+          .filter({ hasText: label(names, true) })
+          .first()
+      if (!(await item.count())) throw new Error(`Could not find ${english} in the language list`)
+      await item.scrollIntoViewIfNeeded()
+      await sleep(500)
+      await item.click()
       await sleep(1200)
       row = page
         .locator('ytgn-video-translation-row, ytcp-video-translation-row, [role=row]')
-        .filter({ hasText: label([name, english]) })
+        .filter({ hasText: label(names) })
         .first()
     }
     await clickOne(
