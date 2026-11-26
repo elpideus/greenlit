@@ -391,7 +391,7 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
       const caption = PostsService.composeCaption(p, t)
       const title = t.title ?? p.title
       try {
-        await connectors.update(t.viaAccountId ?? t.accountId, t.remoteId, {
+        const out = await connectors.update(t.viaAccountId ?? t.accountId, t.remoteId, {
           title,
           caption,
           tags: t.tags,
@@ -409,7 +409,13 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
         await svc.setTargetState(t.id, {
           error: null,
           syncedAt: new Date(),
-          remoteSnapshot: { caption, title, scheduleAt: t.scheduleAt?.toISOString() ?? null },
+          // what the platform did not take shows on the version, as after publishing
+          remoteSnapshot: {
+            caption,
+            title,
+            scheduleAt: t.scheduleAt?.toISOString() ?? null,
+            warnings: out?.warnings ?? [],
+          },
         })
       } catch (err) {
         const unsupported = (err as { name?: string }).name === 'ConnectorUnsupported'

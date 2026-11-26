@@ -357,8 +357,12 @@ export const youtube: Driver = {
         run.step('Saved in YouTube Studio')
       }
     }
+    // Saved already: translations Studio does not take are a warning, as when publishing (26 Nov 2026: a video
+    // with no language of its own showed no "Add language", and the whole update counted as failed and was retried).
     if (patch.translations && Object.keys(patch.translations).length)
-      await setTranslations(run, remoteId, patch as PublishRequest)
+      await setTranslations(run, remoteId, patch as PublishRequest).catch((err) =>
+        run.warn(`Translations not added: ${(err as Error).message}`),
+      )
     run.step(`Updated ${remoteId} on ${account.name}`)
   },
 

@@ -785,9 +785,16 @@ export class Connectors implements ConnectorsService {
       )
   }
 
-  async update(accountId: string, remoteId: string, patch: Partial<PublishRequest>): Promise<void> {
+  async update(
+    accountId: string,
+    remoteId: string,
+    patch: Partial<PublishRequest>,
+  ): Promise<{ warnings: string[] }> {
     await this.writable(accountId)
-    await this.onAccount(accountId, 'update', (d, run, a) => d.update(run, a, remoteId, patch))
+    return this.onAccount(accountId, 'update', async (d, run, a) => {
+      await d.update(run, a, remoteId, patch)
+      return { warnings: [...run.warnings] }
+    })
   }
 
   async remove(accountId: string, remoteId: string): Promise<void> {

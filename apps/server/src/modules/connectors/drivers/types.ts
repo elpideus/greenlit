@@ -110,7 +110,8 @@ export interface ConnectorsService {
   /** Whether the platform keeps this post's schedule itself; else Greenlit holds the post until its time. */
   holdsSchedule(req: ScheduleQuestion, at: Date): Promise<boolean>
   /** Throws `ConnectorUnsupported` when the platform cannot change that field after publishing. */
-  update(accountId: string, remoteId: string, patch: Partial<PublishRequest>): Promise<void>
+  /** What the platform did not take (translations…) comes back as warnings; the rest is changed. */
+  update(accountId: string, remoteId: string, patch: Partial<PublishRequest>): Promise<{ warnings: string[] }>
   remove(accountId: string, remoteId: string): Promise<void>
   list(accountId: string, opts?: { since?: Date }): Promise<RemotePost[]>
   searchMusic(accountId: string, query: string, placement: Placement): Promise<MusicTrack[]>

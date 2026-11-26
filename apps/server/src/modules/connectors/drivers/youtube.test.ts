@@ -262,6 +262,23 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
     }
   }, 60_000)
 
+  it('keeps what it saved and only warns when Studio takes no translations', async () => {
+    // The Languages page here has no "Add language" (as for a video with no language of its own, 26 Nov 2026).
+    const s = await studio(studioPage({ scheduled: true }))
+    const want = ahead()
+    try {
+      await youtube.update(s.run, account, 'abcdefghijk', {
+        scheduleAt: want.at,
+        timeZone,
+        translations: { en: { title: 'Title', caption: 'Text' } },
+      })
+      expect(await s.read('saved')).toMatchObject({ date: want.date, time: want.time })
+      expect(s.warnings).toEqual([expect.stringMatching(/^Translations not added: /)])
+    } finally {
+      await s.close()
+    }
+  }, 60_000)
+
   it('stops before saving when Studio does not show the date it was given', async () => {
     const s = await studio(
       studioPage({ scheduled: true }).replace('trigger.textContent = e.target.value', 'void 0'),
