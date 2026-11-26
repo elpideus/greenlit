@@ -43,6 +43,35 @@ export async function firstVisible(candidates: Locator[], timeout = 8000): Promi
   return null
 }
 
+/**
+ * Whether a click in the middle of `l` would reach it now: nothing over it, such as the backdrop an open list puts
+ * over the whole page (Polymer's iron overlays in YouTube Studio). Follows shadow roots both ways. When it cannot be
+ * told (the element is off screen, the page is busy), it says yes: callers then click as they did before.
+ */
+export async function reachable(l: Locator): Promise<boolean> {
+  return l
+    .evaluate(
+      (el) => {
+        const r = el.getBoundingClientRect()
+        const x = r.left + r.width / 2
+        const y = r.top + r.height / 2
+        if (!r.width || !r.height || x < 0 || y < 0 || x > innerWidth || y > innerHeight) return true
+        let hit = document.elementFromPoint(x, y)
+        for (let i = 0; hit?.shadowRoot && i < 20; i++) {
+          const inner = hit.shadowRoot.elementFromPoint(x, y)
+          if (!inner || inner === hit) break
+          hit = inner
+        }
+        for (let n: Node | null = hit; n; n = n.parentNode ?? (n as ShadowRoot).host ?? null)
+          if (n === el) return true
+        return false
+      },
+      null,
+      { timeout: 1000 },
+    )
+    .catch(() => true)
+}
+
 /** Clicks the first visible candidate; throws with `what` when none shows up. */
 export async function clickOne(candidates: Locator[], what: string, timeout = 8000) {
   const l = await firstVisible(candidates, timeout)

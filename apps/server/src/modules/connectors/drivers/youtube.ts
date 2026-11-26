@@ -1,5 +1,5 @@
 import type { Placement } from '@greenlit/shared/areas/posts'
-import type { Page } from 'playwright-core'
+import type { Locator, Page } from 'playwright-core'
 import {
   ConnectorUnsupported,
   type Driver,
@@ -20,6 +20,7 @@ import {
   label,
   num,
   pageMeta,
+  reachable,
   setText,
   sleep,
   sniffJson,
@@ -302,31 +303,59 @@ export const youtube: Driver = {
         ],
         'the visibility menu',
       )
-      await setVisibility(page, run, {
+      const schedule = await setVisibility(page, run, {
         ...patch,
         scheduleAt: patch.scheduleAt ?? null,
         options: patch.options ?? {},
         timeZone: patch.timeZone ?? run.timeZone,
       } as PublishRequest)
-      await clickOne(
+      const done = await firstVisible(
         [
           page.locator('ytcp-video-visibility-select #save-button, #save-button').first(),
           page.getByRole('button', { name: L.save }),
         ],
-        'Done in the visibility menu',
+        8000,
       )
+      if (!done) throw new Error('Could not find Done in the visibility menu')
+      if (schedule?.unchanged) {
+        // Done stays off while nothing changed: the menu is closed as it came (on a video's page Escape closes
+        // only the menu; there is no upload dialog under it).
+        await page.keyboard.press('Escape')
+        await sleep(600)
+        if (await done.isVisible().catch(() => false))
+          run.warn('The visibility menu stayed open after Escape')
+      } else {
+        // As a person would, the date and time are read before pressing Done: Studio may have taken them its own
+        // way, and saving then would move the video to a time nobody asked for.
+        if (schedule && !schedule.matches)
+          throw Object.assign(
+            new Error(
+              `YouTube Studio shows ${schedule.shown} for the schedule after ${schedule.wanted} was typed: nothing was saved`,
+            ),
+            { retriable: false },
+          )
+        await closeLists(page, done)
+        await done.click()
+      }
     }
     const save = page.locator('ytcp-button#save, #save').first()
     if (await save.isVisible().catch(() => false)) {
-      await until(
+      const enabled = await until(
         async () => (await save.getAttribute('aria-disabled')) !== 'true',
         'Save to be enabled',
         15_000,
         500,
-      ).catch(() => null)
-      await save.click()
-      await sleep(2500)
-      run.step('Saved in YouTube Studio')
+      ).then(
+        () => true,
+        () => false,
+      )
+      // Save stays off when Studio already had everything (clicking it would only wait for nothing).
+      if (!enabled) run.warn('YouTube Studio had nothing to save')
+      else {
+        await save.click()
+        await sleep(2500)
+        run.step('Saved in YouTube Studio')
+      }
     }
     if (patch.translations && Object.keys(patch.translations).length)
       await setTranslations(run, remoteId, patch as PublishRequest)
@@ -544,11 +573,19 @@ async function goToVisibility(page: Page, run: DriverRun) {
   run.step('On the visibility step')
 }
 
+/** What the schedule's fields showed: whether they already held the time asked for, and whether they do now. */
+interface ShownSchedule {
+  unchanged: boolean
+  matches: boolean
+  shown: string
+  wanted: string
+}
+
 async function setVisibility(
   page: Page,
   run: DriverRun,
   req: Pick<PublishRequest, 'scheduleAt' | 'options' | 'timeZone'>,
-) {
+): Promise<ShownSchedule | null> {
   if (!req.scheduleAt) {
     const privacy = String(req.options.privacy ?? 'public').toUpperCase()
     const name = privacy === 'PRIVATE' ? 'PRIVATE' : privacy === 'UNLISTED' ? 'UNLISTED' : 'PUBLIC'
@@ -557,58 +594,90 @@ async function setVisibility(
       `visibility ${name.toLowerCase()}`,
     )
     run.step(`Visibility: ${name.toLowerCase()}`)
-    return
+    return null
   }
   const z = zoned(req.scheduleAt, req.timeZone)
-  const expand = await firstVisible(
-    [
-      page.locator('#second-container-expand-button'),
-      page.locator('ytcp-visibility-scheduler'),
-      page.getByText(L.schedule).first(),
-    ],
+  // The Schedule part opens with its own expand button (the upload dialog). On the page of a video that is
+  // scheduled already it is open, with no such button: clicking the part itself then lands in its middle, on the
+  // time field, whose list opens over a backdrop that takes every later click, the date field's included (26 Nov
+  // 2026, a Short moved to another day). So the part is only opened when its date field cannot be clicked yet.
+  const expandButton = page.locator('#second-container-expand-button')
+  const dateField = page.locator('#datepicker-trigger')
+  const shows = await firstVisible(
+    [expandButton, dateField, page.locator('ytcp-visibility-scheduler'), page.getByText(L.schedule).first()],
     8000,
   )
-  if (!expand) throw new Error('The Schedule option was not found')
-  await expand.click()
+  if (!shows) throw new Error('The Schedule option was not found')
+  const button = await firstVisible([expandButton], 300)
+  const open = !button && (await firstVisible([dateField], 300).then((d) => (d ? reachable(d) : false)))
+  if (!open) {
+    const expand = await firstVisible(
+      [expandButton, page.locator('ytcp-visibility-scheduler'), page.getByText(L.schedule).first()],
+      2000,
+    )
+    if (!expand) throw new Error('The Schedule option was not found')
+    await expand.click()
+  }
   // Date: Studio prints dates in the account's language; type the date the same way the field shows today's.
   const trigger = await firstVisible(
     [page.locator('#datepicker-trigger'), page.locator('ytcp-text-dropdown-trigger#datepicker-trigger')],
     8000,
   )
   if (!trigger) throw new Error('The schedule date field was not found')
+  const timeField = page
+    .locator('#time-of-day-container input, ytcp-form-input-container#time-of-day-container input')
+    .first()
+  const before = {
+    date: (await trigger.textContent().catch(() => ''))?.trim() ?? '',
+    time: (await firstVisible([timeField], 1000)) ? await timeField.inputValue().catch(() => '') : '',
+  }
+  // The time is written as the field writes it: "14:05", or "2:05 PM" when it uses AM/PM.
+  const timeLike = (sample: string) =>
+    /am|pm/i.test(sample)
+      ? `${z.hour % 12 || 12}:${String(z.minute).padStart(2, '0')} ${z.hour < 12 ? 'AM' : 'PM'}`
+      : z.hm
+  const wanted = { date: formatLike(before.date, req.scheduleAt, req.timeZone), time: timeLike(before.time) }
+  const same = (a: { date: string; time: string }) =>
+    shownAs(a.date) === shownAs(wanted.date) && shownAs(a.time) === shownAs(wanted.time)
+  const say = (a: { date: string; time: string }) => `${a.date} ${a.time}`.trim()
+  if (same(before)) {
+    run.step(`Schedule already ${say(before)} (${req.timeZone})`)
+    return { unchanged: true, matches: true, shown: say(before), wanted: say(wanted) }
+  }
+  await closeLists(page, trigger)
   await trigger.click()
   const dateInput = await firstVisible(
     [page.locator('ytcp-date-picker tp-yt-paper-input input, ytcp-date-picker input').first()],
     8000,
   )
   if (!dateInput) throw new Error('The schedule date input was not found')
-  const shown = await dateInput.inputValue()
-  await dateInput.fill(formatLike(shown, req.scheduleAt, req.timeZone))
+  // The date picker shows the same date in its own field: that one is the sample, as before.
+  await dateInput.fill(formatLike(await dateInput.inputValue(), req.scheduleAt, req.timeZone))
   await dateInput.press('Enter')
-  // Time: free text "14:05" (or "2:05 PM" when the field uses AM/PM).
-  const timeInput = await firstVisible(
-    [
-      page
-        .locator('#time-of-day-container input, ytcp-form-input-container#time-of-day-container input')
-        .first(),
-    ],
-    8000,
-  )
+  const timeInput = await firstVisible([timeField], 8000)
   if (!timeInput) throw new Error('The schedule time input was not found')
-  const current = await timeInput.inputValue()
-  const ampm = /am|pm/i.test(current)
-  const h12 = z.hour % 12 || 12
-  await timeInput.fill(
-    ampm ? `${h12}:${String(z.minute).padStart(2, '0')} ${z.hour < 12 ? 'AM' : 'PM'}` : z.hm,
-  )
+  if (!before.time) wanted.time = timeLike(await timeInput.inputValue().catch(() => ''))
+  await closeLists(page, timeInput)
+  await timeInput.fill(wanted.time)
   await timeInput.press('Enter')
   // Never Escape here: in the upload dialog it closes the dialog itself (Studio keeps a draft and goes back to the
   // dashboard, so there is no Schedule button left to press; seen 25 Nov 2026). A list still open is closed by
-  // clicking the dialog's own title, as a person would.
+  // clicking beside it, as a person would.
   await closeLists(page)
-  const shownDate = (await trigger.textContent().catch(() => ''))?.trim() ?? ''
-  const shownTime = await timeInput.inputValue().catch(() => '')
-  run.step(`Scheduled for ${z.iso} ${z.hm} (${req.timeZone}); Studio shows ${shownDate} ${shownTime}`.trim())
+  const after = {
+    date: (await trigger.textContent().catch(() => ''))?.trim() ?? '',
+    time: await timeInput.inputValue().catch(() => ''),
+  }
+  run.step(`Scheduled for ${z.iso} ${z.hm} (${req.timeZone}); Studio shows ${say(after)}`.trim())
+  return { unchanged: false, matches: same(after), shown: say(after), wanted: say(wanted) }
+}
+
+/** A date or time as Studio shows it, for comparing: case, dots, commas and spaces aside ("12 dic 2026"). */
+function shownAs(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[.,\s\u00a0\u202f]+/g, ' ')
+    .trim()
 }
 
 /**
@@ -635,27 +704,48 @@ async function confirmAfterLastButton(page: Page, run: DriverRun, confirmation: 
   return null
 }
 
-/** Closes a date picker or time list left open in the upload dialog, without leaving the dialog. */
-async function closeLists(page: Page) {
+/**
+ * Closes a date picker or time list left open, without leaving the dialog or menu it is in. An open list sits over
+ * a backdrop that covers the page and takes every click until the list closes, so `next` (what is clicked next)
+ * counts as covered too when a click in its middle would not reach it (26 Nov 2026: the date field).
+ */
+async function closeLists(page: Page, next?: Locator) {
   const open = page.locator(
     'tp-yt-iron-dropdown:not([aria-hidden="true"]) tp-yt-paper-listbox, ytcp-date-picker #calendar-main',
   )
   for (let i = 0; i < 3; i++) {
-    if (
-      !(await open
-        .first()
-        .isVisible()
-        .catch(() => false))
-    )
-      return
-    const title = await firstVisible(
-      [page.locator('ytcp-uploads-dialog #dialog-title, ytcp-uploads-dialog h1').first()],
-      1000,
-    )
-    if (!title) return
-    await title.click({ position: { x: 4, y: 4 } }).catch(() => {})
+    const listOpen = await open
+      .first()
+      .isVisible()
+      .catch(() => false)
+    if (!listOpen && (!next || (await reachable(next)))) return
+    if (!(await clickAside(page))) return
     await sleep(400)
   }
+}
+
+/**
+ * A click where there is nothing to press, as a person closes a list: the upload dialog's title, or (the visibility
+ * menu on a video's page has no title) the margin just left of the schedule's date field. It lands on whatever is on
+ * top there, an open list's backdrop included, which is what closes the list.
+ */
+async function clickAside(page: Page) {
+  const title = await firstVisible(
+    [page.locator('ytcp-uploads-dialog #dialog-title, ytcp-uploads-dialog h1').first()],
+    1000,
+  )
+  if (title) {
+    await title.click({ position: { x: 4, y: 4 }, force: true, timeout: 3000 }).catch(() => {})
+    return true
+  }
+  const box = await page
+    .locator('#datepicker-trigger')
+    .first()
+    .boundingBox({ timeout: 1000 })
+    .catch(() => null)
+  if (!box) return false
+  await page.mouse.click(box.x - 8, box.y + box.height / 2)
+  return true
 }
 
 /** Writes the date in the same pattern as `sample` (the date Studio shows), e.g. "Nov 21, 2026" or "21 nov 2026". */

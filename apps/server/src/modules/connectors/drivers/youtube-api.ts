@@ -170,9 +170,10 @@ export async function inStudioAs<T>(
 /**
  * Reads the upload back from YouTube (Studio's own list, drafts included): a video Studio left a draft never goes
  * out, and Greenlit must not call it scheduled or published (25 Nov 2026: nine Shorts stayed private drafts while
- * Greenlit showed them scheduled). Fails without a retry, which would upload a second copy.
+ * Greenlit showed them scheduled). Fails without a retry, which would upload a second copy. After a video is moved
+ * to another time it is read back the same way: YouTube's list must show the new time, not the old one.
  */
-async function confirmUpload(
+export async function confirmUpload(
   run: DriverRun,
   account: DriverAccount,
   videoId: string,
@@ -187,7 +188,8 @@ async function confirmUpload(
       .catch(() => null)
     v = videos?.find((x) => x.videoId === videoId)
     const draft = !!v?.draft && v.draft !== 'DRAFT_STATUS_NONE'
-    if (v && !draft && (!scheduleAt || Number(v.scheduledAt ?? 0) > 0)) break
+    const at = Number(v?.scheduledAt ?? 0) * 1000
+    if (v && !draft && (!scheduleAt || (at > 0 && Math.abs(at - scheduleAt.getTime()) <= 5 * 60_000))) break
     await sleep(5000)
   }
   if (!v) return run.warn(`YouTube's list does not show ${videoId} yet: check it in YouTube Studio`)
@@ -345,6 +347,9 @@ export const youtubeApi: Driver = {
   },
   async update(run, account, remoteId, patch) {
     await inStudioAs(run, account, (page) => studio.update(page, account, remoteId, patch))
+    // Studio's update sets the schedule only for a time still ahead (see the Studio driver); that one is read back.
+    if (patch.scheduleAt instanceof Date && patch.scheduleAt.getTime() > Date.now())
+      await confirmUpload(run, account, remoteId, patch.scheduleAt)
   },
   async remove(run, account, remoteId) {
     await inStudioAs(run, account, (page) => studio.remove(page, account, remoteId))

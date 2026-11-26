@@ -140,6 +140,12 @@ publishing is not switched on yet.
   So the `youtube` connector writes in Studio itself, in the sign-in's own browser profile: it hands the page the
   session API Anything keeps current, switches to the channel (`youtube.com/signin?pageid=…`), then runs Studio's
   upload, details and delete steps (`drivers/youtube.ts`). Reads stay plain requests.
+- **Moving a scheduled video** happens on its own page in Studio, whose visibility menu opens with its Schedule part
+  already open (no expand button). Clicking that part lands on its time field, whose list then puts a backdrop over
+  the page that takes every click (26 Nov 2026: a Short's reschedule failed three times at the date field). So the
+  part is only opened when its date field cannot be clicked, a list left open is closed by a click beside the date
+  field, the date and time Studio shows are checked before Done (nothing is saved otherwise), an unchanged schedule
+  is left alone (Done stays off), and the new time is read back from YouTube's list afterwards, as after an upload.
 - **The browser owns the sign-in.** API Anything and the browser profile hold the same sign-in, and Google rotates
   its session cookies (`__Secure-1PSIDTS`…) and sets consistency cookies (`SIDCC`…) for each client that uses them.
   So, as in any browser, nothing is ever written into the profile's cookies from outside: API Anything only takes a
