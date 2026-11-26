@@ -278,18 +278,21 @@ and in `editPost` / `publishCarousel`, tested, as they were learned.
   so there is no request to learn; Greenlit says it was left out.
 - **Editing a post's caption** goes the way instagram.com's own Edit does (`editMediaWeb`, `editCaption` in the
   driver): a web request with the web sign-in's cookies and CSRF token, not the app's. Recorded 26 Nov 2026 in the
-  sign-in's own browser profile (not a copy), with every write after "Done" aborted, so nothing changed:
-  `POST www.instagram.com/api/v1/media/<pk>/edit_media/` (the pk alone), a JSON body with `caption_text`,
-  `coauthor_invites` (no change), `children_usertags` (each carousel item's `<pk>_<account id>` with no tag
-  change), the page's form token `fb_dtsg` (looked up in instagram.com's page, as the profile reads do) and
-  `jazoest` (made from the token: "2" and the sum of its character codes, API Anything's `gen: jazoest`).
-  Before it, the driver reads the post from the grid (`posts`, which now picks a carousel's `items`, a post's
-  `place` and its `aiMethod`): a caption Instagram already shows is not sent again. Only what was recorded is
-  sent, a carousel with no place and no AI label; a single picture, a reel, a post with a place or with an AI
-  label is refused with the reason (its Edit may carry more), and so is a post not among the account's latest 50.
-  The comments switch is not sent once a post is up. Tested for real (26 Nov 2026): a carousel's caption got one
-  character added from Greenlit, then its original text back; the grid read showed each, and the sign-in stayed
-  connected (web reads, the app-style sound search and the account check all fine afterwards).
+  sign-in's own browser profile (not a copy), with every write aborted once the Edit was open, so nothing changed:
+  carousels with and without a place, a reel with and without one, a picture with one, and a carousel with the AI
+  label switched on. `POST www.instagram.com/api/v1/media/<pk>/edit_media/` (the pk alone), a JSON body with
+  `caption_text`, the AI label while it is on (`gen_ai_detection_method: SELF_DISCLOSURE_FLOW`, left out
+  without one), `coauthor_invites` (no change), the people tags unchanged (`usertags` for a single picture or a
+  reel; `children_usertags` for a carousel: each item's `<pk>_<account id>` with no change), the page's form
+  token `fb_dtsg` (looked up in instagram.com's page, as the profile reads do) and `jazoest` (made from the
+  token: "2" and the sum of its character codes, API Anything's `gen: jazoest`). A place is not in the request,
+  so an edit keeps it. Before it, the driver reads the post from the grid (`posts`, which now picks a carousel's
+  `items` and the post's `aiMethod`): a caption Instagram already shows is not sent again, the label goes on
+  while the post has it or Greenlit's post says "made with AI" (so an edit never clears it), and a label Instagram
+  set some other way (not `SELF_DISCLOSURE_FLOW`), or a post not among the account's latest 50, is refused with
+  the reason. The comments switch is not sent once a post is up. Tested for real (26 Nov 2026): a carousel's
+  caption got one character added from Greenlit, then its original text back; the grid read showed each, and the
+  sign-in stayed connected (web reads, the app-style sound search and the account check all fine afterwards).
 - **The app's Edit is not sent** since 26 Nov 2026: it ends the sign-in's session (see "Two of the app's requests
   are not sent" above). What was learned, in `editPost`: the app's Edit on its own post is `media/<id>/edit_media/` (`editMedia`,
   recorded with the send held on a cached copy of a deleted test post, so nothing was changed). It carries the new

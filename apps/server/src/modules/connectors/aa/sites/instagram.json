@@ -186,7 +186,6 @@
           "likes=like_count",
           "comments=comment_count",
           "items=carousel_media[*].id",
-          "place=location.pk",
           "aiMethod=ai_label_info.gen_ai_detection_method"
         ]
       }
@@ -2622,7 +2621,7 @@
     },
     {
       "name": "editMediaWeb",
-      "description": "Changes a carousel's caption as instagram.com's own Edit does (recorded 26 Nov 2026 in the sign-in's own browser, the send aborted): POST www.instagram.com/api/v1/media/<pk>/edit_media/ with a JSON body: the new caption, no co-author changes, no tag changes on any of its items (children_usertags: each item's id, as the grid names them, with an empty change), the page's form token (fb_dtsg, looked up in instagram.com's own page as the profile reads do) and jazoest (made from it). A web request with the web sign-in's cookies and CSRF token, as the page sends it; the app's editMedia ends this session. Recorded on a carousel with no place and no AI label: a single picture, a reel, or a post with a place or a label may send more and is not learned yet. Left out: x-ig-www-claim, x-web-session-id and the browser's client hints.",
+      "description": "Changes a post's caption as instagram.com's own Edit does (recorded 26 Nov 2026 in the sign-in's own browser, every send aborted: carousels with and without a place, a reel with and without one, a picture with one, and a carousel with the AI label switched on): POST www.instagram.com/api/v1/media/<pk>/edit_media/ with a JSON body: the new caption, the AI label while it is on (gen_ai_detection_method, left out without one), no co-author changes, no people-tag changes (usertags for a single picture or a reel; children_usertags for a carousel: each item's id, as the grid names them, with an empty change), the page's form token (fb_dtsg, looked up in instagram.com's own page as the profile reads do) and jazoest (made from it). A place is not part of the request: the edit keeps it. A web request with the web sign-in's cookies and CSRF token, as the page sends it; the app's editMedia ends this session. Left out: x-ig-www-claim, x-web-session-id and the browser's client hints.",
       "readOnly": false,
       "learnedLoggedIn": true,
       "request": {
@@ -2642,7 +2641,7 @@
           "x-instagram-ajax": "1056347016",
           "x-requested-with": "XMLHttpRequest"
         },
-        "body": "{\"caption_text\":\"x\",\"coauthor_invites\":\"{\\\"added\\\":[],\\\"in\\\":[],\\\"removed\\\":[]}\",\"children_usertags\":\"{}\",\"jazoest\":\"0\",\"fb_dtsg\":\"x\"}"
+        "body": "{\"caption_text\":\"x\",\"gen_ai_detection_method\":\"SELF_DISCLOSURE_FLOW\",\"coauthor_invites\":\"{\\\"added\\\":[],\\\"in\\\":[],\\\"removed\\\":[]}\",\"usertags\":\"{\\\"added\\\":[],\\\"in\\\":[],\\\"removed\\\":[]}\",\"children_usertags\":\"{}\",\"jazoest\":\"0\",\"fb_dtsg\":\"x\"}"
       },
       "slots": [
         {
@@ -2663,7 +2662,18 @@
           "at": ["body", "json:/caption_text"]
         },
         {
+          "param": "aiMethod",
+          "omitEmpty": true,
+          "at": ["body", "json:/gen_ai_detection_method"]
+        },
+        {
+          "param": "usertags",
+          "omitEmpty": true,
+          "at": ["body", "json:/usertags"]
+        },
+        {
           "param": "childrenUsertags",
+          "omitEmpty": true,
           "at": ["body", "json:/children_usertags"]
         },
         {
@@ -2709,8 +2719,23 @@
           "name": "caption"
         },
         {
+          "name": "aiMethod",
+          "required": false,
+          "default": "",
+          "enum": ["", "SELF_DISCLOSURE_FLOW"],
+          "description": "The AI label: SELF_DISCLOSURE_FLOW while it is on (as the Edit's switch sends it); empty leaves the field out, as the page does for a post without one"
+        },
+        {
+          "name": "usertags",
+          "required": false,
+          "default": "",
+          "description": "A single picture's or a reel's people tags change, as the page writes it (no change: {\"added\":[],\"in\":[],\"removed\":[]}); empty for a carousel"
+        },
+        {
           "name": "childrenUsertags",
-          "description": "Each item's id (<pk>_<account id>, as the grid names them) with an empty change, as the page writes it: a JSON object as a string, each value the string {\"added\":[],\"in\":[],\"removed\":[]}"
+          "required": false,
+          "default": "",
+          "description": "Each item's id (<pk>_<account id>, as the grid names them) with an empty change, as the page writes it: a JSON object as a string, each value the string {\"added\":[],\"in\":[],\"removed\":[]}; empty for a single picture or a reel"
         }
       ],
       "trigger": {

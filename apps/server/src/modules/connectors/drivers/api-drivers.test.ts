@@ -2087,7 +2087,13 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
       expect(ed.calls.map((c) => c.op)).toEqual(['posts', 'editMediaWeb'])
       expect(ed.calls[0]!.args).toEqual({ username: 'acme_studio', count: 50 })
       const sent = ed.calls[1]!
-      expect(sent.args).toMatchObject({ pk: '4040123456789012345', code: 'DCa1xyz', caption: 'Nuovo testo' })
+      expect(sent.args).toMatchObject({
+        pk: '4040123456789012345',
+        code: 'DCa1xyz',
+        caption: 'Nuovo testo',
+        aiMethod: '',
+      })
+      expect(sent.args).not.toHaveProperty('usertags')
       expect(JSON.parse(String(sent.args.childrenUsertags))).toEqual({
         [items[0]!]: '{"added":[],"in":[],"removed":[]}',
         [items[1]!]: '{"added":[],"in":[],"removed":[]}',
@@ -2108,20 +2114,42 @@ describe('Instagram feed posts and stories (the Instagram app’s requests)', ()
       expect(ed.calls.map((c) => c.op)).not.toContain('editMedia')
     })
 
-    it('refuses, with the reason and no edit sent, what instagram.com’s Edit was not recorded on', async () => {
-      const cases: [object, RegExp][] = [
-        [{ ...carousel, items: undefined, kind: 'feed', mediaType: 1 }, /a single picture or a reel/],
-        [{ ...carousel, items: undefined, kind: 'clips', mediaType: 2 }, /a single picture or a reel/],
-        [{ ...carousel, place: 238580062 }, /a post with a place/],
-        [{ ...carousel, aiMethod: 'SELF_DISCLOSURE_FLOW' }, /a post with an AI label/],
-      ]
-      for (const [post, why] of cases) {
+    it('a single picture or a reel names its own tags unchanged; a place stays out of the request', async () => {
+      for (const post of [
+        { ...carousel, items: undefined, kind: 'feed', mediaType: 1, place: 238580062 },
+        { ...carousel, items: undefined, kind: 'clips', mediaType: 2 },
+      ]) {
         const ed = igRun(grid(post))
-        const refused = instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo' })
-        await expect(refused).rejects.toThrow(why)
-        await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
-        expect(ed.calls.map((c) => c.op)).toEqual(['posts'])
+        await instagramApi.update(ed.run, account, mediaId, { caption: 'Nuovo testo' })
+        expect(ed.calls[1]!.op).toBe('editMediaWeb')
+        expect(ed.calls[1]!.args).toMatchObject({
+          usertags: '{"added":[],"in":[],"removed":[]}',
+          aiMethod: '',
+        })
+        expect(ed.calls[1]!.args).not.toHaveProperty('childrenUsertags')
+        expect(Object.keys(ed.calls[1]!.args)).not.toContain('location')
       }
+    })
+
+    it('keeps the AI label on: the post’s own, or the one Greenlit’s post asks for', async () => {
+      const kept = igRun(grid({ ...carousel, aiMethod: 'SELF_DISCLOSURE_FLOW' }))
+      await instagramApi.update(kept.run, account, mediaId, { caption: 'Nuovo testo', options: {} })
+      expect(kept.calls[1]!.args).toMatchObject({ aiMethod: 'SELF_DISCLOSURE_FLOW' })
+      const asked = igRun(grid(carousel))
+      await instagramApi.update(asked.run, account, mediaId, {
+        caption: 'Nuovo testo',
+        options: { aiGenerated: true },
+      })
+      expect(asked.calls[1]!.args).toMatchObject({ aiMethod: 'SELF_DISCLOSURE_FLOW' })
+    })
+
+    it('refuses, with the reason and no edit sent, what it cannot do as the page does', async () => {
+      // a label Instagram set some other way: its Edit was not recorded
+      const other = igRun(grid({ ...carousel, aiMethod: 'C2PA_METADATA' }))
+      const refused = instagramApi.update(other.run, account, mediaId, { caption: 'Nuovo testo' })
+      await expect(refused).rejects.toThrow(/set by Instagram/)
+      await expect(refused).rejects.toMatchObject({ name: 'ConnectorUnsupported', retriable: false })
+      expect(other.calls.map((c) => c.op)).toEqual(['posts'])
       // not among the latest 50: not edited
       const gone = igRun(grid())
       await expect(instagramApi.update(gone.run, account, mediaId, { caption: 'x' })).rejects.toThrow(

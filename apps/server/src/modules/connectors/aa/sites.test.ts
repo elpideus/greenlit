@@ -639,6 +639,28 @@ describe('Instagram reel requests', () => {
     })
     // jazoest is made from the form token the request holds ("x" in a plan; the page's token when sent)
     expect(j.jazoest).toBe(`2${'x'.charCodeAt(0)}`)
+    // a single picture or a reel names its own tags; the AI label goes in while it is on, after the caption
+    const one = JSON.parse(
+      plan('ig-plan-test', 'editMediaWeb', {
+        pk: '4040123456789012346',
+        code: 'DRe5xyz',
+        caption: 'x',
+        aiMethod: 'SELF_DISCLOSURE_FLOW',
+        usertags: '{"added":[],"in":[],"removed":[]}',
+      }).request.body!,
+    )
+    expect(Object.keys(one)).toEqual([
+      'caption_text',
+      'gen_ai_detection_method',
+      'coauthor_invites',
+      'usertags',
+      'jazoest',
+      'fb_dtsg',
+    ])
+    expect(one).toMatchObject({
+      gen_ai_detection_method: 'SELF_DISCLOSURE_FLOW',
+      usertags: '{"added":[],"in":[],"removed":[]}',
+    })
     const op = parseSite({ ...spec, name: 'ig-web' }).operations.find((o) => o.name === 'editMediaWeb')!
     expect(op.slots.find((s) => s.at.join() === 'body,json:/fb_dtsg')?.from?.request.url).toBe(
       'https://www.instagram.com/',
@@ -647,7 +669,7 @@ describe('Instagram reel requests', () => {
     expect(op.cookies).toBeUndefined()
   })
 
-  it('the grid names a carousel’s items, a post’s place and its AI label', () => {
+  it('the grid names a carousel’s items and a post’s AI label', () => {
     const op = parseSite({ ...spec, name: 'ig-grid' }).operations.find((o) => o.name === 'posts')!
     const node = (n: object) => ({
       node: { caption: { text: 'x' }, ai_label_info: { gen_ai_detection_method: 'NONE' }, ...n },
@@ -687,9 +709,8 @@ describe('Instagram reel requests', () => {
         items: ['4040123456789000001_31000000001', '4040123456789000002_31000000001'],
         aiMethod: 'NONE',
       }),
-      expect.objectContaining({ code: 'DPh1xyz', place: 238580062, aiMethod: 'NONE' }),
+      expect.objectContaining({ code: 'DPh1xyz', aiMethod: 'NONE' }),
     ])
-    expect((got.data as object[])[0]).not.toHaveProperty('place')
     expect((got.data as object[])[1]).not.toHaveProperty('items')
   })
 

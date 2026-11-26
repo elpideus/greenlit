@@ -46,7 +46,7 @@ const capabilities = {
   // A place from Instagram's own search: in feed posts' and reels' Share, as a story's location sticker.
   location: true,
   firstComment: true,
-  // A carousel's caption, as instagram.com's own Edit changes it (editCaption); other posts are refused with a reason.
+  // The caption, as instagram.com's own Edit changes it (editCaption; not the app's Edit, which ends the session).
   editAfterPublish: true,
   // A cover that is a frame of the video (reels); a picture of its own is not set.
   thumbnail: true,
@@ -102,8 +102,6 @@ interface GridPost {
   comments?: number
   /** A carousel's items, each `<pk>_<account id>` */
   items?: string[]
-  /** The place's id, when the post has one */
-  place?: string | number
   /** The post's AI label: NONE, or how it was set */
   aiMethod?: string
 }
@@ -318,7 +316,7 @@ export const instagramApi: Driver = {
       throw new Error('This post belongs to another Instagram account')
     if (patch.caption === undefined)
       throw new ConnectorUnsupported('update', 'Instagram posts are edited here by their caption')
-    await editCaption(run, account, remoteId, patch.caption)
+    await editCaption(run, account, remoteId, patch.caption, patch.options)
   },
   /** Deletes a post as the app's Delete does: it goes to Recently deleted, where it can be restored for 30 days. */
   async remove(run, account, remoteId) {
@@ -765,21 +763,25 @@ async function feedOutcome(
   }
 }
 
-/** No change to a carousel item's people tags, as instagram.com's Edit writes it for each item. */
+/** No change to a post's people tags (or a carousel item's), as instagram.com's Edit writes it. */
 const NO_TAG_CHANGE = '{"added":[],"in":[],"removed":[]}'
-
-/** Why a post is not edited from Greenlit: instagram.com's Edit was recorded on a carousel with no place or label. */
-const notLearned = (what: string) =>
-  `Greenlit has not learned instagram.com’s Edit for ${what} yet, so it does not send it: change the caption in the Instagram app`
 
 /**
  * Changes a post's caption as instagram.com's own Edit does (editMediaWeb: a web request with the web sign-in, as
  * the page sends it; the app's Edit ends this session, APP_ONLY_WRITES). The post is read from the grid first: its
- * code, its items, its place and AI label. Only what was recorded is sent: a carousel with no place and no AI label
- * (a single picture, a reel, a place or a label may change the request and are refused with a reason). A caption
+ * code, its items and its AI label. A single picture or a reel names its people tags unchanged (usertags), a
+ * carousel each item's (children_usertags); a place is not part of the request, so it stays. The AI label goes as
+ * the Edit's switch sends it, on while the post has the label or Greenlit's post says "made with AI" (so an edit
+ * never clears it); a label Instagram set some other way was not recorded and is refused with the reason. A caption
  * Instagram already shows is not sent again (Instagram refuses an edit that repeats it).
  */
-export async function editCaption(run: DriverRun, account: DriverAccount, remoteId: string, text: string) {
+export async function editCaption(
+  run: DriverRun,
+  account: DriverAccount,
+  remoteId: string,
+  text: string,
+  options: Record<string, unknown> = {},
+) {
   const caption = text.slice(0, 2200)
   const username = await usernameOf(run, account)
   const grid = username
@@ -796,18 +798,23 @@ export async function editCaption(run: DriverRun, account: DriverAccount, remote
     run.step('Instagram already shows this caption')
     return
   }
-  if (!post.items?.length) throw new ConnectorUnsupported('update', notLearned('a single picture or a reel'))
-  if (post.place !== undefined && post.place !== null)
-    throw new ConnectorUnsupported('update', notLearned('a post with a place'))
-  if (post.aiMethod && post.aiMethod !== 'NONE')
-    throw new ConnectorUnsupported('update', notLearned('a post with an AI label'))
+  const label = post.aiMethod && post.aiMethod !== 'NONE' ? post.aiMethod : ''
+  if (label && label !== 'SELF_DISCLOSURE_FLOW')
+    throw new ConnectorUnsupported(
+      'update',
+      'This post’s AI label was set by Instagram, and Greenlit has not learned how its Edit keeps that one, so it does not send it: change the caption in the Instagram app',
+    )
+  const items = post.items ?? []
   const r = await api(run).call<{ status?: string; message?: string }>(
     'editMediaWeb',
     {
       pk: remoteId.split('_')[0],
       code: post.code,
       caption,
-      childrenUsertags: JSON.stringify(Object.fromEntries(post.items.map((id) => [id, NO_TAG_CHANGE]))),
+      aiMethod: label || options.aiGenerated === true ? 'SELF_DISCLOSURE_FLOW' : '',
+      ...(items.length
+        ? { childrenUsertags: JSON.stringify(Object.fromEntries(items.map((id) => [id, NO_TAG_CHANGE]))) }
+        : { usertags: NO_TAG_CHANGE }),
     },
     // One key per edit, as editPost: editing A, then B, then back to A must send A again.
     { write: true, maxTier: 1, key: `ig-web-edit:${remoteId}:${randomUUID()}` },
