@@ -139,7 +139,9 @@ $('#save').onclick = (e) => {
  * `test-id`. What a second look (clicks, no Conferma) showed: the box's inner element sits under its container, which
  * takes the click (the box's own element unticks it), and a click on an item right after the list opened does not
  * choose. A live run then showed the box not unticking at the first click, right after the form appeared, and the
- * "Aggiungi lingua" list naming languages in Italian ("Inglese"). Then a row per language and its dialog.
+ * "Aggiungi lingua" list naming languages in Italian ("Inglese"), and choosing one opening its dialog at once (Titolo,
+ * Descrizione, "Aggiorna" off until something is typed, and Audio / Sottotitoli "Aggiungi" buttons that must not be
+ * pressed); the language then has a row.
  */
 const languagesPage = (
   opts: { boxStuck?: boolean } = {},
@@ -170,8 +172,11 @@ setTimeout(() => {
       <tp-yt-paper-item role="option" test-id="fr">Francese</tp-yt-paper-item>
       <tp-yt-paper-item role="option" test-id="en">Inglese</tp-yt-paper-item>
     </tp-yt-paper-listbox></div></tp-yt-paper-dialog></ytcp-text-menu>
-  <div id="translation" role="dialog" hidden><div contenteditable="true"></div><div contenteditable="true"></div>
-    <button id="publish-button">Pubblica</button></div>\`
+  <div id="translation" role="dialog" hidden><h2 id="dialog-title"></h2>
+    <button id="update" disabled>Aggiorna</button>
+    <div contenteditable="true"></div><div contenteditable="true"></div>
+    <div>Audio <button class="decoy">Aggiungi</button></div><div>Sottotitoli manuali <button class="decoy">Aggiungi</button></div>
+  </div>\`
   document.body.insertAdjacentHTML('beforeend', \`<ytcp-text-menu><tp-yt-paper-dialog id="dialog" role="dialog" hidden>
     <div><tp-yt-paper-listbox id="paper-list" role="listbox">
       <tp-yt-paper-item role="option" test-id="ab">Abcaso</tp-yt-paper-item>
@@ -214,15 +219,19 @@ setTimeout(() => {
     o.onclick = () => {
       addDialog.hidden = true
       if (Date.now() - addOpenedAt < 400) return
-      const row = document.createElement('ytcp-video-translation-row')
-      row.innerHTML = o.textContent + ' <div id="metadata-cell"><button>Aggiungi</button></div>'
-      row.querySelector('button').onclick = () => { $('#translation').hidden = false }
-      $('#rows').append(row)
+      $('#dialog-title').textContent = o.textContent.trim()
+      $('#translation').hidden = false
     }
-  $('#publish-button').onclick = () => {
+  for (const f of document.querySelectorAll('#translation [contenteditable]'))
+    f.addEventListener('input', () => { $('#update').disabled = false })
+  for (const d of document.querySelectorAll('#translation .decoy')) d.onclick = () => { window.wrongClick = true }
+  $('#update').onclick = () => {
     const [t, c] = document.querySelectorAll('#translation [contenteditable]')
     window.translated = { title: t.innerText.trim(), caption: c.innerText.trim() }
     $('#translation').hidden = true
+    const row = document.createElement('ytcp-video-translation-row')
+    row.innerHTML = $('#dialog-title').textContent + ' <div id="metadata-cell"><button>Modifica</button></div>'
+    $('#rows').append(row)
   }
 }, 1500)
 </script></body></html>`
@@ -390,6 +399,7 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
       // Italian, not made the channel's default
       expect(await s.read('language', 1)).toEqual({ name: 'Italiano', asDefault: false })
       expect(await s.read('translated', 1)).toEqual({ title: 'Title', caption: 'Text' })
+      expect(await s.read('wrongClick', 1)).toBeUndefined()
       expect(s.warnings).toEqual([])
       expect(s.steps).toContain('Translation added: English')
     } finally {

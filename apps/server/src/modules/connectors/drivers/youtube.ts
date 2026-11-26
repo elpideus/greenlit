@@ -1060,22 +1060,43 @@ async function addTranslations(
         .filter({ hasText: label(names) })
         .first()
     }
-    await clickOne(
-      [
-        row.locator('#metadata-cell').getByRole('button'),
-        row.getByRole('button', { name: label(['Add', 'Aggiungi', 'Edit', 'Modifica'], true) }).last(),
-      ],
-      `the title & description cell for ${english}`,
-    )
-    const dialog = page.getByRole('dialog').last()
+    // Studio opens the new language's dialog straight from the list ("Inglese": Titolo, Descrizione, Aggiorna;
+    // 26 Nov 2026). A language the video has already is opened from its row.
+    const dialog = page
+      .getByRole('dialog')
+      .filter({ has: page.locator('[contenteditable="true"], textarea') })
+      .last()
+    if (!(await firstVisible([dialog], 5000)))
+      await clickOne(
+        [
+          row.locator('#metadata-cell').getByRole('button'),
+          row.getByRole('button', { name: label(['Add', 'Aggiungi', 'Edit', 'Modifica'], true) }).last(),
+        ],
+        `the title & description cell for ${english}`,
+      )
     const fields = dialog.locator('[contenteditable="true"], textarea')
     await fields.first().waitFor({ state: 'visible', timeout: 15_000 })
     if (t.title) await setText(page, fields.nth(0), t.title.slice(0, 100))
     if (t.caption) await setText(page, fields.nth(1), t.caption.slice(0, 5000))
+    // Its button is "Aggiorna" (Update) in that dialog, "Pubblica" (Publish) in older ones; never its Audio or
+    // Subtitles "Aggiungi".
     await clickOne(
-      [dialog.locator('#publish-button'), dialog.getByRole('button', { name: L.publish })],
+      [
+        dialog.locator('#publish-button'),
+        dialog.getByRole('button', { name: label(['Aggiorna', 'Update', 'Pubblica', 'Publish'], true) }),
+      ],
       'Publish in the translation dialog',
     )
+    const closed = await dialog.waitFor({ state: 'hidden', timeout: 15_000 }).then(
+      () => true,
+      () => false,
+    )
+    if (!closed) {
+      await run.snapshot(page, 'translation-not-saved')
+      throw new Error(
+        `YouTube Studio kept the ${english} dialog open after its button: the translation may not be saved`,
+      )
+    }
     await sleep(1500)
     run.step(`Translation added: ${english}`)
   }
