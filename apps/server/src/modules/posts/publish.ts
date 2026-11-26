@@ -284,6 +284,8 @@ export function registerPostJobs(ctx: ModuleContext, svc: PostsService) {
         return { interrupted: true }
       }
       if (t.state !== 'queued') return { skipped: t.state }
+      // A version turned off after it was queued stays where it is.
+      if (!t.enabled) return { skipped: 'turned off' }
       // A time the platform does not keep (a placement it does not schedule, or out of its window) is Greenlit's
       // to keep: the version waits, and posts.due sends it at its time. A dry run rehearses that publish.
       const at = timeToWaitFor(t.scheduleAt)

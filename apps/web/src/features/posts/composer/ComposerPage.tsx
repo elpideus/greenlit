@@ -291,7 +291,8 @@ function TargetTabs() {
           {targets.map((x) => {
             const a = c.accounts.find((acc) => acc.id === x.accountId)
             const server = c.post.targets.find((s) => s.id === x.id)
-            const issues = c.checks.find((k) => k.targetId === x.id)?.issues ?? []
+            // a version turned off goes nowhere: what its platform would say waits until it is on again
+            const issues = x.enabled ? (c.checks.find((k) => k.targetId === x.id)?.issues ?? []) : []
             const errors = issues.filter((i) => i.level === 'error').length
             const warnings = issues.filter((i) => i.level === 'warning').length
             return (

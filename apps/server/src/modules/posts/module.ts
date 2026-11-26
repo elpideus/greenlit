@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises'
-import { getPlacement, validateForPlacement } from '@greenlit/platforms'
 import { CalendarEntry, CalendarQuery, Post, postThumbnail, SavePostInput } from '@greenlit/shared'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -7,6 +6,7 @@ import { type Actor, actorUserId, assertCan, can } from '../../core/actor.ts'
 import { badRequest, HttpError, notFound } from '../../core/errors.ts'
 import { IdParams, Ok, route } from '../../core/http.ts'
 import { defineModule } from '../../core/module.ts'
+import { checkTarget } from './check.ts'
 import { coverPath, prepareTarget, registerPostJobs, scheduleQuestion, timeToWaitFor } from './publish.ts'
 import { postMedia, posts, postTargets } from './schema.ts'
 import { PostsService } from './service.ts'
@@ -152,18 +152,16 @@ export default defineModule({
           (!opts.targetIds || opts.targetIds.includes(t.id)),
       )
       if (!ready.length) throw badRequest('Nothing to publish: choose at least one account')
+      // What the post page shows stops a publish here too (a story given several pictures, a caption too long...).
       const problems: string[] = []
-      for (const t of ready) {
-        const spec = getPlacement(t.platform, t.placement)
-        if (!spec) problems.push(`${t.platform} ${t.placement} is not supported`)
-        else {
-          const issues = validateForPlacement(spec, null, {
-            caption: PostsService.composeCaption(post, t),
-            title: t.title ?? post.title,
-          })
-          for (const i of issues) if (i.level === 'error') problems.push(`${t.platform}: ${i.message}`)
-        }
-      }
+      const accounts = (await ctx.services.connectors?.accounts()) ?? []
+      for (const t of ready)
+        for (const i of checkTarget(
+          post,
+          t,
+          accounts.find((a) => a.id === t.accountId),
+        ))
+          if (i.level === 'error') problems.push(`${t.platform}: ${i.message}`)
       if (problems.length) throw badRequest(problems.join(' · '), { problems })
       const tasks: string[] = []
       const connectors = ctx.services.connectors
@@ -348,56 +346,14 @@ export default defineModule({
       handler: async ({ actor, params }) => {
         const post = await svc.get(params.id, actor)
         const accounts = (await ctx.services.connectors?.accounts()) ?? []
-        return post.targets.map((t) => {
-          const spec = getPlacement(t.platform, t.placement)
-          const account = accounts.find((a) => a.id === t.accountId)
-          if (account?.state === 'disabled')
-            return {
-              targetId: t.id,
-              issues: [
-                {
-                  level: 'error',
-                  code: 'account_off',
-                  message: 'This account is turned off in Connected accounts',
-                },
-              ],
-            }
-          if (account?.capabilities.publish === false)
-            return {
-              targetId: t.id,
-              issues: [
-                {
-                  level: 'error',
-                  code: 'account_read_only',
-                  message: 'Greenlit cannot publish to this account yet',
-                },
-              ],
-            }
-          const m = post.media[0]
-          const id = m?.mediaId ?? ''
-          const fs = m?.versions.find((v) => v.key === t.versions[id])?.formats ?? m?.formats
-          const f = fs?.find((x) => x.key === t.formats[id]) ?? fs?.[0]
-          const src =
-            f?.width && f.height
-              ? {
-                  kind: (m!.kind === 'image' ? 'image' : 'video') as 'video' | 'image',
-                  width: f.width,
-                  height: f.height,
-                  durationSec: f.duration,
-                }
-              : null
-          return {
-            targetId: t.id,
-            issues: spec
-              ? validateForPlacement(spec, src, {
-                  caption: PostsService.composeCaption(post, t),
-                  title: t.title ?? post.title,
-                  hashtags: t.hashtags ?? post.hashtags,
-                  items: post.media.length,
-                })
-              : [],
-          }
-        })
+        return post.targets.map((t) => ({
+          targetId: t.id,
+          issues: checkTarget(
+            post,
+            t,
+            accounts.find((a) => a.id === t.accountId),
+          ),
+        }))
       },
     })
     // The cover a platform shows for a target (Greenlit's copy): in lists and on the calendar.
@@ -482,18 +438,16 @@ export default defineModule({
       readOnly: true,
       handler: async ({ id }, { actor }) => {
         const post = await svc.get(id, actor)
-        return post.targets.map((t) => {
-          const spec = getPlacement(t.platform, t.placement)
-          return {
-            target: `${t.platform} ${t.placement}`,
-            issues: spec
-              ? validateForPlacement(spec, null, {
-                  caption: PostsService.composeCaption(post, t),
-                  title: t.title ?? post.title,
-                })
-              : [{ level: 'error', message: 'unsupported' }],
-          }
-        })
+        const accounts = (await ctx.services.connectors?.accounts()) ?? []
+        return post.targets.map((t) => ({
+          target: `${t.platform} ${t.placement}`,
+          enabled: t.enabled,
+          issues: checkTarget(
+            post,
+            t,
+            accounts.find((a) => a.id === t.accountId),
+          ),
+        }))
       },
     })
     ctx.mcp.tool({
@@ -528,6 +482,7 @@ export default defineModule({
             and(
               isNull(posts.deletedAt),
               eq(postTargets.state, 'queued'),
+              eq(postTargets.enabled, true),
               gt(sql`now()`, postTargets.scheduleAt),
             ),
           )

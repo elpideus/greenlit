@@ -357,7 +357,9 @@ export class PostsService {
       const keep = new Set<string>()
       for (const raw of input.targets) {
         const t = TargetInputSchema.parse(raw)
+        const prev = t.id ? existing.find((e) => e.id === t.id) : undefined
         const values = {
+          ...(prev ? PostsService.turnedOffState(prev, t.enabled) : {}),
           accountId: t.accountId,
           placement: t.placement,
           enabled: t.enabled,
@@ -378,7 +380,6 @@ export class PostsService {
           scheduleAt: t.scheduleAt ? new Date(t.scheduleAt) : null,
           updatedAt: new Date(),
         }
-        const prev = t.id ? existing.find((e) => e.id === t.id) : undefined
         if (prev) {
           keep.add(prev.id)
           const before = JSON.stringify({
@@ -529,6 +530,20 @@ export class PostsService {
   }
 
   /** The final caption for a target: its own (or the post's) text, with hashtags appended. */
+  /**
+   * A version turned off goes nowhere: one that failed, or that waits in Greenlit for its time, is a draft again
+   * (without the old error), so the post shows no failure for it and posts.due never sends it. One already on the
+   * platform (scheduled there or published) stays as it is: taking it off the platform is its own action.
+   */
+  static turnedOffState(
+    prev: Pick<TargetRow, 'state'>,
+    enabled: boolean,
+  ): { state: 'draft'; error: null } | Record<string, never> {
+    return !enabled && (prev.state === 'failed' || prev.state === 'queued')
+      ? { state: 'draft', error: null }
+      : {}
+  }
+
   static composeCaption(
     post: Pick<PostRow, 'caption' | 'hashtags'>,
     t: Pick<TargetRow, 'caption' | 'hashtags'>,
