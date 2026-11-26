@@ -131,6 +131,57 @@ $('#save').onclick = (e) => {
 </script></body></html>`
 }
 
+/**
+ * Studio's Languages page of a video with no language of its own, drawn a moment after it loads (as Studio's is):
+ * "Lingua del video: Imposta lingua" with Conferma, then Add language, a row per language and its dialog.
+ */
+const languagesPage = `<!doctype html><html><head><meta charset="utf-8"><style>
+tp-yt-paper-listbox, tp-yt-paper-item, ytcp-video-translation-row { display: block }
+[hidden] { display: none !important }
+[contenteditable] { border: 1px solid #ccc; min-height: 24px }
+</style></head><body><h1>Lingue</h1><div id="app"></div><script>
+window.calls = []
+setTimeout(() => {
+  app.innerHTML = \`
+  <div id="language-input"><div id="trigger" role="button">Lingua del video <span id="value">Imposta lingua</span></div></div>
+  <tp-yt-paper-listbox id="languages" role="listbox" hidden>
+    <tp-yt-paper-item role="option"><div>Inglese</div><div>English</div></tp-yt-paper-item>
+    <tp-yt-paper-item role="option"><div>Italiano</div><div>Italian</div></tp-yt-paper-item>
+  </tp-yt-paper-listbox>
+  <div id="default" role="checkbox" aria-checked="true" aria-label="Imposta come predefinita per il mio canale">v</div>
+  <button id="confirm">Conferma</button>
+  <div id="rows"></div>
+  <button id="add-translations-button" hidden>Aggiungi lingua</button>
+  <div id="add-list" role="listbox" hidden><div role="option">Inglese</div><div role="option">Francese</div></div>
+  <div role="dialog" hidden><div contenteditable="true"></div><div contenteditable="true"></div>
+    <button id="publish-button">Pubblica</button></div>\`
+  const $ = (q) => document.querySelector(q)
+  $('#trigger').onclick = () => { $('#languages').hidden = false }
+  for (const item of document.querySelectorAll('#languages tp-yt-paper-item'))
+    item.onclick = () => { $('#value').textContent = item.firstElementChild.textContent; $('#languages').hidden = true }
+  $('#default').onclick = (e) => e.target.setAttribute('aria-checked', String(e.target.getAttribute('aria-checked') !== 'true'))
+  $('#confirm').onclick = () => {
+    if ($('#value').textContent === 'Imposta lingua') return
+    window.language = { name: $('#value').textContent, asDefault: $('#default').getAttribute('aria-checked') === 'true' }
+    $('#add-translations-button').hidden = false
+  }
+  $('#add-translations-button').onclick = () => { $('#add-list').hidden = false }
+  for (const o of document.querySelectorAll('#add-list [role=option]'))
+    o.onclick = () => {
+      $('#add-list').hidden = true
+      const row = document.createElement('ytcp-video-translation-row')
+      row.innerHTML = o.textContent + ' <div id="metadata-cell"><button>Aggiungi</button></div>'
+      row.querySelector('button').onclick = () => { $('[role=dialog]').hidden = false }
+      $('#rows').append(row)
+    }
+  $('#publish-button').onclick = () => {
+    const [t, c] = document.querySelectorAll('[role=dialog] [contenteditable]')
+    window.translated = { title: t.innerText.trim(), caption: c.innerText.trim() }
+    $('[role=dialog]').hidden = true
+  }
+}, 1500)
+</script></body></html>`
+
 const chromiumPath = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'].find((p) =>
   existsSync(p),
 )
@@ -171,13 +222,16 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
     rmSync(dataDir, { recursive: true, force: true })
   })
 
-  async function studio(page: string) {
+  async function studio(page: string, languages?: string) {
     const context: BrowserContext = await browser.newContext({ viewport: { width: 1366, height: 860 } })
     context.setDefaultTimeout(4000)
     // Only the video's page is answered; nothing else leaves the browser.
     await context.route('**/*', (route) =>
       route.request().url().startsWith('https://studio.youtube.com/video/')
-        ? route.fulfill({ contentType: 'text/html', body: page })
+        ? route.fulfill({
+            contentType: 'text/html',
+            body: languages && route.request().url().endsWith('/translations') ? languages : page,
+          })
         : route.abort(),
     )
     const pages: import('playwright-core').Page[] = []
@@ -198,7 +252,8 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
       warn: (m) => warnings.push(m),
       snapshot: async () => null,
     }
-    const read = <T>(what: string) => pages[0]!.evaluate((w) => (window as never)[w], what) as Promise<T>
+    const read = <T>(what: string, tab = 0) =>
+      pages[tab]!.evaluate((w) => (window as never)[w], what) as Promise<T>
     return { run, steps, warnings, read, close: () => context.close() }
   }
 
@@ -274,6 +329,24 @@ describe.skipIf(!chromiumPath)('YouTube Studio: changing a video on its page', (
       })
       expect(await s.read('saved')).toMatchObject({ date: want.date, time: want.time })
       expect(s.warnings).toEqual([expect.stringMatching(/^Translations not added: /)])
+    } finally {
+      await s.close()
+    }
+  }, 60_000)
+
+  it('sets the video’s language once its Languages page has drawn it, then adds the translation', async () => {
+    const s = await studio(studioPage({ scheduled: true }), languagesPage)
+    try {
+      await youtube.update(s.run, account, 'abcdefghijk', {
+        tags: ['house'],
+        translations: { en: { title: 'Title', caption: 'Text' } },
+      })
+      expect(await s.read('saved')).toMatchObject({ tags: ['house'] })
+      // Italian, not made the channel's default
+      expect(await s.read('language', 1)).toEqual({ name: 'Italiano', asDefault: false })
+      expect(await s.read('translated', 1)).toEqual({ title: 'Title', caption: 'Text' })
+      expect(s.warnings).toEqual([])
+      expect(s.steps).toContain('Translation added: English')
     } finally {
       await s.close()
     }

@@ -881,10 +881,29 @@ async function setTranslations(run: DriverRun, videoId: string, req: Pick<Publis
  * making it the channel's default.
  */
 async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
-  const trigger = page.locator('#language-input #trigger').first()
-  const shown = async () => ((await trigger.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim()
-  if (!(await trigger.isVisible().catch(() => false))) return
-  if (!/Imposta lingua|Select language|Set language/i.test(await shown())) return
+  // Studio draws the page a moment after it loads: its language field (or, for a video that has its language, the
+  // Add language button) is waited for. Looking at once found nothing, so the language was never set and Add language
+  // never came (26 Nov 2026: "Lingua del video: Imposta lingua" still showing on the failed page).
+  const unsetWords = ['Imposta lingua', 'Select language', 'Set language']
+  // the field's text may carry its label too ("Lingua del video Imposta lingua"); the bare words are its value
+  const unset = label(unsetWords)
+  const field = page.locator('#language-input #trigger').first()
+  const unsetText = page.getByText(label(unsetWords, true)).first()
+  const ready = await firstVisible(
+    [
+      field,
+      unsetText,
+      page.locator('#add-translations-button'),
+      page.getByRole('button', { name: L.addLanguage }),
+    ],
+    20_000,
+  )
+  if (!ready) return
+  const trigger = (await firstVisible([field], 300)) ?? (await firstVisible([unsetText], 300))
+  if (!trigger) return
+  const shown = async () =>
+    ((await trigger.textContent({ timeout: 2000 }).catch(() => '')) ?? '').replace(/\s+/g, ' ').trim()
+  if (!unset.test(await shown())) return
   const italian = new Intl.DisplayNames(['it'], { type: 'language' }).of(lang) ?? lang
   const english = new Intl.DisplayNames(['en'], { type: 'language' }).of(lang) ?? lang
   await trigger.click()
@@ -908,8 +927,7 @@ async function setVideoLanguage(run: DriverRun, page: Page, lang: string) {
   await items.nth(at).scrollIntoViewIfNeeded()
   await items.nth(at).click()
   await sleep(800)
-  if (/Imposta lingua|Select language|Set language/i.test(await shown()))
-    throw new Error(`YouTube did not take ${english} as the video's language`)
+  if (unset.test(await shown())) throw new Error(`YouTube did not take ${english} as the video's language`)
   const asDefault = page.getByRole('checkbox', { name: label(['predefinita', 'default']) }).first()
   if ((await asDefault.getAttribute('aria-checked').catch(() => null)) === 'true')
     await asDefault.click().catch(() => {})
